@@ -1,0 +1,5 @@
+/* 全局搜索 */
+.search-panel { position: absolute; inset: 0; z-index: 5; background: var(--sidebar-bg); padding: 0 4px 8px; display: flex; flex-direction: column; }
+.search-head { display: flex; align-items: center; justify-content: space-between; min-height: 30px; padding: 0 8px; }
+.search-empty { padding: 32px 0; text-align: center; }
+.search-more { flex: 1; min-height: 0; padding: 4px; background: var(--panel-bg); }

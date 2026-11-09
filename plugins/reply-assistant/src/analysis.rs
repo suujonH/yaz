@@ -1,0 +1,407 @@
+//! 按 jev 的方式分析对方最新的几条消息：并行发送两个 decisions 请求（行为与语气、冲突程度），按 jev 的阈值解读。
+
+use std::collections::HashMap;
+
+use zulip_plugin_sdk::abi::LOG_WARNING;
+use zulip_plugin_sdk::serde_json::{Map, Value, json};
+use zulip_plugin_sdk::{Conversation, Message, log, model_center, str_of};
+
+use crate::catalog::{CATALOG, Catalog, Question, Scene};
+use crate::scenes::SceneChoice;
+
+// jev 的阈值：≥ HIT 为有。
+const HIT: f64 = 0.7;
+// 冲突请求只带最新一轮之前的这几条消息。
+const RECENT: usize = 4;
+const MAX_LABELS: usize = 3;
+const FRICTION_OTHER: &str = "friction.other";
+const FRICTION_SELF: &str = "friction.self";
+
+/// jev 分析的结论：对方在做的事、信号、语气（各自最多 3 项，概率从高到低）、没有答案的题数、冲突程度。
+#[derive(Debug, Default, PartialEq)]
+pub struct Findings {
+    pub doing: Vec<String>,
+    pub cues: Vec<String>,
+    pub tones: Vec<String>,
+    pub missing: usize,
+    pub friction: Option<String>,
+}
+
+impl Findings {
+    /// 显示在消息下方的几行。
+    pub fn lines(&self) -> Vec<String> {
+        let mut lines = vec![if self.doing.is_empty() {
+            "对方在：没有明确识别到".to_owned()
+        } else {
+            format!("对方在：{}", self.doing.join("、"))
+        }];
+        if !self.cues.is_empty() {
+            lines.push(format!("信号：{}", self.cues.join("、")));
+        }
+        if !self.tones.is_empty() {
+            lines.push(format!("语气：{}", self.tones.join("、")));
+        }
+        if let Some(friction) = &self.friction {
+            lines.push(format!("冲突：{friction}"));
+        }
+        if self.missing > 0 {
+            lines.push(format!("有 {} 项没能读出", self.missing));
+        }
+        lines
+    }
+}
+
+/// 工作线程调用（阻塞到两个请求都返回）。`context` 为这条消息之前的消息（按时间先后）。
+/// 这条消息是自己发送的时不分析（jev 只分析对方的消息）。
+pub fn analyze(
+    model: &Value,
+    choice: &SceneChoice,
+    message: &Message,
+    context: &[Message],
+) -> Result<Findings, String> {
+    if message.is_outgoing() {
+        return Err("这条是你发送的消息，jev 只分析对方的消息".to_owned());
+    }
+    let catalog = &*CATALOG;
+    let questions = questions_for(choice);
+    let (earlier, latest) = split_latest_round(context, message);
+    let state_of = |earlier: &[&Message]| {
+        json!({
+            "relationship_note": choice.note(),
+            "earlier_messages": to_state(earlier, message),
+            "latest_messages": to_state(&latest, message),
+        })
+    };
+    let state = state_of(&earlier);
+    let friction_state = state_of(&earlier[earlier.len().saturating_sub(RECENT)..]);
+    let behaviour = behaviour_questions(catalog, &questions);
+    let friction = json!({
+        FRICTION_OTHER: score_question(catalog, choice.scene, &catalog.friction_other_question),
+        FRICTION_SELF: score_question(catalog, choice.scene, &catalog.friction_self_question),
+    });
+
+    let (answers, friction_answers) = std::thread::scope(|scope| {
+        let friction_task = scope.spawn(|| model_center::decide(model, &friction_state, &friction));
+        let answers = model_center::decide(model, &state, &behaviour);
+        let friction_answers = friction_task
+            .join()
+            .unwrap_or_else(|_| Err("分析线程异常退出".to_owned()));
+        (answers, friction_answers)
+    });
+    let answers = answers?;
+    let friction_answers = friction_answers
+        .inspect_err(|error| log(LOG_WARNING, &format!("jev 冲突程度分析失败：{error}")))
+        .ok();
+    Ok(read_findings(
+        catalog,
+        &questions,
+        &answers,
+        friction_answers.as_ref(),
+    ))
+}
+
+fn questions_for(choice: &SceneChoice) -> Vec<&'static Question> {
+    choice
+        .scene
+        .questions
+        .iter()
+        .filter(|q| match &q.relationships {
+            None => true,
+            Some(allowed) => choice.relationship.is_some_and(|r| allowed.contains(&r.id)),
+        })
+        .collect()
+}
+
+// 最新一轮：这条消息与它之前同一个人连续发送的消息。返回（更早的消息，最新一轮）。
+fn split_latest_round<'a>(
+    context: &'a [Message],
+    message: &'a Message,
+) -> (Vec<&'a Message>, Vec<&'a Message>) {
+    let mut start = context.len();
+    while start > 0
+        && !context[start - 1].is_outgoing()
+        && context[start - 1].sender_name == message.sender_name
+    {
+        start -= 1;
+    }
+    let earlier = context[..start].iter().collect();
+    let latest = context[start..]
+        .iter()
+        .chain(std::iter::once(message))
+        .collect();
+    (earlier, latest)
+}
+
+// 群聊中 jev 仍只区分“我 / 对方”，在文字前加上发言人。
+fn to_state(messages: &[&Message], target: &Message) -> Value {
+    let group = match &target.conv {
+        Conversation::Channel { .. } => true,
+        Conversation::Direct { user_ids } => user_ids.len() > 1,
+    };
+    let items: Vec<Value> = messages
+        .iter()
+        .map(|m| {
+            let outgoing = m.is_outgoing();
+            let text = if group && !outgoing {
+                format!("{}: {}", m.sender_name, m.text)
+            } else {
+                m.text.clone()
+            };
+            json!({"from": if outgoing { "user" } else { "other" }, "text": text})
+        })
+        .collect();
+    Value::Array(items)
+}
+
+fn behaviour_questions(catalog: &Catalog, questions: &[&Question]) -> Value {
+    let mut map = Map::new();
+    for q in questions {
+        map.insert(
+            q.id.clone(),
+            json!({
+                "type": "noul",
+                "instructions": format!("{} {}", q.question, catalog.data_note),
+                "criteria": {"true": q.yes, "false": q.no},
+            }),
+        );
+    }
+    Value::Object(map)
+}
+
+// 冲突程度题：6 个等级，例子为空时不写 examples。
+fn score_question(catalog: &Catalog, scene: &Scene, question: &str) -> Value {
+    let criteria: Vec<Value> = catalog
+        .friction_levels
+        .iter()
+        .enumerate()
+        .map(|(i, level)| {
+            let mut criterion = json!({"what": level.what});
+            if let Some(examples) = scene.friction_examples.get(i).filter(|e| !e.is_empty()) {
+                criterion["examples"] = json!(examples);
+            }
+            criterion
+        })
+        .collect();
+    json!({
+        "type": "score",
+        "instructions": format!("{question} {}", catalog.data_note),
+        "criteria": criteria,
+    })
+}
+
+fn read_findings(
+    catalog: &Catalog,
+    questions: &[&Question],
+    answers: &Value,
+    friction_answers: Option<&Value>,
+) -> Findings {
+    let mut probabilities: HashMap<&str, f64> = HashMap::new();
+    for q in questions {
+        let answer = &answers[q.id.as_str()];
+        if str_of(answer, "type") == "noul"
+            && let Some(p) = answer["noul"].as_f64()
+            && (0.0..=1.0).contains(&p)
+        {
+            probabilities.insert(&q.id, p);
+        }
+    }
+    let labels = |filter: &dyn Fn(&Question) -> bool| {
+        let mut hits: Vec<(&Question, f64)> = questions
+            .iter()
+            .filter(|q| filter(q))
+            .filter_map(|q| {
+                let p = *probabilities.get(q.id.as_str())?;
+                (p >= HIT).then_some((*q, p))
+            })
+            .collect();
+        hits.sort_by(|a, b| b.1.total_cmp(&a.1));
+        hits.iter()
+            .take(MAX_LABELS)
+            .map(|(q, _)| q.label.clone())
+            .collect::<Vec<_>>()
+    };
+    Findings {
+        doing: labels(&|q| q.kind == "behavior" && q.role != "cue"),
+        cues: labels(&|q| q.kind == "behavior" && q.role == "cue"),
+        tones: labels(&|q| q.kind == "tone"),
+        missing: questions
+            .iter()
+            .filter(|q| !probabilities.contains_key(q.id.as_str()))
+            .count(),
+        friction: friction_text(catalog, friction_answers),
+    }
+}
+
+// 两方中较高的一方（0～5），≥ 1 时显示等级与来源；没有答案时为 None。
+fn friction_text(catalog: &Catalog, answers: Option<&Value>) -> Option<String> {
+    let answers = answers?;
+    let other = answers[FRICTION_OTHER]["score"].as_f64();
+    let own = answers[FRICTION_SELF]["score"].as_f64();
+    let level = other.unwrap_or(0.0).max(own.unwrap_or(0.0));
+    if level < 1.0 {
+        return None;
+    }
+    let source = match (
+        other.is_some_and(|s| s >= 1.0),
+        own.is_some_and(|s| s >= 1.0),
+    ) {
+        (true, true) => "双方都有",
+        (true, false) => "来自对方",
+        _ => "来自你",
+    };
+    let index = (level.round() as usize).min(catalog.friction_levels.len().saturating_sub(1));
+    Some(format!(
+        "{}（{source}）",
+        catalog.friction_levels[index].label
+    ))
+}
+
+#[cfg(test)]
+mod tests {
+    use zulip_plugin_sdk::abi::MSG_OUTGOING;
+
+    use super::*;
+    use crate::scenes::parse_identity;
+
+    fn message(id: i64, sender: &str, flags: u32, conv: Conversation) -> Message {
+        Message {
+            id,
+            account_id: 1,
+            timestamp: 0,
+            flags,
+            sender_id: id,
+            sender_name: sender.to_owned(),
+            sender_email: String::new(),
+            conv,
+            html: String::new(),
+            text: format!("文字{id}"),
+            reactions: Vec::new(),
+            uploads: Vec::new(),
+            last_edit_timestamp: None,
+        }
+    }
+
+    fn direct() -> Conversation {
+        Conversation::Direct { user_ids: vec![7] }
+    }
+
+    #[test]
+    fn latest_round_is_consecutive_messages_of_sender() {
+        let context = vec![
+            message(1, "甲", 0, direct()),
+            message(2, "我", MSG_OUTGOING, direct()),
+            message(3, "甲", 0, direct()),
+            message(4, "甲", 0, direct()),
+        ];
+        let target = message(5, "甲", 0, direct());
+        let (earlier, latest) = split_latest_round(&context, &target);
+        assert_eq!(earlier.iter().map(|m| m.id).collect::<Vec<_>>(), [1, 2]);
+        assert_eq!(latest.iter().map(|m| m.id).collect::<Vec<_>>(), [3, 4, 5]);
+    }
+
+    #[test]
+    fn state_prefixes_sender_in_group_only() {
+        let other = message(1, "甲", 0, direct());
+        let mine = message(2, "我", MSG_OUTGOING, direct());
+        let state = to_state(&[&other, &mine], &other);
+        assert_eq!(state[0], json!({"from": "other", "text": "文字1"}));
+        assert_eq!(state[1]["from"], "user");
+
+        let channel = message(
+            3,
+            "乙",
+            0,
+            Conversation::Channel {
+                stream_id: 1,
+                stream_name: "s".into(),
+                topic: "t".into(),
+            },
+        );
+        let state = to_state(&[&channel, &mine], &channel);
+        assert_eq!(state[0]["text"], "乙: 文字3");
+        assert_eq!(state[1]["text"], "文字2");
+    }
+
+    #[test]
+    fn outgoing_message_is_not_analyzed() {
+        let mine = message(1, "我", MSG_OUTGOING, direct());
+        let choice = parse_identity("work/peer").unwrap();
+        assert!(analyze(&json!({}), &choice, &mine, &[]).is_err());
+    }
+
+    #[test]
+    fn relationship_questions_need_matching_relationship() {
+        let scene = &CATALOG.scenes[0];
+        let unspecified = SceneChoice {
+            scene,
+            relationship: None,
+        };
+        assert!(
+            questions_for(&unspecified)
+                .iter()
+                .all(|q| q.relationships.is_none())
+        );
+    }
+
+    #[test]
+    fn findings_apply_thresholds_and_order() {
+        let scene = CATALOG.scene("work").unwrap();
+        let behaviours: Vec<&Question> = scene
+            .questions
+            .iter()
+            .filter(|q| q.relationships.is_none() && q.kind == "behavior" && q.role != "cue")
+            .take(3)
+            .collect();
+        let mut answers = Map::new();
+        answers.insert(
+            behaviours[0].id.clone(),
+            json!({"type": "noul", "noul": 0.8}),
+        );
+        answers.insert(
+            behaviours[1].id.clone(),
+            json!({"type": "noul", "noul": 0.95}),
+        );
+        answers.insert(
+            behaviours[2].id.clone(),
+            json!({"type": "noul", "noul": 0.5}),
+        );
+        let findings = read_findings(&CATALOG, &behaviours, &Value::Object(answers), None);
+        assert_eq!(
+            findings.doing,
+            vec![behaviours[1].label.clone(), behaviours[0].label.clone()]
+        );
+        assert_eq!(findings.missing, 0);
+
+        let empty = read_findings(&CATALOG, &behaviours, &json!({}), None);
+        assert_eq!(empty.missing, 3);
+        assert_eq!(empty.lines()[0], "对方在：没有明确识别到");
+    }
+
+    #[test]
+    fn friction_takes_higher_side() {
+        let text = |answers: Value| friction_text(&CATALOG, Some(&answers));
+        assert_eq!(friction_text(&CATALOG, None), None);
+        assert_eq!(text(json!({FRICTION_OTHER: {"score": 0}})), None);
+        let levels = &CATALOG.friction_levels;
+        assert_eq!(
+            text(json!({FRICTION_OTHER: {"score": 2}, FRICTION_SELF: {"score": 0}})),
+            Some(format!("{}（来自对方）", levels[2].label))
+        );
+        assert_eq!(
+            text(json!({FRICTION_OTHER: {"score": 1}, FRICTION_SELF: {"score": 3}})),
+            Some(format!("{}（双方都有）", levels[3].label))
+        );
+        assert_eq!(
+            text(json!({FRICTION_SELF: {"score": 9}})),
+            Some(format!("{}（来自你）", levels[5].label))
+        );
+    }
+
+    #[test]
+    fn score_question_has_six_levels() {
+        let scene = CATALOG.scene("work").unwrap();
+        let question = score_question(&CATALOG, scene, "Q");
+        assert_eq!(question["criteria"].as_array().unwrap().len(), 6);
+        assert_eq!(question["type"], "score");
+    }
+}

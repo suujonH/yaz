@@ -1,0 +1,101 @@
+/* 设置 */
+.settings { flex: 1; min-height: 0; display: flex; background: var(--panel-bg); border-top: 1px solid var(--panel-border); }
+.settings-nav { width: 160px; flex: none; overflow: auto; padding: 8px; border-right: 1px solid var(--divider); }
+.settings-main { flex: 1; min-width: 0; position: relative; display: flex; flex-direction: column; background: var(--window-bg); }
+.settings-scroll { flex: 1; min-height: 0; padding: 16px 20px 72px; }
+.settings-page { display: flex; flex-direction: column; gap: 8px; }
+.settings-page .setting-label { overflow-wrap: anywhere; }
+.settings-title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.settings-title-row .setting-title, .settings-title-row .setting-section { margin-bottom: 0; }
+.settings-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.settings-actions.center { justify-content: center; margin-top: 16px; }
+.settings-radios { display: flex; align-items: center; gap: 20px; }
+.settings-select { width: 200px; }
+.settings-text { width: 260px; display: flex; flex-direction: column; gap: 6px; }
+.settings-tokens { display: flex; justify-content: flex-end; gap: 6px; }
+.settings-slider { width: 260px; display: flex; align-items: center; gap: 12px; }
+.settings-slider .text-sub { width: 44px; text-align: right; flex: none; }
+.settings-color { width: 48px; height: 28px; padding: 0; border: 1px solid var(--input-border); border-radius: var(--radius-sm); background: transparent; }
+.settings-presets { display: flex; flex-wrap: wrap; gap: 8px; }
+.settings-preset { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px; border: 0; border-radius: var(--radius); background: transparent; }
+.settings-preset:hover { background: var(--hover); }
+.settings-swatch { width: 72px; height: 48px; border-radius: var(--radius); border: 2px solid transparent; background-clip: content-box; padding: 2px; }
+.settings-preset.selected .settings-swatch { border-color: var(--text-primary); }
+.settings-error .setting-label { color: var(--danger); }
+
+/* 关于 */
+.settings-about { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 20px 16px; }
+.settings-about-logo { color: var(--brand); }
+.settings-about-name { font-size: var(--fs-large); font-weight: 600; }
+.settings-about-status { max-width: 360px; text-align: center; white-space: normal; }
+
+/* 二级导航 */
+.settings-sections { padding-left: 12px; }
+
+/* Zulip 账号 */
+.settings-accounts { flex: 1; min-height: 0; display: flex; }
+.settings-account-list { width: 220px; flex: none; display: flex; flex-direction: column; border-right: 1px solid var(--divider); background: var(--panel-bg); }
+.settings-account-scroll { flex: 1; min-height: 0; padding: 8px; }
+.settings-account-header { padding: 12px 10px 4px; }
+.settings-account-add { flex: none; padding: 8px; }
+.settings-account-nav { width: 150px; flex: none; overflow: auto; padding: 8px; border-right: 1px solid var(--divider); background: var(--panel-bg); }
+.settings-dimmed { display: inline-flex; opacity: 0.45; }
+.settings-avatar { display: inline-flex; }
+
+/* 强化推送、话题消息设置 */
+.settings-cells { display: flex; align-items: center; }
+.settings-cell { width: 64px; display: flex; justify-content: center; text-align: center; }
+.settings-cell.wide { width: 128px; }
+.settings-effects { width: 150px; display: flex; flex-direction: column; gap: 2px; margin-right: 8px; }
+.settings-effect { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.settings-effect span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.settings-chevron { color: var(--text-tertiary); transition: transform 0.15s; }
+.settings-chevron.open { transform: rotate(90deg); }
+.settings-chevron.unavailable { visibility: hidden; }
+.settings-topics { padding-left: 22px; }
+.settings-topics-note { padding: 6px 12px; }
+
+/* 资源 */
+.settings-usage { display: flex; flex-direction: column; gap: 8px; padding: 12px 16px; }
+.settings-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 16px; }
+.settings-file-icon { color: var(--brand); }
+.ref-table { margin: 0 12px 10px 76px; border: 1px solid var(--divider); border-radius: var(--radius); overflow: hidden; }
+.ref-table-note { padding: 8px 12px; }
+.ref-cells { display: grid; grid-template-columns: 140px 96px minmax(0, 1fr); column-gap: 16px; align-items: center; font-size: var(--fs-sub); }
+.ref-cells > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ref-table-head { min-height: 30px; padding: 0 30px 0 8px; color: var(--text-secondary); background: var(--fill); border-bottom: 1px solid var(--row-divider); }
+.ref-table .list-row + .list-row { border-top: 1px solid var(--row-divider); }
+
+/* 我：更换头像的裁剪框 */
+.settings-crop { position: relative; overflow: hidden; background: #fff; cursor: move; }
+.settings-crop img { position: absolute; max-width: none; user-select: none; }
+.settings-crop-mask { position: absolute; inset: 0; border-radius: 50%; box-shadow: 0 0 0 400px rgba(0, 0, 0, 0.5); pointer-events: none; }
+.settings-crop-zoom { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+.settings-crop-zoom .slider { flex: 1; }
+
+/* 插件 */
+.settings-approval-section { margin-top: 10px; font-weight: 600; }
+.settings-approval-item { margin: 2px 0 0 10px; }
+.settings-approval-notice { margin-top: 6px; color: var(--danger); }
+.settings-field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+.settings-field > .btn { align-self: flex-start; }
+.settings-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.settings-tag { display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 2px 0 8px; border: 1px solid var(--divider); border-radius: var(--radius-sm); font-size: var(--fs-small); }
+.settings-tag-input { display: flex; gap: 8px; margin-top: 6px; }
+.settings-tag-input .input { flex: 1; }
+.settings-list { display: flex; gap: 16px; height: 320px; }
+.settings-list-rows { width: 200px; flex: none; display: flex; flex-direction: column; gap: 4px; overflow: auto; padding: 4px; border: 1px solid var(--divider); border-radius: var(--radius); }
+.settings-list-detail { flex: 1; min-width: 0; overflow: auto; display: flex; flex-direction: column; align-items: stretch; gap: 4px; }
+.settings-list-detail > .btn { align-self: flex-start; }
+.settings-recorder { width: 180px; }
+
+/* 插件日志 */
+.settings-log-window { flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--panel-bg); }
+.settings-log { flex: 1; min-height: 0; padding: 8px 12px; font-family: Consolas, "Cascadia Mono", monospace; font-size: var(--fs-small); }
+.settings-log-line { margin: 1px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.settings-log-line.debug { color: var(--text-tertiary); }
+.settings-log-line.success { color: var(--online); }
+.settings-log-line.io { color: var(--brand); }
+.settings-log-line.warning { color: var(--warning-text); }
+.settings-log-line.error { color: var(--danger); }
+.settings-log-foot { flex: none; display: flex; justify-content: flex-end; gap: 8px; padding: 8px 12px; border-top: 1px solid var(--divider); }

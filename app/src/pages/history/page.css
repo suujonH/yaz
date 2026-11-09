@@ -1,0 +1,47 @@
+/* 聊天记录 */
+.history { flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--panel-bg); }
+.history-bar { flex: none; display: flex; align-items: center; gap: 8px; padding: 10px 16px 4px; }
+.history-bar .input { flex: 1; }
+.history-tabs { flex: none; padding: 0 16px; }
+.history-filter { flex: none; display: flex; align-items: center; gap: 8px; padding: 6px 16px 0; }
+.history-filter-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.media-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; padding: 2px 12px; }
+.media-tile { min-width: 0; }
+.media-video {
+  aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  padding: 4px; border-radius: var(--radius); background: var(--fill); cursor: pointer; overflow: hidden;
+}
+.media-video .text-caption { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 收藏、聊天记录、文件、提醒、好友管理器、系统通知共用（widgets/panes.rs、message_results.rs、remote_image.rs） */
+.split { flex: 1; min-height: 0; display: flex; background: var(--panel-bg); }
+.split-nav {
+  flex: none; width: 180px; display: flex; flex-direction: column; gap: 4px; padding: 8px;
+  background: var(--sidebar-bg); border-right: 1px solid var(--divider);
+}
+.split-main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: relative; }
+.pane-head { flex: none; display: flex; align-items: center; gap: 8px; padding: 12px 16px 8px; }
+.pane-title { flex: 1; min-width: 0; font-size: var(--fs-h3); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pane-actions { display: flex; align-items: center; gap: 8px; }
+.pane-select { width: 120px; }
+.selection-bar {
+  display: flex; align-items: center; justify-content: center; gap: 12px; padding: 10px 16px;
+  border-top: 1px solid var(--divider); background: var(--card);
+}
+.result-list { flex: 1; min-height: 0; position: relative; }
+.result-status { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+.result-more { position: absolute; left: 0; right: 0; bottom: 8px; text-align: center; pointer-events: none; }
+.result-date { padding: 10px 16px 4px; }
+.result-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; font-size: var(--fs-small); }
+.result-text {
+  max-width: 100%; color: var(--text-primary); overflow: hidden; overflow-wrap: anywhere; white-space: pre-wrap;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3;
+}
+.list-row:has(.result-body, .result-text) { align-items: flex-start; }
+.result-thumbs { display: flex; flex-wrap: wrap; gap: 6px; }
+.result-link { max-width: 100%; color: var(--brand); overflow-wrap: anywhere; cursor: pointer; }
+.result-link:hover { text-decoration: underline; }
+.remote-image { flex: none; border-radius: var(--radius); background: var(--fill); overflow: hidden; }
+.remote-image img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.remote-image.fill { width: 100%; aspect-ratio: 1; }
+.remote-image.clickable { cursor: pointer; }

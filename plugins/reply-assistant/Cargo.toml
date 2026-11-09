@@ -1,0 +1,15 @@
+[package]
+name = "plugin-reply-assistant"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[lints]
+workspace = true
+
+[dependencies]
+zulip-plugin-sdk = { workspace = true, features = ["annotation-store"] }
+rusqlite.workspace = true

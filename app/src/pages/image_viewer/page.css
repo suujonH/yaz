@@ -1,0 +1,25 @@
+/* 图片查看器：标题栏和内容固定深色，用深色主题的变量覆盖；菜单和对话框在窗口外层，跟随主题 */
+.viewer-window {
+  background: #1b1b1b; color: var(--text-primary);
+  --text-primary: #e6e6e6; --text-secondary: #8c8c8c; --text-tertiary: #666666;
+  --hover: #3a3a3a; --pressed: #454545; --card: #2b2b2b; --fill: #333333; --divider: #333333;
+}
+.viewer { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.viewer-stage { flex: 1; min-height: 0; position: relative; overflow: hidden; }
+.viewer-surface { position: absolute; inset: 0; overflow: hidden; }
+.viewer-image { position: absolute; left: 0; top: 0; max-width: none; transform-origin: 0 0; pointer-events: none; user-select: none; }
+.viewer-image.animating { transition: transform 0.25s ease-out; }
+.viewer-status { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; animation: viewer-status-in 0s linear 0.3s backwards; }
+@keyframes viewer-status-in { from { visibility: hidden; } }
+.viewer-nav { position: absolute; top: 50%; margin-top: -18px; border-radius: 50%; background: rgba(0, 0, 0, 0.4); }
+.viewer-nav.left { left: 12px; }
+.viewer-nav.right { right: 12px; }
+.viewer-tip {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 12px 26px; border-radius: 14px;
+  background: rgba(30, 31, 34, 0.9); border: 1px solid rgba(255, 255, 255, 0.2); color: #ffffff;
+  font-size: 16px; font-weight: 600; pointer-events: none;
+}
+.viewer-toolbar { flex: none; height: 52px; display: flex; align-items: center; justify-content: center; gap: 8px; background: #111111; }
+.viewer-scale { width: 48px; text-align: center; }
+.viewer-separator { width: 1px; height: 20px; margin: 0 8px; background: var(--divider); }
+.viewer-count { margin-left: 12px; }

@@ -1,0 +1,15 @@
+[package]
+name = "yaz-updater"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+zulip-update = { path = "../zulip-update", default-features = false }
+chrono.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

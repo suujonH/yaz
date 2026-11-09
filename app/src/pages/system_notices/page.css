@@ -1,0 +1,4 @@
+/* 系统通知 */
+.notices { flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--panel-bg); }
+.result-text.notice-text { display: block; }
+.result-text.notice-text.clamp { display: -webkit-box; -webkit-line-clamp: 4; }

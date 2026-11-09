@@ -1,0 +1,201 @@
+{
+  "id": "com.yaz.reply-assistant",
+  "name": "回复助手",
+  "version": "1.0.0",
+  "author": "YaZ",
+  "description": "先读懂对方再回复：在消息右键菜单中点击“分析这条消息”，先用 jev 分析模型按场景识别对方在做什么、语气与冲突程度，再由 AI 模型结合此前的聊天给出建议和候选回复，点击候选回复填入输入框（不会自动发送）。场景按话题、身份按好友在话题资料面板和用户资料卡中设置",
+  "api_version": 1,
+  "library": "plugin_reply_assistant.dll",
+  "permissions": [
+    "read_message",
+    "annotate_message",
+    "fill_composer"
+  ],
+  "dependencies": [
+    "com.yaz.model-center"
+  ],
+  "message_menus": [
+    {
+      "id": 1,
+      "name": "分析这条消息",
+      "shortcut": "ctrl+left_click"
+    }
+  ],
+  "panels": [
+    {
+      "kind": "topic",
+      "label": "话题场景"
+    },
+    {
+      "kind": "user",
+      "label": "好友身份"
+    }
+  ],
+  "settings": [
+    {
+      "key": "analysis_model",
+      "label": "分析模型（jev，可选）",
+      "type": "resource",
+      "resource": "decision_model",
+      "plugin": "com.yaz.model-center"
+    },
+    {
+      "key": "model",
+      "label": "写回复模型（可选）",
+      "type": "resource",
+      "resource": "model",
+      "plugin": "com.yaz.model-center"
+    },
+    {
+      "key": "context",
+      "label": "上下文",
+      "type": "select",
+      "default": "10",
+      "options": [
+        {
+          "value": "0",
+          "label": "只发送这条消息"
+        },
+        {
+          "value": "5",
+          "label": "附带此前 5 条消息"
+        },
+        {
+          "value": "10",
+          "label": "附带此前 10 条消息"
+        },
+        {
+          "value": "20",
+          "label": "附带此前 20 条消息"
+        }
+      ]
+    },
+    {
+      "key": "default_scene",
+      "label": "默认场景（话题没有设置场景时）",
+      "type": "select",
+      "default": "general",
+      "options": [
+        {
+          "value": "general",
+          "label": "通用"
+        },
+        {
+          "value": "work",
+          "label": "工作"
+        },
+        {
+          "value": "romance",
+          "label": "恋爱"
+        },
+        {
+          "value": "friends",
+          "label": "朋友"
+        },
+        {
+          "value": "family",
+          "label": "家人"
+        }
+      ]
+    },
+    {
+      "key": "default_identity",
+      "label": "默认身份（私聊对方没有设置身份时）",
+      "type": "select",
+      "default": "none",
+      "options": [
+        {
+          "value": "none",
+          "label": "不指定"
+        },
+        {
+          "value": "general/unspecified",
+          "label": "通用 / 不确定"
+        },
+        {
+          "value": "general/errands",
+          "label": "通用 / 办事与服务"
+        },
+        {
+          "value": "work/senior",
+          "label": "工作 / 上级"
+        },
+        {
+          "value": "work/peer",
+          "label": "工作 / 同事"
+        },
+        {
+          "value": "work/report",
+          "label": "工作 / 下属"
+        },
+        {
+          "value": "work/client_or_external",
+          "label": "工作 / 客户或外部人员"
+        },
+        {
+          "value": "romance/just_connected",
+          "label": "恋爱 / 刚认识"
+        },
+        {
+          "value": "romance/talking",
+          "label": "恋爱 / 暧昧期"
+        },
+        {
+          "value": "romance/dating",
+          "label": "恋爱 / 约会中"
+        },
+        {
+          "value": "romance/established",
+          "label": "恋爱 / 伴侣"
+        },
+        {
+          "value": "romance/ex_friends",
+          "label": "恋爱 / 前任（仍是朋友）"
+        },
+        {
+          "value": "romance/ex_distant",
+          "label": "恋爱 / 前任（很少联系）"
+        },
+        {
+          "value": "friends/new",
+          "label": "朋友 / 新朋友"
+        },
+        {
+          "value": "friends/regular",
+          "label": "朋友 / 朋友"
+        },
+        {
+          "value": "friends/close",
+          "label": "朋友 / 好朋友"
+        },
+        {
+          "value": "family/parent_or_elder",
+          "label": "家人 / 父母或长辈"
+        },
+        {
+          "value": "family/sibling_or_peer",
+          "label": "家人 / 兄弟姐妹或同辈"
+        },
+        {
+          "value": "family/child_or_younger",
+          "label": "家人 / 子女或晚辈"
+        },
+        {
+          "value": "family/partner_family",
+          "label": "家人 / 伴侣的家人"
+        }
+      ]
+    },
+    {
+      "key": "background",
+      "label": "关于我（可选）",
+      "type": "multiline"
+    },
+    {
+      "key": "prompt",
+      "label": "提示词",
+      "type": "multiline",
+      "default": "你是聊天回复助手，原则是先读懂对方，再回复。根据聊天记录与需要回复的消息（如果提供了分析模型的结论，以它为准），判断对方真正想要什么、此刻的风险（低 / 中 / 高及原因）以及对方需要什么，再给出建议的回应方式和 3 条可以直接发送的候选回复（语气自然，使用聊天中使用的语言，符合“我”的身份）。只输出一个 JSON 对象，不要输出其它内容：{\"intent\": \"对方的意图\", \"risk\": \"风险\", \"needs\": \"对方需要什么\", \"advice\": \"建议怎么回应\", \"replies\": [\"候选回复 1\", \"候选回复 2\", \"候选回复 3\"]}"
+    }
+  ]
+}

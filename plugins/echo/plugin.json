@@ -1,0 +1,60 @@
+{
+  "id": "com.yaz.echo",
+  "name": "回声示例",
+  "version": "1.0.0",
+  "author": "YaZ",
+  "description": "示例插件：私聊收到 ping 时回复 pong；演示消息过滤、通知事件、菜单、工具栏按钮、附加内容、设置和面板。",
+  "api_version": 1,
+  "library": "plugin_echo.dll",
+  "permissions": ["read_message", "read_contacts", "send_message", "modify_message", "annotate_message", "fill_composer", "notify", "ui_dialog"],
+  "events": {
+    "on_message": 30000,
+    "filter_incoming": 30000,
+    "filter_outgoing": 30000,
+    "on_message_edited": 30000,
+    "on_message_deleted": 30000,
+    "on_reaction_changed": 30000,
+    "on_read_state_changed": 30000,
+    "on_topic_moved": 30000,
+    "on_channel_changed": 30000,
+    "on_user_changed": 30000,
+    "on_presence_changed": 30000,
+    "on_conversation_opened": 30000,
+    "on_connection_changed": 30000,
+    "on_typing_changed": 30000,
+    "on_scheduled_changed": 30000,
+    "on_reminders_changed": 30000,
+    "on_draft_changed": 30000,
+    "on_user_topic_changed": 30000,
+    "on_muted_users_changed": 30000,
+    "on_realm_changed": 30000
+  },
+  "menus": [
+    { "id": 1, "name": "写一条日志", "shortcut": "" }
+  ],
+  "message_menus": [
+    { "id": 1, "name": "附加回声", "shortcut": "" },
+    { "id": 4, "name": "回声：自己的私聊消息", "shortcut": "", "when": { "conv": "direct", "own": true } }
+  ],
+  "conversation_menus": [
+    { "id": 1, "name": "回声：会话" }
+  ],
+  "user_menus": [
+    { "name": "回声", "children": [{ "id": 2, "name": "回声：用户" }] }
+  ],
+  "channel_menus": [
+    { "id": 3, "name": "回声：频道" }
+  ],
+  "composer_buttons": [
+    { "id": 1, "icon": "edit", "tooltip": "回声：替换输入框" }
+  ],
+  "panels": [
+    { "kind": "user", "label": "回声称呼" }
+  ],
+  "settings": [
+    { "key": "reply", "label": "回复内容", "default": "pong" },
+    { "key": "test", "label": "测试", "type": "button" },
+    { "key": "login_dialog", "label": "登录后弹出的对话框标题", "default": "" },
+    { "key": "login_flood", "label": "弹出前发送的日志和提示条数", "default": "0" }
+  ]
+}

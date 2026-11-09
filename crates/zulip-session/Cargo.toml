@@ -1,0 +1,33 @@
+[package]
+name = "zulip-session"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+zulip-core.workspace = true
+zulip-api.workspace = true
+zulip-store.workspace = true
+chrono.workspace = true
+futures.workspace = true
+hex.workspace = true
+image.workspace = true
+log.workspace = true
+mime_guess.workspace = true
+parking_lot.workspace = true
+regex.workspace = true
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+url.workspace = true
+
+[dev-dependencies]
+test-server.workspace = true
+tempfile.workspace = true

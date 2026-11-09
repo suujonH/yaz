@@ -1,0 +1,166 @@
+/* 输入框。.zl 系列是编辑区里由 render.rs 生成的元素。 */
+.composer { position: relative; display: flex; flex-direction: column; background: transparent; border-top: 1px solid var(--divider); }
+.composer-resize { position: absolute; left: 0; right: 0; top: -3px; height: 6px; cursor: row-resize; z-index: 6; }
+.composer-resize-mask { position: fixed; inset: 0; cursor: row-resize; z-index: 1000; }
+.composer-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 6px 14px 0; flex: none; }
+.composer-tools { display: flex; align-items: center; gap: 4px; }
+.composer-tools .icon-btn.active { background: var(--pressed); }
+.composer-format { display: flex; align-items: center; gap: 4px; overflow: hidden; max-width: 340px; transition: max-width 0.2s ease-out, opacity 0.2s; }
+.composer-format.collapsed { max-width: 0; opacity: 0; pointer-events: none; }
+.composer-editbar {
+  display: flex; align-items: center; gap: 4px; margin: 4px 20px 0; padding: 0 4px 0 10px; border-radius: var(--radius-sm);
+  background: var(--fill); font-size: var(--fs-sub); color: var(--text-secondary); flex: none; min-height: 26px;
+}
+.composer-editbar-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.composer-files { display: flex; flex-wrap: wrap; gap: 8px; padding: 6px 20px 0; flex: none; }
+.composer-files .file-card { width: 220px; }
+.composer-body { position: relative; flex: 1; min-height: 0; display: flex; }
+.composer-body.dragging::after {
+  content: ""; position: absolute; inset: 4px 12px; border: 2px dashed var(--brand); border-radius: var(--radius-lg); pointer-events: none;
+}
+.composer-context { flex: 1; min-width: 0; display: flex; min-height: 0; }
+.composer-placeholder { position: absolute; left: 20px; top: 4px; color: var(--text-tertiary); pointer-events: none; font-size: var(--fs-body); }
+.composer-foot { display: flex; justify-content: flex-end; align-items: center; padding: 0 20px 12px; flex: none; }
+.composer-send-menu { display: inline-flex; }
+.composer-send { border-radius: var(--radius-sm) 0 0 var(--radius-sm); min-width: 64px; }
+/* 不能发送时底色不变，只有文字变浅 */
+.composer-foot .composer-send:disabled { background: var(--brand); color: rgba(255, 255, 255, 0.6); }
+.composer-send-split { width: 1px; height: 32px; background: #fff; opacity: 0.4; }
+.composer-foot .composer-send-more {
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0; background: var(--brand); color: #fff; height: 32px; width: 28px;
+}
+.composer-foot .composer-send-more:hover:not(:disabled) { background: var(--brand-hover); }
+.composer-popup { padding: 4px; width: 300px; max-height: 320px; }
+.composer-popup .list-row { cursor: pointer; }
+.composer-popup-glyph { display: inline-flex; width: 28px; height: 28px; align-items: center; justify-content: center; font-size: 18px; font-family: "Segoe UI Emoji", var(--font); flex: none; }
+.composer-popup-glyph img { width: 22px; height: 22px; }
+.composer-table-bar {
+  position: absolute; z-index: 5; height: 28px; display: flex; align-items: center; justify-content: space-between; pointer-events: none;
+  /* 输入框滚动时工具栏停在顶部、盖在表格上，两组按钮之间也要遮住 */
+  background: var(--panel-bg);
+}
+.composer-table-bar > div { display: flex; gap: 2px; pointer-events: auto; background: var(--panel-bg); border-radius: var(--radius-sm); }
+.composer-table-bar .icon-btn.active { color: var(--brand); }
+.composer-grid { display: grid; gap: 2px; padding: 8px; }
+.composer-grid-cell { width: 13px; height: 13px; border-radius: 2px; background: var(--fill); cursor: pointer; }
+.composer-grid-cell.on { background: var(--brand); opacity: 0.4; }
+.composer-grid-cell.on.head { opacity: 0.8; }
+.composer-grid-size { display: flex; justify-content: center; align-items: center; gap: 6px; padding: 0 8px 8px; font-size: var(--fs-small); }
+.composer-grid-size .input { width: 56px; }
+.composer-dialog-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.composer-dialog-row > .input { flex: 1; }
+.composer-table-size { display: flex; align-items: center; gap: 8px; }
+.composer-table-size > .input { flex: 1; min-width: 0; }
+.composer-table-size > .input + span { margin-left: 8px; }
+.composer-dialog-label { font-size: var(--fs-small); color: var(--text-secondary); margin-bottom: 4px; }
+.composer-emoji { width: 352px; height: 340px; display: flex; flex-direction: column; padding: 8px; gap: 4px; }
+.composer-emoji-title { font-size: var(--fs-sub); color: var(--text-secondary); margin: 6px 0 4px 4px; }
+.composer-emoji-row { display: grid; grid-template-columns: repeat(9, 36px); }
+.composer-emoji-cell {
+  width: 36px; height: 36px; border: 0; background: transparent; border-radius: var(--radius-sm); padding: 0; font-size: 22px; line-height: 36px;
+  font-family: "Segoe UI Emoji", var(--font); display: inline-flex; align-items: center; justify-content: center; overflow: hidden;
+}
+.composer-emoji-cell:hover { background: var(--hover); }
+.composer-emoji-cell img { width: 24px; height: 24px; }
+.composer-emoji-list { flex: 1; min-height: 0; }
+
+.composer-editor {
+  flex: 1; min-width: 0; padding: 4px 20px; outline: 0; font-size: var(--fs-body); line-height: 1.5; color: var(--text-primary);
+  white-space: pre-wrap; overflow-wrap: anywhere; overflow-x: hidden; user-select: text; -webkit-user-select: text; cursor: text;
+}
+.composer-editor[contenteditable="false"] { cursor: default; opacity: 0.7; }
+.composer-editor ::selection { background: var(--brand); color: #fff; }
+.zl { min-height: 1.5em; }
+.zl-h1 { font-size: var(--fs-large); font-weight: 700; }
+.zl-h2 { font-size: var(--fs-h2); font-weight: 700; }
+.zl-h3 { font-size: var(--fs-h3); font-weight: 700; }
+.zl-h4, .zl-h5, .zl-h6 { font-weight: 700; }
+.zl-mono, .zk, .zX { font-family: "Cascadia Mono", Consolas, var(--font); font-size: var(--fs-small); }
+.zk { background: var(--fill); border-radius: 2px; }
+.zl-dim { color: var(--text-tertiary); }
+.zl-fence { color: var(--text-tertiary); font-size: var(--fs-sub); }
+.zl-close, .zl-rule { color: var(--text-tertiary); }
+/* 代码块右下角的语言按钮（在结束围栏行上，不占原文） */
+.zl-close { position: relative; }
+.zlang {
+  position: absolute; right: 4px; bottom: 2px; display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 6px;
+  border-radius: var(--radius-sm); font-family: var(--font); font-size: var(--fs-caption); color: var(--text-secondary);
+  cursor: pointer; user-select: none; -webkit-user-select: none;
+}
+.zlang:hover { background: var(--hover); }
+.zlang.empty { color: var(--text-tertiary); }
+.zlang img { width: 14px; height: 14px; }
+.lang-picker { width: 200px; display: flex; flex-direction: column; gap: 6px; padding: 6px; }
+.lang-list { max-height: 220px; overflow-y: auto; }
+.lang-list .menu-row.active { background: var(--menu-hover); }
+.lang-icon { width: 16px; height: 16px; flex: none; }
+.lang-empty { padding: 8px; text-align: center; color: var(--text-tertiary); font-size: var(--fs-caption); }
+.zl-rule:not(.open) { position: relative; }
+.zl-rule:not(.open)::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--divider); }
+.zl-bc { background: var(--fill); padding: 0 8px; }
+.zl-bq { background: var(--quote-card); padding: 0 8px; color: var(--text-secondary); }
+.zl-bar { box-shadow: inset 3px 0 0 var(--quote-bar); padding-left: 14px; }
+.zl-first { border-top-left-radius: var(--radius); border-top-right-radius: var(--radius); }
+.zl-last { border-bottom-left-radius: var(--radius); border-bottom-right-radius: var(--radius); }
+.zl-qcard { background: var(--quote-card); }
+.zm { display: none; }
+.zr.open > .zm, .zl.open > .zm { display: inline; color: var(--text-tertiary); font-weight: 400; font-style: normal; }
+.zl.open > .zf, .zr.open > .zf { display: none; }
+.zs { color: var(--text-tertiary); }
+.zf::before { content: attr(data-label); }
+.zb::before { content: "• "; color: var(--text-secondary); }
+.zB { font-weight: 700; }
+.zI { font-style: italic; }
+.zD { text-decoration: line-through; }
+.zu { color: var(--brand); }
+.za { user-select: all; -webkit-user-select: all; cursor: default; }
+.zn { color: var(--brand); }
+.zw, .zh { background: var(--fill); border-radius: var(--radius-sm); padding: 0 3px; }
+.zh { color: var(--text-secondary); }
+.ze { font-family: "Segoe UI Emoji", var(--font); }
+.zemoji { width: 20px; height: 20px; vertical-align: -4px; }
+.zthumb { display: inline-block; width: 80px; height: 80px; margin: 2px; border-radius: var(--radius-sm); object-fit: cover; vertical-align: bottom; }
+.zthumb-empty { background: var(--fill); }
+.zfile-chip {
+  display: inline-flex; align-items: center; gap: 6px; height: 26px; max-width: 220px; margin: 2px; padding: 0 8px; border-radius: var(--radius);
+  background: var(--fill); font-size: var(--fs-small); vertical-align: bottom;
+}
+.zfile-chip .icon { color: var(--brand); flex: none; }
+.zfile-chip > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 光标颜色缺省跟随文字颜色，单独指定，否则停在这一行时光标也透明 */
+.zphantom { color: transparent; caret-color: var(--text-primary); }
+
+.zt { padding-top: 30px; margin: 2px 0; cursor: default; }
+.zt-scroll { overflow-x: auto; overflow-y: hidden; padding-bottom: 10px; }
+.zt-scroll.scroll { cursor: default; --thumb-color: var(--scroll-thumb); }
+.zt table { border-collapse: collapse; table-layout: fixed; }
+/* 各行交替底色，与消息中的表格一致（第一行是标题行） */
+.zt tr:nth-child(odd) { background: var(--table-row); }
+.zt tr:nth-child(even) { background: var(--table-row-alt); }
+.zc {
+  height: calc(1lh + 8px); border: 1px solid var(--table-border); padding: 4px 8px; outline: 0; vertical-align: middle; cursor: text;
+  white-space: pre-wrap; word-break: keep-all; overflow-wrap: normal; user-select: text; -webkit-user-select: text;
+}
+.zc-head { font-weight: 700; }
+.zc:focus-within { box-shadow: inset 0 0 0 1px var(--brand); }
+.zc .zk, .zc .za { white-space: nowrap; }
+.zt-probe {
+  position: absolute; visibility: hidden; left: 0; top: 0; word-break: keep-all; overflow-wrap: normal; pointer-events: none;
+}
+
+.zq { background: var(--quote-card); border-radius: var(--radius); margin: 2px 0; padding: 2px; cursor: default; white-space: normal; }
+.zq.editing { border-bottom-left-radius: 0; border-bottom-right-radius: 0; margin-bottom: 0; }
+.zq-head { display: flex; align-items: flex-start; gap: 2px; }
+.zq-title {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 4px; padding: 2px 4px; border-radius: var(--radius-sm);
+  font-size: var(--fs-small); color: var(--text-secondary); cursor: pointer;
+}
+.zq-title:hover { background: var(--quote-card-hover); }
+.zq-chevron { display: inline-flex; transition: transform 0.16s; }
+.zq-title.open .zq-chevron { transform: rotate(90deg); }
+.zq-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.zq-body { padding: 2px 8px 4px 20px; font-size: var(--fs-small); animation: zq-open 0.16s ease-out; }
+.zq-plain { white-space: pre-wrap; }
+.zq-body p { margin: 0; }
+.zq-body .img-preview { cursor: default; }
+@keyframes zq-open { from { opacity: 0; transform: translateY(-6px); } }

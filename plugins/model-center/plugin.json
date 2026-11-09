@@ -1,0 +1,33 @@
+{
+  "id": "com.yaz.model-center",
+  "name": "模型中心",
+  "version": "1.0.0",
+  "author": "YaZ",
+  "description": "集中管理 AI 模型：按接口类型（对话、判断、向量、图片、重排序、语音）添加 provider 与模型后，依赖模型中心的插件（翻译、回复助手等）直接选择使用，不用重复填写 EndPoint 和 API Key（其他插件看不到 API Key）",
+  "api_version": 1,
+  "library": "plugin_model_center.dll",
+  "permissions": ["network"],
+  "settings": [
+    { "key": "providers", "label": "Provider", "type": "list", "fields": [
+      { "key": "name", "label": "名称", "placeholder": "OpenAI" },
+      { "key": "type", "label": "接口类型", "type": "select", "default": "chat", "options": [
+        { "value": "chat", "label": "Chat Completions" },
+        { "value": "responses", "label": "Responses" },
+        { "value": "claude", "label": "Claude Messages" },
+        { "value": "gemini", "label": "Gemini" },
+        { "value": "decisions", "label": "Decisions" },
+        { "value": "embeddings", "label": "Embeddings" },
+        { "value": "images", "label": "Images" },
+        { "value": "rerank", "label": "Rerank" },
+        { "value": "speech", "label": "Speech" },
+        { "value": "transcription", "label": "Transcriptions" }
+      ] },
+      { "key": "endpoint", "label": "EndPoint", "placeholder": "https://api.openai.com/v1" },
+      { "key": "api_key", "label": "API Key", "type": "password" },
+      { "key": "fetch", "label": "获取模型列表", "type": "button" },
+      { "key": "models", "label": "模型", "type": "tags", "item_button": "测试", "placeholder": "输入模型名称" },
+      { "key": "headers", "label": "额外 Header", "type": "multiline" },
+      { "key": "body", "label": "额外 Body", "type": "multiline" }
+    ] }
+  ]
+}

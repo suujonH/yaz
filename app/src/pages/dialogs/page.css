@@ -1,0 +1,6 @@
+/* “+”菜单的对话框 */
+.dialog-form { display: flex; flex-direction: column; gap: 8px; }
+.dialog-label { font-size: var(--fs-small); color: var(--text-secondary); }
+.dialog-row { display: flex; align-items: center; gap: 10px; }
+.dialog-error { color: var(--danger); font-size: var(--fs-small); }
+.dialog-checks { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; max-height: 160px; }

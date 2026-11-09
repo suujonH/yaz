@@ -1,0 +1,85 @@
+name: Release
+
+# 推送 v* tag 时编译并发布 zip 与自动更新清单；手动运行只生成构建产物，不创建 Release。
+# 已安装的程序从 releases/latest/download/YaZ-update.json 检查更新，所以只有正式版（tag 不含 -）会推送给用户。
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  release:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Version
+        run: |
+          if ('${{ github.event_name }}' -eq 'push') {
+            $ver = '${{ github.ref_name }}'.TrimStart('v')
+          } else {
+            $ver = '0.0.0-ci.${{ github.run_number }}'
+          }
+          "VERSION=$ver" >> $env:GITHUB_ENV
+          "PKG=YaZ-v$ver-win-x64" >> $env:GITHUB_ENV
+
+      # 程序的版本取自工作区版本，改成与 tag 一致
+      - name: Set workspace version
+        run: |
+          $path = (Resolve-Path Cargo.toml).Path
+          $text = Get-Content -LiteralPath $path -Raw -Encoding utf8
+          $pattern = '(?ms)(\[workspace\.package\][^\[]*?^version\s*=\s*)"[^"]*"'
+          if ($text -notmatch $pattern) { throw 'Cargo.toml 的 [workspace.package] 中没有 version' }
+          $text = [regex]::Replace($text, $pattern, { param($m) $m.Groups[1].Value + '"' + $env:VERSION + '"' })
+          [IO.File]::WriteAllText($path, $text, [Text.UTF8Encoding]::new($false))
+
+      - name: Test
+        run: cargo test --workspace --release
+
+      - name: Build
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          # 更新器单独编译：不带主程序的网络依赖，保持小巧
+          cargo build --release -p yaz-updater
+          cargo build --release -p yaz
+
+      - name: Assemble
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          New-Item -ItemType Directory -Force publish/YaZ | Out-Null
+          Copy-Item target/release/yaz.exe, target/release/yaz-updater.exe, LICENSE, THIRD-PARTY-NOTICES.md publish/YaZ
+          ./tools/build-plugins.ps1 -OutDir publish/YaZ/plugins
+
+      # 生成文件清单、zip 和 YaZ-update.json；版本号不合法或与程序不一致时失败
+      - name: Pack
+        run: ./tools/pack-release.ps1 -Version $env:VERSION -PublishDir publish/YaZ -OutDir release-out
+
+      - name: Create release
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = '${{ github.ref_name }}'
+          $ghArgs = @('release', 'create', $tag, "release-out/$env:PKG.zip", 'release-out/YaZ-update.json', '--title', $tag, '--generate-notes')
+          if ($tag.Contains('-')) { $ghArgs += '--prerelease' }
+          gh @ghArgs
+
+      - name: Upload artifact
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.PKG }}
+          path: |
+            release-out/${{ env.PKG }}.zip
+            release-out/YaZ-update.json

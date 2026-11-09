@@ -1,0 +1,12 @@
+/* 好友管理器 */
+.friend-nav-title { padding: 8px 8px 2px; font-size: var(--fs-sub); color: var(--text-secondary); }
+.friend-nav-add { padding-top: 8px; }
+.friend-search { width: 180px; }
+.friend-head {
+  flex: none; display: flex; align-items: center; gap: 8px; padding: 6px 18px 6px 8px; font-size: var(--fs-small);
+  border-bottom: 1px solid var(--divider); background: var(--card);
+}
+.friend-head .check { flex: 1; }
+.friend-cell { flex: none; width: 140px; }
+.friend-remark { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-small); cursor: pointer; }
+.friend-remark.empty { color: var(--text-tertiary); }
