@@ -1,0 +1,21 @@
+/* Friend manager */
+.friend-nav-title { padding: 8px 8px 2px; font-size: var(--fs-sub); color: var(--text-secondary); }
+.friend-nav-add { padding-top: 8px; }
+.friend-search { width: 180px; }
+.friend-head {
+  flex: none; display: flex; align-items: center; gap: 8px; padding: 6px 18px 6px 8px; font-size: var(--fs-small);
+  border-bottom: 1px solid var(--divider); background: var(--card);
+}
+.friend-head .check { flex: 1; }
+.friend-cell { flex: none; width: 140px; }
+.friend-remark { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-small); cursor: pointer; }
+.friend-remark .inline-edit { cursor: text; }
+/* Rows: normal / hover / checked / checked + hover / pressed */
+.friend-row > .list-row.clickable { background: var(--friend-row); }
+.friend-row > .list-row.clickable:hover { background: var(--friend-row-hover); }
+.friend-row > .list-row.clickable.selected { background: var(--friend-row-checked); }
+.friend-row > .list-row.clickable.selected:hover { background: var(--friend-row-checked-hover); }
+.friend-row > .list-row.clickable:active, .friend-row > .list-row.pressed { background: var(--friend-row-pressed); }
+.friend-remark.empty { color: var(--text-tertiary); }
+/* The "set note" hint of an empty note shows only while the note cell itself is hovered */
+.friend-remark.empty:not(:hover) { color: transparent; }

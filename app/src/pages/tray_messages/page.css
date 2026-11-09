@@ -1,0 +1,4 @@
+/* Tray message list: no title bar */
+.window:has(.tray-list) > .caption-bar { display: none; }
+.tray-list { flex: 1; min-height: 0; padding: 4px 0; background: var(--card); }
+.tray-notice { flex: none; color: var(--danger); font-size: var(--fs-sub); }

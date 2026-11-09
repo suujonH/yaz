@@ -1,0 +1,18 @@
+/* Page-level styles shared by multiple pages */
+
+/* Profile card (widgets/cards.rs) */
+.user-card-email { display: flex; align-items: center; gap: 2px; min-width: 0; }
+.user-card-email-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.user-card-copied { color: var(--online); }
+.user-card-edit { display: inline-block; min-width: 40px; }
+.user-card-edit.empty { color: var(--text-tertiary); }
+/* Editable profile fields (note, group) sit at the right; the group dropdown is as wide as its
+   longest option */
+.profile-value:has(> .user-card-edit), .profile-value:has(> .select) { display: flex; justify-content: flex-end; }
+.user-card-edit { text-align: right; }
+.profile-value > .select { width: auto; }
+.profile-field.clickable { cursor: pointer; }
+.profile-field.clickable .inline-edit { cursor: text; }
+.topic-card-channel { display: flex; align-items: center; gap: 4px; }
+.profile-pane { flex: 1; min-height: 0; overflow: auto; display: flex; }
+.profile-pane-card { width: 360px; max-width: 100%; margin: auto; }

@@ -1,0 +1,3653 @@
+{
+ "result": "success",
+ "msg": "",
+ "queue_id": "REDACTED",
+ "idle_queue_timeout_secs": 600,
+ "zulip_version": "12.3",
+ "zulip_feature_level": 500,
+ "zulip_merge_base": "",
+ "alert_words": [],
+ "custom_profile_fields": [],
+ "custom_profile_field_types": {
+  "DATE": {
+   "id": 4,
+   "name": "Date"
+  },
+  "DROPDOWN": {
+   "id": 3,
+   "name": "Dropdown"
+  },
+  "EXTERNAL_ACCOUNT": {
+   "id": 7,
+   "name": "External account"
+  },
+  "URL": {
+   "id": 5,
+   "name": "Link"
+  },
+  "PARAGRAPH": {
+   "id": 2,
+   "name": "Paragraph"
+  },
+  "PRONOUNS": {
+   "id": 8,
+   "name": "Pronouns"
+  },
+  "SHORT_TEXT": {
+   "id": 1,
+   "name": "Short text"
+  },
+  "USER": {
+   "id": 6,
+   "name": "Users"
+  }
+ },
+ "onboarding_steps": [
+  {
+   "type": "one_time_notice",
+   "name": "intro_inbox_view_modal"
+  },
+  {
+   "type": "one_time_notice",
+   "name": "intro_recent_view_modal"
+  },
+  {
+   "type": "one_time_notice",
+   "name": "first_stream_created_banner"
+  },
+  {
+   "type": "one_time_notice",
+   "name": "jump_to_conversation_banner"
+  },
+  {
+   "type": "one_time_notice",
+   "name": "non_interleaved_view_messages_fading"
+  },
+  {
+   "type": "one_time_notice",
+   "name": "interleaved_view_messages_fading"
+  },
+  {
+   "type": "one_time_notice",
+   "name": "intro_resolve_topic"
+  },
+  {
+   "type": "one_time_notice",
+   "name": "navigation_tour_video"
+  },
+  {
+   "type": "one_time_notice",
+   "name": "intro_go_to_conversation_tooltip"
+  },
+  {
+   "type": "one_time_action",
+   "name": "narrow_to_dm_with_welcome_bot_new_user"
+  }
+ ],
+ "navigation_tour_video_url": "https://static.zulipchat.com/static/navigation-tour-video/zulip-10.mp4",
+ "max_message_id": 481,
+ "saved_snippets": [],
+ "navigation_views": [],
+ "drafts": [
+  {
+   "id": 1,
+   "type": "stream",
+   "to": [
+    5
+   ],
+   "topic": "新游推荐",
+   "content": "我想推荐一个……",
+   "timestamp": 1792624243
+  }
+ ],
+ "scheduled_messages": [],
+ "reminders": [],
+ "muted_topics": [
+  [
+   "游戏",
+   "吐槽",
+   1792624305
+  ]
+ ],
+ "muted_users": [],
+ "presences": {},
+ "presence_last_update_id": -1,
+ "server_timestamp": 1792625157.5105627,
+ "realm_user_groups": [
+  {
+   "id": 9,
+   "name": "role:nobody",
+   "creator_id": null,
+   "date_created": null,
+   "description": "Nobody",
+   "members": [],
+   "direct_subgroup_ids": [],
+   "is_system_group": true,
+   "can_add_members_group": 9,
+   "can_join_group": 9,
+   "can_leave_group": 9,
+   "can_manage_group": 9,
+   "can_mention_group": 9,
+   "can_remove_members_group": 9,
+   "deactivated": false
+  },
+  {
+   "id": 10,
+   "name": "role:owners",
+   "creator_id": null,
+   "date_created": null,
+   "description": "Owners of this organization",
+   "members": [
+    8
+   ],
+   "direct_subgroup_ids": [],
+   "is_system_group": true,
+   "can_add_members_group": 9,
+   "can_join_group": 9,
+   "can_leave_group": 9,
+   "can_manage_group": 9,
+   "can_mention_group": 9,
+   "can_remove_members_group": 9,
+   "deactivated": false
+  },
+  {
+   "id": 11,
+   "name": "role:administrators",
+   "creator_id": null,
+   "date_created": null,
+   "description": "Administrators of this organization, including owners",
+   "members": [],
+   "direct_subgroup_ids": [
+    10
+   ],
+   "is_system_group": true,
+   "can_add_members_group": 9,
+   "can_join_group": 9,
+   "can_leave_group": 9,
+   "can_manage_group": 9,
+   "can_mention_group": 9,
+   "can_remove_members_group": 9,
+   "deactivated": false
+  },
+  {
+   "id": 12,
+   "name": "role:moderators",
+   "creator_id": null,
+   "date_created": null,
+   "description": "Moderators of this organization, including administrators",
+   "members": [],
+   "direct_subgroup_ids": [
+    11
+   ],
+   "is_system_group": true,
+   "can_add_members_group": 9,
+   "can_join_group": 9,
+   "can_leave_group": 9,
+   "can_manage_group": 9,
+   "can_mention_group": 9,
+   "can_remove_members_group": 9,
+   "deactivated": false
+  },
+  {
+   "id": 13,
+   "name": "role:fullmembers",
+   "creator_id": null,
+   "date_created": null,
+   "description": "Members of this organization, not including new accounts and guests",
+   "members": [
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20
+   ],
+   "direct_subgroup_ids": [
+    12
+   ],
+   "is_system_group": true,
+   "can_add_members_group": 9,
+   "can_join_group": 9,
+   "can_leave_group": 9,
+   "can_manage_group": 9,
+   "can_mention_group": 9,
+   "can_remove_members_group": 9,
+   "deactivated": false
+  },
+  {
+   "id": 14,
+   "name": "role:members",
+   "creator_id": null,
+   "date_created": null,
+   "description": "Members of this organization, not including guests",
+   "members": [
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20
+   ],
+   "direct_subgroup_ids": [
+    13
+   ],
+   "is_system_group": true,
+   "can_add_members_group": 9,
+   "can_join_group": 9,
+   "can_leave_group": 9,
+   "can_manage_group": 9,
+   "can_mention_group": 9,
+   "can_remove_members_group": 9,
+   "deactivated": false
+  },
+  {
+   "id": 15,
+   "name": "role:everyone",
+   "creator_id": null,
+   "date_created": null,
+   "description": "Everyone in this organization, including guests",
+   "members": [],
+   "direct_subgroup_ids": [
+    14
+   ],
+   "is_system_group": true,
+   "can_add_members_group": 9,
+   "can_join_group": 9,
+   "can_leave_group": 9,
+   "can_manage_group": 9,
+   "can_mention_group": 9,
+   "can_remove_members_group": 9,
+   "deactivated": false
+  },
+  {
+   "id": 16,
+   "name": "role:internet",
+   "creator_id": null,
+   "date_created": null,
+   "description": "Everyone on the Internet",
+   "members": [],
+   "direct_subgroup_ids": [
+    15
+   ],
+   "is_system_group": true,
+   "can_add_members_group": 9,
+   "can_join_group": 9,
+   "can_leave_group": 9,
+   "can_manage_group": 9,
+   "can_mention_group": 9,
+   "can_remove_members_group": 9,
+   "deactivated": false
+  }
+ ],
+ "realm_allow_message_editing": true,
+ "realm_avatar_changes_disabled": false,
+ "realm_default_avatar_source": "J",
+ "realm_default_code_block_language": "",
+ "realm_default_language": "en",
+ "realm_description": "",
+ "realm_digest_emails_enabled": false,
+ "realm_digest_weekday": 1,
+ "realm_disallow_disposable_email_addresses": true,
+ "realm_email_changes_disabled": false,
+ "realm_emails_restricted_to_domains": false,
+ "realm_enable_guest_user_dm_warning": true,
+ "realm_enable_guest_user_indicator": true,
+ "realm_enable_read_receipts": true,
+ "realm_enable_spectator_access": false,
+ "realm_gif_rating_policy": 1,
+ "realm_media_preview_size": 100,
+ "realm_inline_image_preview": true,
+ "realm_inline_url_embed_preview": false,
+ "realm_invite_required": true,
+ "realm_jitsi_server_url": null,
+ "realm_message_content_allowed_in_email_notifications": true,
+ "realm_message_content_edit_limit_seconds": 600,
+ "realm_message_content_delete_limit_seconds": 600,
+ "realm_message_edit_history_visibility_policy": "all",
+ "realm_move_messages_between_streams_limit_seconds": 604800,
+ "realm_move_messages_within_stream_limit_seconds": 604800,
+ "realm_message_retention_days": -1,
+ "realm_name": "YaZ 测试",
+ "realm_name_changes_disabled": false,
+ "realm_push_notifications_enabled": false,
+ "realm_require_e2ee_push_notifications": false,
+ "realm_require_unique_names": false,
+ "realm_send_channel_events_messages": false,
+ "realm_send_welcome_emails": true,
+ "realm_topics_policy": "allow_empty_topic",
+ "realm_video_chat_provider": 1,
+ "realm_waiting_period_threshold": 0,
+ "realm_want_advertise_in_communities_directory": false,
+ "realm_welcome_message_custom_text": "",
+ "realm_create_multiuse_invite_group": 11,
+ "realm_can_access_all_users_group": 15,
+ "realm_can_add_subscribers_group": 14,
+ "realm_can_add_custom_emoji_group": 14,
+ "realm_can_create_bots_group": 14,
+ "realm_can_create_groups": 14,
+ "realm_can_create_public_channel_group": 14,
+ "realm_can_create_private_channel_group": 14,
+ "realm_can_create_web_public_channel_group": 10,
+ "realm_can_create_write_only_bots_group": 14,
+ "realm_can_delete_any_message_group": 11,
+ "realm_can_delete_own_message_group": 15,
+ "realm_can_invite_users_group": 14,
+ "realm_can_manage_all_groups": 10,
+ "realm_can_manage_billing_group": 11,
+ "realm_can_mention_many_users_group": 11,
+ "realm_can_move_messages_between_channels_group": 14,
+ "realm_can_move_messages_between_topics_group": 15,
+ "realm_can_resolve_topics_group": 15,
+ "realm_can_set_delete_message_policy_group": 12,
+ "realm_can_set_topics_policy_group": 14,
+ "realm_can_summarize_topics_group": 15,
+ "realm_direct_message_initiator_group": 15,
+ "realm_direct_message_permission_group": 15,
+ "realm_workplace_users_group": 15,
+ "realm_owner_full_content_access": false,
+ "realm_create_public_stream_policy": 1,
+ "realm_create_private_stream_policy": 1,
+ "realm_create_web_public_stream_policy": 7,
+ "realm_wildcard_mention_policy": 5,
+ "realm_authentication_methods": {
+  "Email": {
+   "enabled": true,
+   "available": true
+  }
+ },
+ "realm_presence_disabled": false,
+ "max_avatar_file_size_mib": 5,
+ "max_file_upload_size_mib": 100,
+ "max_icon_file_size_mib": 5,
+ "realm_upload_quota_mib": null,
+ "realm_icon_url": "https://secure.gravatar.com/avatar/d41d8cd98f00b204e9800998ecf8427e?d=identicon",
+ "realm_icon_source": "G",
+ "realm_logo_url": "https://localhost.localdomain:8443/static/images/logo/zulip-org-logo.svg?version=0",
+ "realm_logo_source": "D",
+ "realm_night_logo_url": "https://localhost.localdomain:8443/static/images/logo/zulip-org-logo.svg?version=0",
+ "realm_night_logo_source": "D",
+ "max_logo_file_size_mib": 5,
+ "realm_url": "https://localhost.localdomain:8443",
+ "realm_uri": "https://localhost.localdomain:8443",
+ "realm_bot_domain": "localhost.localdomain",
+ "realm_available_video_chat_providers": {
+  "disabled": {
+   "name": "None",
+   "id": 0
+  },
+  "jitsi_meet": {
+   "name": "Jitsi Meet",
+   "id": 1
+  }
+ },
+ "settings_send_digest_emails": true,
+ "realm_email_auth_enabled": true,
+ "realm_password_auth_enabled": true,
+ "server_generation": 1792624208,
+ "development_environment": false,
+ "realm_org_type": 0,
+ "realm_plan_type": 1,
+ "zulip_plan_is_not_limited": true,
+ "upgrade_text_for_wide_organization_logo": "Available on Zulip Cloud Standard. Upgrade to access.",
+ "realm_push_notifications_enabled_end_timestamp": null,
+ "password_min_length": 8,
+ "password_max_length": 100,
+ "password_min_guesses": 10000,
+ "server_inline_image_preview": true,
+ "server_inline_url_embed_preview": true,
+ "server_thumbnail_formats": [
+  {
+   "name": "840x560-anim.webp",
+   "max_width": 840,
+   "max_height": 560,
+   "format": "webp",
+   "animated": true
+  },
+  {
+   "name": "840x560.webp",
+   "max_width": 840,
+   "max_height": 560,
+   "format": "webp",
+   "animated": false
+  }
+ ],
+ "server_avatar_changes_disabled": false,
+ "server_name_changes_disabled": false,
+ "server_web_public_streams_enabled": false,
+ "gif_rating_policy_options": {
+  "disabled": {
+   "name": "Disabled",
+   "id": 0
+  },
+  "g": {
+   "name": "Allow GIFs rated G (General audience)",
+   "id": 1
+  },
+  "pg": {
+   "name": "Allow GIFs rated PG (Parental guidance)",
+   "id": 2
+  },
+  "pg-13": {
+   "name": "Allow GIFs rated PG-13 (Parental guidance - under 13)",
+   "id": 3
+  },
+  "r": {
+   "name": "Allow GIFs rated R (Restricted)",
+   "id": 4
+  }
+ },
+ "server_emoji_data_url": "https://localhost.localdomain:8443/static/generated/emoji/emoji_api.f38a5354d553.json",
+ "server_needs_upgrade": false,
+ "event_queue_longpoll_timeout_seconds": 90,
+ "realm_default_external_accounts": {
+  "atlassian": {
+   "text": "Atlassian",
+   "url_pattern": "",
+   "name": "Atlassian account ID",
+   "hint": ""
+  },
+  "behance": {
+   "text": "Behance",
+   "url_pattern": "https://www.behance.net/%(username)s",
+   "name": "Behance username",
+   "hint": ""
+  },
+  "bitbucket": {
+   "text": "Bitbucket",
+   "url_pattern": "https://bitbucket.org/%(username)s",
+   "name": "Bitbucket username",
+   "hint": ""
+  },
+  "bluesky": {
+   "text": "Bluesky",
+   "url_pattern": "https://bsky.app/profile/%(username)s",
+   "name": "Bluesky handle",
+   "hint": ""
+  },
+  "codeberg": {
+   "text": "Codeberg",
+   "url_pattern": "https://codeberg.org/%(username)s",
+   "name": "Codeberg username",
+   "hint": ""
+  },
+  "discord": {
+   "text": "Discord",
+   "url_pattern": "",
+   "name": "Discord tag",
+   "hint": ""
+  },
+  "dribbble": {
+   "text": "Dribbble",
+   "url_pattern": "https://dribbble.com/%(username)s",
+   "name": "Dribbble username",
+   "hint": ""
+  },
+  "facebook": {
+   "text": "Facebook",
+   "url_pattern": "https://www.facebook.com/%(username)s",
+   "name": "Facebook username",
+   "hint": ""
+  },
+  "github": {
+   "text": "GitHub",
+   "url_pattern": "https://github.com/%(username)s",
+   "name": "GitHub username",
+   "hint": ""
+  },
+  "gitlab": {
+   "text": "GitLab",
+   "url_pattern": "https://gitlab.com/%(username)s",
+   "name": "GitLab username",
+   "hint": ""
+  },
+  "instagram": {
+   "text": "Instagram",
+   "url_pattern": "https://www.instagram.com/%(username)s",
+   "name": "Instagram username",
+   "hint": ""
+  },
+  "linkedin": {
+   "text": "LinkedIn",
+   "url_pattern": "https://www.linkedin.com/in/%(username)s",
+   "name": "LinkedIn profile name",
+   "hint": ""
+  },
+  "mastodon": {
+   "text": "Mastodon",
+   "url_pattern": "%(username)s",
+   "name": "Mastodon profile",
+   "hint": "The full URL to your profile"
+  },
+  "medium": {
+   "text": "Medium",
+   "url_pattern": "https://%(username)s.medium.com",
+   "name": "Medium username",
+   "hint": ""
+  },
+  "pinterest": {
+   "text": "Pinterest",
+   "url_pattern": "https://www.pinterest.com/%(username)s",
+   "name": "Pinterest username",
+   "hint": ""
+  },
+  "reddit": {
+   "text": "Reddit",
+   "url_pattern": "https://www.reddit.com/user/%(username)s",
+   "name": "Reddit username",
+   "hint": ""
+  },
+  "snapchat": {
+   "text": "Snapchat",
+   "url_pattern": "https://www.snapchat.com/@%(username)s",
+   "name": "Snapchat username",
+   "hint": ""
+  },
+  "threads": {
+   "text": "Threads",
+   "url_pattern": "https://www.threads.com/@%(username)s",
+   "name": "Threads username",
+   "hint": ""
+  },
+  "tiktok": {
+   "text": "TikTok",
+   "url_pattern": "https://www.tiktok.com/@%(username)s",
+   "name": "TikTok username",
+   "hint": ""
+  },
+  "twitch": {
+   "text": "Twitch",
+   "url_pattern": "https://www.twitch.tv/%(username)s",
+   "name": "Twitch username",
+   "hint": ""
+  },
+  "x": {
+   "text": "X",
+   "url_pattern": "https://x.com/%(username)s",
+   "name": "X username",
+   "hint": ""
+  },
+  "youtube": {
+   "text": "YouTube",
+   "url_pattern": "https://www.youtube.com/%(username)s",
+   "name": "YouTube handle",
+   "hint": ""
+  }
+ },
+ "server_jitsi_server_url": "https://meet.jit.si",
+ "jitsi_server_url": "https://meet.jit.si",
+ "server_can_summarize_topics": false,
+ "realm_moderation_request_channel_id": -1,
+ "realm_new_stream_announcements_stream_id": 3,
+ "realm_signup_announcements_stream_id": -1,
+ "realm_zulip_update_announcements_stream_id": 3,
+ "max_stream_name_length": 60,
+ "max_stream_description_length": 1024,
+ "max_bulk_new_subscription_messages": 100,
+ "max_topic_length": 60,
+ "max_message_length": 10000,
+ "max_channel_folder_name_length": 60,
+ "max_channel_folder_description_length": 1024,
+ "max_reminder_note_length": 1000,
+ "realm_date_created": 1792623922,
+ "server_report_message_types": [
+  {
+   "key": "spam",
+   "name": "Spam"
+  },
+  {
+   "key": "harassment",
+   "name": "Harassment"
+  },
+  {
+   "key": "inappropriate",
+   "name": "Inappropriate content"
+  },
+  {
+   "key": "norms",
+   "name": "Violates community norms"
+  },
+  {
+   "key": "other",
+   "name": "Other reason"
+  }
+ ],
+ "server_presence_ping_interval_seconds": 60,
+ "server_presence_offline_threshold_seconds": 200,
+ "server_typing_started_expiry_period_milliseconds": 45000,
+ "server_typing_stopped_wait_period_milliseconds": 12000,
+ "server_typing_started_wait_period_milliseconds": 30000,
+ "server_supported_permission_settings": {
+  "realm": {
+   "create_multiuse_invite_group": {
+    "allow_nobody_group": true,
+    "allow_everyone_group": false,
+    "default_group_name": "role:administrators",
+    "require_system_group": false,
+    "allow_internet_group": false,
+    "default_for_system_groups": null,
+    "allowed_system_groups": []
+   },
+   "can_access_all_users_group": {
+    "allow_nobody_group": false,
+    "allow_everyone_group": true,
+    "default_group_name": "role:everyone",
+    "require_system_group": true,
+    "allow_internet_group": false,
+    "default_for_system_groups": null,
+    "allowed_system_groups": [
+     "role:everyone",
+     "role:members"
+    ]
+   },
+   "can_add_subscribers_group": {
+    "allow_nobody_group": true,
+    "allow_everyone_group": false,
+    "default_group_name": "role:members",
+    "require_system_group": false,
+    "allow_internet_group": false,
+    "default_for_system_groups": null,
+    "allowed_system_groups": []
+   },
+   "can_add_custom_emoji_group": {
+    "allow_nobody_group": true,
+    "allow_everyone_group": false,
+    "default_group_name": "role:members",
+    "require_system_group": false,
+    "allow_internet_group": false,
+    "default_for_system_groups": null,
+    "allowed_system_groups": []
+   },
+   "can_create_bots_group": {
+    "allow_nobody_group": true,
+    "allow_everyone_group": false,
+    "default_group_name": "role:members",
+    "require_system_group": false,
+    "allow_internet_group": false,
+    "default_for_system_groups": null,
+    "allowed_system_groups": []
+   },
+   "can_create_groups": {
+    "allow_nobody_group": true,
+    "allow_everyone_group": false,
+    "default_group_name": "role:members",
+    "require_system_group": false,
+    "allow_internet_group": false,
+    "default_for_system_groups": null,
+    "allowed_system_groups": []
+   },
+   "can_create_public_channel_group": {
+    "allow_nobody_group": true,
+    "allow_everyone_group": false,
+    "default_group_name": "role:members",
+    "require_system_group": false,
+    "allow_internet_group": false,
+    "default_for_system_groups": null,
+    "allowed_system_groups": []
+   },
+   "can_create_private_channel_group": {
+    "allow_nobody_group": true,
+    "allow_everyone_group": false,
+    "default_group_name": "role:members",
+    "require_system_group": false,
+    "allow_internet_group": false,
+    "default_for_system_groups": null,
+    "allowed_system_groups": []
+   },
+   "can_create_web_public_channel_group": {
+    "allow_nobody_group": true,
+    "allow_everyone_group": false,
+    "default_group_name": "role:owners",
+    "require_system_group": true,
+    "allow_internet_group": false,
+    "default_for_system_groups": null,
+    "allowed_system_groups": [
+     "role:moderators",
+     "role:administrators",
+     "role:owners",
+     "role:nobody"
+    ]
+   },
+   "can_create_write_only_bots_group": {
+    "allow_nobody_group": true,
+    "allow_everyone_group": false,
+    "default_group_name": "role:members",
+    "require_system_group": false,
+    "allow_internet_group": false,
+    "default_for_system_groups": null,
+    "allowed_system_groups": []
+   },
+   "can_delete_any_message_group": {
+    "allow_nobody_group": true,
+    "allow_everyone_group": false,
+    "default_group_name": "role:administrators",
+    "require_system_group": false,
+    "allow_internet_group": false,
+    "default_for_system_groups": null,
+    "allowed_system_groups": []
+   },
+   "can_delete_own_message_group": {
+    "allow_nobody_group": true,
+    "allow_everyone_group": true,
+    "default_group_name": "role:everyone",
+    "require_system_group": false,
+    "allow_internet_group": false,
+    "default_for_system_groups": null,
+    "allowed_system_groups": []
+   },
+   "can_invite_users_group": {
+    "allow_nobody_group": true,
+    "allow_everyone_group": false,
+    "default_group_name": "role:members",
+    "require_system_group": false,
+    "allow_internet_group": false,
+    "default_for_system_groups": null,
+    "allowed_system_groups": []
+   },
+   "can_manage_all_groups": {
+    "allow_nobody_group": false,
+    "allow_everyone_group": false,
+    "default_group_name": "role:owners",
+    "require_system_group": false,
+    "allow_internet_group": false,
+    "default_for_system_groups": null,
+    "allowed_system_groups": []
+   },
+   "can_manage_billing_group": {
+    "allow_nobody_group": false,
+    "allow_everyone_group": false,
+    "default_group_name": "role:administrators",
+    "require_system_group": false,
+    "allow_internet_group": false,
+    "default_for_system_groups": null,
+    "allowed_system_groups": []
+   },
+   "can_mention_many_users_group": {
+    "allow_nobody_group": true,
+    "allow_everyone_group": true,
+    "default_group_name": "role:administrators",
+    "require_system_group": false,
+    "allow_internet_group": false,
+    "default_for_system_groups": null,
+    "allowed_system_groups": []
+   },
+   "can_move_messages_between_channels_group": {
+    "allow_nobody_group": true,
+    "allow_everyone_group": false,
+    "default_group_name": "role:members",
+    "require_system_group": false,
+    "allow_internet_group": false,
+    "default_for_system_groups": null,
+    "allowed_system_groups": []
+   },
+   "can_move_messages_between_topics_group": {
+    "allow_nobody_group": true,
+    "allow_everyone_group": true,
+    "default_group_name": "role:everyone",
+    "require_system_group": false,
+    "allow_internet_group": false,
+    "default_for_system_groups": null,
+    "allowed_system_groups": []
+   },
+   "can_resolve_topics_group": {
+    "allow_nobody_group": true,
+    "allow_everyone_group": true,
+    "default_group_name": "role:everyone",
+    "require_system_group": false,
+    "allow_internet_group": false,
+    "default_for_system_groups": null,
+    "allowed_system_groups": []
+   },
+   "can_set_delete_message_policy_group": {
+    "allow_nobody_group": true,
+    "allow_everyone_group": false,
+    "default_group_name": "role:moderators",
+    "require_system_group": false,
+    "allow_internet_group": false,
+    "default_for_system_groups": null,
+    "allowed_system_groups": []
+   },
+   "can_set_topics_policy_group": {
+    "allow_nobody_group": true,
+    "allow_everyone_group": true,
+    "default_group_name": "role:members",
+    "require_system_group": false,
+    "allow_internet_group": false,
+    "default_for_system_groups": null,
+    "allowed_system_groups": []
+   },
+   "can_summarize_topics_group": {
+    "allow_nobody_group": true,
+    "allow_everyone_group": true,
+    "default_group_name": "role:everyone",
+    "require_system_group": false,
+    "allow_internet_group": false,
+    "default_for_system_groups": null,
+    "allowed_system_groups": []
+   },
+   "direct_message_initiator_group": {
+    "allow_nobody_group": true,
+    "allow_everyone_group": true,
+    "default_group_name": "role:everyone",
+    "require_system_group": false,
+    "allow_internet_group": false,
+    "default_for_system_groups": null,
+    "allowed_system_groups": []
+   },
+   "direct_message_permission_group": {
+    "allow_nobody_group": true,
+    "allow_everyone_group": true,
+    "default_group_name": "role:everyone",
+    "require_system_group": false,
+    "allow_internet_group": false,
+    "default_for_system_groups": null,
+    "allowed_system_groups": []
+   },
+   "workplace_users_group": {
+    "allow_nobody_group": true,
+    "allow_everyone_group": true,
+    "default_group_name": "role:everyone",
+    "require_system_group": false,
+    "allow_internet_group": false,
+    "default_for_system_groups": null,
+    "allowed_system_groups": []
+   }
+  },
+  "stream": {
+   "can_add_subscribers_group": {
+    "allow_nobody_group": true,
+    "allow_everyone_group": false,
+    "default_group_name": "role:nobody",
+    "require_system_group": false,
+    "allow_internet_group": false,
+    "default_for_system_groups": null,
+    "allowed_system_groups": []
+   },
+   "can_administer_channel_group": {
+    "allow_nobody_group": true,
+    "allow_everyone_group": false,
+    "default_group_name": "channel_creator",
+    "require_system_group": false,
+    "allow_internet_group": false,
+    "default_for_system_groups": null,
+    "allowed_system_groups": []
+   },
+   "can_create_topic_group": {
+    "allow_nobody_group": true,
+    "allow_everyone_group": true,
+    "default_group_name": "role:everyone",
+    "require_system_group": false,
+    "allow_internet_group": false,
+    "default_for_system_groups": null,
+    "allowed_system_groups": []
+   },
+   "can_delete_any_message_group": {
+    "allow_nobody_group": true,
+    "allow_everyone_group": true,
+    "default_group_name": "role:nobody",
+    "require_system_group": false,
+    "allow_internet_group": false,
+    "default_for_system_groups": null,
+    "allowed_system_groups": []
+   },
+   "can_delete_own_message_group": {
+    "allow_nobody_group": true,
+    "allow_everyone_group": true,
+    "default_group_name": "role:nobody",
+    "require_system_group": false,
+    "allow_internet_group": false,
+    "default_for_system_groups": null,
+    "allowed_system_groups": []
+   },
+   "can_move_messages_out_of_channel_group": {
+    "allow_nobody_group": true,
+    "allow_everyone_group": true,
+    "default_group_name": "role:nobody",
+    "require_system_group": false,
+    "allow_internet_group": false,
+    "default_for_system_groups": null,
+    "allowed_system_groups": []
+   },
+   "can_move_messages_within_channel_group": {
+    "allow_nobody_group": true,
+    "allow_everyone_group": true,
+    "default_group_name": "role:nobody",
+    "require_system_group": false,
+    "allow_internet_group": false,
+    "default_for_system_groups": null,
+    "allowed_system_groups": []
+   },
+   "can_remove_subscribers_group": {
+    "allow_nobody_group": true,
+    "allow_everyone_group": true,
+    "default_group_name": "role:administrators",
+    "require_system_group": false,
+    "allow_internet_group": false,
+    "default_for_system_groups": null,
+    "allowed_system_groups": []
+   },
+   "can_send_message_group": {
+    "allow_nobody_group": true,
+    "allow_everyone_group": true,
+    "default_group_name": "role:everyone",
+    "require_system_group": false,
+    "allow_internet_group": false,
+    "default_for_system_groups": null,
+    "allowed_system_groups": []
+   },
+   "can_subscribe_group": {
+    "allow_nobody_group": true,
+    "allow_everyone_group": false,
+    "default_group_name": "role:nobody",
+    "require_system_group": false,
+    "allow_internet_group": false,
+    "default_for_system_groups": null,
+    "allowed_system_groups": []
+   },
+   "can_resolve_topics_group": {
+    "allow_nobody_group": true,
+    "allow_everyone_group": true,
+    "default_group_name": "role:nobody",
+    "require_system_group": false,
+    "allow_internet_group": false,
+    "default_for_system_groups": null,
+    "allowed_system_groups": []
+   }
+  },
+  "group": {
+   "can_add_members_group": {
+    "allow_nobody_group": true,
+    "allow_everyone_group": false,
+    "default_group_name": "group_creator",
+    "require_system_group": false,
+    "allow_internet_group": false,
+    "default_for_system_groups": "role:nobody",
+    "allowed_system_groups": []
+   },
+   "can_join_group": {
+    "allow_nobody_group": true,
+    "allow_everyone_group": false,
+    "default_group_name": "role:nobody",
+    "require_system_group": false,
+    "allow_internet_group": false,
+    "default_for_system_groups": "role:nobody",
+    "allowed_system_groups": []
+   },
+   "can_leave_group": {
+    "allow_nobody_group": true,
+    "allow_everyone_group": true,
+    "default_group_name": "role:everyone",
+    "require_system_group": false,
+    "allow_internet_group": false,
+    "default_for_system_groups": "role:nobody",
+    "allowed_system_groups": []
+   },
+   "can_manage_group": {
+    "allow_nobody_group": true,
+    "allow_everyone_group": false,
+    "default_group_name": "group_creator",
+    "require_system_group": false,
+    "allow_internet_group": false,
+    "default_for_system_groups": "role:nobody",
+    "allowed_system_groups": []
+   },
+   "can_mention_group": {
+    "allow_nobody_group": true,
+    "allow_everyone_group": true,
+    "default_group_name": "role:everyone",
+    "require_system_group": false,
+    "allow_internet_group": false,
+    "default_for_system_groups": "role:nobody",
+    "allowed_system_groups": []
+   },
+   "can_remove_members_group": {
+    "allow_nobody_group": true,
+    "allow_everyone_group": false,
+    "default_group_name": "role:nobody",
+    "require_system_group": false,
+    "allow_internet_group": false,
+    "default_for_system_groups": "role:nobody",
+    "allowed_system_groups": []
+   }
+  }
+ },
+ "server_min_deactivated_realm_deletion_days": 14,
+ "server_max_deactivated_realm_deletion_days": null,
+ "realm_empty_topic_display_name": "general chat",
+ "realm_allow_edit_history": true,
+ "realm_mandatory_topics": false,
+ "realm_uuid": "fd92ecf8-4b88-499a-a4ba-551b44f2f330",
+ "realm_user_settings_defaults": {
+  "automatically_follow_topics_policy": 3,
+  "automatically_follow_topics_where_mentioned": true,
+  "automatically_unmute_topics_in_muted_streams_policy": 2,
+  "desktop_icon_count_display": 1,
+  "email_notifications_batching_period_seconds": 120,
+  "enable_desktop_notifications": true,
+  "enable_digest_emails": true,
+  "enable_followed_topic_audible_notifications": true,
+  "enable_followed_topic_desktop_notifications": true,
+  "enable_followed_topic_email_notifications": true,
+  "enable_followed_topic_push_notifications": true,
+  "enable_followed_topic_wildcard_mentions_notify": true,
+  "enable_login_emails": true,
+  "enable_marketing_emails": true,
+  "enable_offline_email_notifications": true,
+  "enable_offline_push_notifications": true,
+  "enable_online_push_notifications": true,
+  "enable_sounds": true,
+  "enable_stream_audible_notifications": false,
+  "enable_stream_desktop_notifications": false,
+  "enable_stream_email_notifications": false,
+  "enable_stream_push_notifications": false,
+  "message_content_in_email_notifications": true,
+  "notification_sound": "zulip",
+  "pm_content_in_desktop_notifications": true,
+  "presence_enabled": true,
+  "realm_name_in_email_notifications_policy": 1,
+  "wildcard_mentions_notify": true,
+  "allow_private_data_export": false,
+  "color_scheme": 1,
+  "default_language": "en",
+  "demote_inactive_streams": 1,
+  "display_emoji_reaction_users": true,
+  "email_address_visibility": 3,
+  "emojiset": "google",
+  "enable_drafts_synchronization": true,
+  "enter_sends": false,
+  "fluid_layout_width": false,
+  "hide_ai_features": false,
+  "high_contrast_mode": false,
+  "left_side_userlist": false,
+  "receives_typing_notifications": true,
+  "resolved_topic_notice_auto_read_policy": "except_followed",
+  "send_private_typing_notifications": true,
+  "send_read_receipts": true,
+  "send_stream_typing_notifications": true,
+  "starred_message_counts": true,
+  "translate_emoticons": false,
+  "twenty_four_hour_time": false,
+  "user_list_style": 3,
+  "web_animate_image_previews": "on_hover",
+  "web_channel_default_view": 1,
+  "web_escape_navigates_to_home_view": true,
+  "web_font_size_px": 16,
+  "web_home_view": "inbox",
+  "web_inbox_show_channel_folders": true,
+  "web_left_sidebar_show_channel_folders": true,
+  "web_left_sidebar_unreads_count_summary": true,
+  "web_line_height_percent": 140,
+  "web_mark_read_on_scroll_policy": 1,
+  "web_navigate_to_sent_message": true,
+  "web_stream_unreads_count_display_policy": 2,
+  "web_suggest_update_timezone": true,
+  "emojiset_choices": [
+   {
+    "key": "google",
+    "text": "Google"
+   },
+   {
+    "key": "twitter",
+    "text": "Twitter"
+   },
+   {
+    "key": "text",
+    "text": "Plain text"
+   }
+  ],
+  "available_notification_sounds": [
+   "ascend",
+   "beep_boop",
+   "bink",
+   "bright",
+   "brlip",
+   "chime",
+   "deep tom",
+   "ding",
+   "double tap",
+   "down",
+   "dry bongos",
+   "dutdut",
+   "fast ascend",
+   "flute",
+   "friendly",
+   "kick roll",
+   "loud tintong",
+   "metallic snare",
+   "pan",
+   "shaker",
+   "simple",
+   "stairs",
+   "subtle",
+   "swish",
+   "tintong",
+   "up",
+   "wood block",
+   "zaping",
+   "zing",
+   "zulip"
+  ]
+ },
+ "realm_domains": [],
+ "realm_emoji": {},
+ "realm_linkifiers": [],
+ "realm_filters": [],
+ "realm_playgrounds": [],
+ "realm_billing": {
+  "has_pending_sponsorship_request": false
+ },
+ "cross_realm_bots": [
+  {
+   "email": "emailgateway@zulip.com",
+   "user_id": 1,
+   "avatar_version": 1,
+   "is_admin": false,
+   "is_owner": false,
+   "is_guest": false,
+   "role": 400,
+   "is_bot": true,
+   "full_name": "Email Gateway",
+   "timezone": "",
+   "is_active": true,
+   "date_joined": "2026-10-21T23:05+00:00",
+   "delivery_email": "emailgateway@zulip.com",
+   "is_imported_stub": false,
+   "avatar_url": "https://localhost.localdomain:8443/static/images/static_avatars/emailgateway.7b3c8066a0b8.png",
+   "bot_type": 1,
+   "is_system_bot": true,
+   "bot_owner_id": null
+  },
+  {
+   "email": "notification-bot@zulip.com",
+   "user_id": 6,
+   "avatar_version": 1,
+   "is_admin": false,
+   "is_owner": false,
+   "is_guest": false,
+   "role": 400,
+   "is_bot": true,
+   "full_name": "Notification Bot",
+   "timezone": "",
+   "is_active": true,
+   "date_joined": "2026-10-21T23:05+00:00",
+   "delivery_email": "notification-bot@zulip.com",
+   "is_imported_stub": false,
+   "avatar_url": "https://localhost.localdomain:8443/static/images/static_avatars/notification-bot.36f721bad3d0.png",
+   "bot_type": 1,
+   "is_system_bot": true,
+   "bot_owner_id": null
+  },
+  {
+   "email": "welcome-bot@zulip.com",
+   "user_id": 7,
+   "avatar_version": 1,
+   "is_admin": false,
+   "is_owner": false,
+   "is_guest": false,
+   "role": 400,
+   "is_bot": true,
+   "full_name": "Welcome Bot",
+   "timezone": "",
+   "is_active": true,
+   "date_joined": "2026-10-21T23:05+00:00",
+   "delivery_email": "welcome-bot@zulip.com",
+   "is_imported_stub": false,
+   "avatar_url": "https://localhost.localdomain:8443/static/images/static_avatars/welcome-bot.0c86744b0caf.png",
+   "bot_type": 1,
+   "is_system_bot": true,
+   "bot_owner_id": null
+  }
+ ],
+ "avatar_source": "J",
+ "avatar_url_medium": "/user_avatars/2/485b1acbb71862ec06b5ff57a72769dcbbf99bc4-medium.png",
+ "avatar_url": "/user_avatars/2/485b1acbb71862ec06b5ff57a72769dcbbf99bc4.png",
+ "can_create_private_streams": true,
+ "can_create_public_streams": true,
+ "can_create_web_public_streams": true,
+ "can_create_streams": true,
+ "can_invite_others_to_realm": true,
+ "is_admin": true,
+ "is_owner": true,
+ "is_moderator": true,
+ "is_guest": false,
+ "user_id": 8,
+ "email": "user8@localhost.localdomain",
+ "delivery_email": "owner@zulip.test",
+ "full_name": "群主大大",
+ "realm_bots": [],
+ "realm_embedded_bots": [
+  {
+   "name": "converter",
+   "config": {}
+  },
+  {
+   "name": "encrypt",
+   "config": {}
+  },
+  {
+   "name": "helloworld",
+   "config": {}
+  },
+  {
+   "name": "virtual_fs",
+   "config": {}
+  },
+  {
+   "name": "giphy",
+   "config": {
+    "key": "12345678"
+   }
+  },
+  {
+   "name": "followup",
+   "config": {
+    "stream": "'followup'"
+   }
+  }
+ ],
+ "realm_incoming_webhook_bots": [
+  {
+   "name": "airbrake",
+   "display_name": "Airbrake",
+   "all_event_types": null,
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "airbyte",
+   "display_name": "Airbyte",
+   "all_event_types": null,
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "alertmanager",
+   "display_name": "Prometheus Alertmanager",
+   "all_event_types": null,
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "ansibletower",
+   "display_name": "Ansible Tower",
+   "all_event_types": null,
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "appfollow",
+   "display_name": "AppFollow",
+   "all_event_types": null,
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "appveyor",
+   "display_name": "AppVeyor",
+   "all_event_types": null,
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "azuredevops",
+   "display_name": "AzureDevOps",
+   "all_event_types": [
+    "git.push",
+    "git.pullrequest.created",
+    "git.pullrequest.merged",
+    "git.pullrequest.updated"
+   ],
+   "config_options": [],
+   "url_options": [
+    {
+     "key": "branches",
+     "label": "",
+     "input_type": "text"
+    }
+   ]
+  },
+  {
+   "name": "basecamp",
+   "display_name": "Basecamp",
+   "all_event_types": [
+    "document",
+    "question_answer",
+    "question",
+    "message",
+    "todolist",
+    "todo",
+    "comment"
+   ],
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "beanstalk",
+   "display_name": "Beanstalk",
+   "all_event_types": null,
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "beeminder",
+   "display_name": "Beeminder",
+   "all_event_types": null,
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "bitbucket",
+   "display_name": "Bitbucket",
+   "all_event_types": [
+    "change_commit_status",
+    "pull_request_comment_created",
+    "pull_request_updated",
+    "pull_request_unapproved",
+    "push",
+    "pull_request_approved",
+    "pull_request_fulfilled",
+    "issue_created",
+    "issue_commented",
+    "fork",
+    "pull_request_comment_updated",
+    "pull_request_created",
+    "pull_request_rejected",
+    "repo:updated",
+    "issue_updated",
+    "commit_comment",
+    "pull_request_comment_deleted"
+   ],
+   "config_options": [],
+   "url_options": [
+    {
+     "key": "branches",
+     "label": "",
+     "input_type": "text"
+    }
+   ]
+  },
+  {
+   "name": "bitbucketdatacenter",
+   "display_name": "Bitbucket Data Center",
+   "all_event_types": [
+    "diagnostics:ping",
+    "repo:comment:added",
+    "repo:comment:edited",
+    "repo:comment:deleted",
+    "repo:forked",
+    "repo:modified",
+    "repo:refs_changed",
+    "pr:comment:added",
+    "pr:comment:edited",
+    "pr:comment:deleted",
+    "pr:declined",
+    "pr:deleted",
+    "pr:merged",
+    "pr:modified",
+    "pr:opened",
+    "pr:reviewer:approved",
+    "pr:reviewer:needs_work",
+    "pr:reviewer:updated",
+    "pr:reviewer:unapproved"
+   ],
+   "config_options": [],
+   "url_options": [
+    {
+     "key": "branches",
+     "label": "",
+     "input_type": "text"
+    }
+   ]
+  },
+  {
+   "name": "buildbot",
+   "display_name": "Buildbot",
+   "all_event_types": [
+    "new",
+    "finished"
+   ],
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "canarytoken",
+   "display_name": "Thinkst Canarytokens",
+   "all_event_types": null,
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "circleci",
+   "display_name": "CircleCI",
+   "all_event_types": [
+    "ping",
+    "job-completed",
+    "workflow-completed"
+   ],
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "crashlytics",
+   "display_name": "Crashlytics",
+   "all_event_types": null,
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "dbt",
+   "display_name": "dbt",
+   "all_event_types": [
+    "job.run.started",
+    "job.run.completed",
+    "job.run.errored"
+   ],
+   "config_options": [],
+   "url_options": [
+    {
+     "key": "access_url",
+     "label": "dbt Access URL",
+     "input_type": "text"
+    }
+   ]
+  },
+  {
+   "name": "delighted",
+   "display_name": "Delighted",
+   "all_event_types": null,
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "dialogflow",
+   "display_name": "Dialogflow",
+   "all_event_types": null,
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "dropbox",
+   "display_name": "Dropbox",
+   "all_event_types": null,
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "dropboxsign",
+   "display_name": "Dropbox Sign",
+   "all_event_types": null,
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "errbit",
+   "display_name": "Errbit",
+   "all_event_types": null,
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "flock",
+   "display_name": "Flock",
+   "all_event_types": null,
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "freshdesk",
+   "display_name": "Freshdesk",
+   "all_event_types": null,
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "freshping",
+   "display_name": "Freshping",
+   "all_event_types": [
+    "reporting_error",
+    "available"
+   ],
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "freshstatus",
+   "display_name": "Freshstatus",
+   "all_event_types": [
+    "MAINTENANCE_NOTE_CREATE",
+    "INCIDENT_NOTE_CREATE",
+    "INCIDENT_OPEN",
+    "MAINTENANCE_PLANNED",
+    "INCIDENT_REOPEN"
+   ],
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "front",
+   "display_name": "Front",
+   "all_event_types": [
+    "inbound",
+    "outbound",
+    "out_reply",
+    "comment",
+    "mention",
+    "assign",
+    "unassign",
+    "archive",
+    "reopen",
+    "trash",
+    "restore",
+    "tag",
+    "untag"
+   ],
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "gitea",
+   "display_name": "Gitea",
+   "all_event_types": null,
+   "config_options": [],
+   "url_options": [
+    {
+     "key": "branches",
+     "label": "",
+     "input_type": "text"
+    }
+   ]
+  },
+  {
+   "name": "github",
+   "display_name": "GitHub",
+   "all_event_types": [
+    "commit_comment",
+    "closed_pull_request",
+    "create",
+    "check_run",
+    "delete",
+    "deployment",
+    "deployment_status",
+    "discussion",
+    "discussion_comment",
+    "fork",
+    "gollum",
+    "issue_comment",
+    "issue_labeled_or_unlabeled",
+    "issue_milestoned_or_demilestoned",
+    "issues_opened_via_transfer",
+    "issues_transferred",
+    "issues",
+    "member",
+    "membership",
+    "opened_pull_request",
+    "updated_pull_request",
+    "assigned_or_unassigned_pull_request",
+    "page_build",
+    "ping",
+    "public",
+    "pull_request_ready_for_review",
+    "pull_request_review",
+    "pull_request_review_comment",
+    "pull_request_review_requested",
+    "pull_request_milestoned_or_demilestoned",
+    "pull_request_enqueued_or_dequeued",
+    "pull_request_labeled_or_unlabeled",
+    "pull_request_converted_to_draft",
+    "pull_request_review_request_removed",
+    "pull_request_auto_merge",
+    "locked_or_unlocked_pull_request",
+    "push_commits",
+    "push_tags",
+    "release",
+    "repository_advisory",
+    "repository",
+    "star",
+    "status",
+    "team",
+    "team_add",
+    "watch",
+    "cancelled",
+    "created",
+    "edited",
+    "pending_cancellation",
+    "pending_tier_change",
+    "tier_changed"
+   ],
+   "config_options": [],
+   "url_options": [
+    {
+     "key": "branches",
+     "label": "",
+     "input_type": "text"
+    },
+    {
+     "key": "ignore_private_repositories",
+     "label": "Exclude notifications from private repositories",
+     "input_type": "checkbox"
+    },
+    {
+     "key": "include_repository_name",
+     "label": "Include repository name in the notifications",
+     "input_type": "checkbox"
+    },
+    {
+     "key": "include_emoji_indicators",
+     "label": "Include emoji indicators in the notifications",
+     "input_type": "checkbox_enabled"
+    }
+   ]
+  },
+  {
+   "name": "githubsponsors",
+   "display_name": "GitHub Sponsors",
+   "all_event_types": [
+    "cancelled",
+    "created",
+    "edited",
+    "pending_cancellation",
+    "pending_tier_change",
+    "tier_changed"
+   ],
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "gitlab",
+   "display_name": "GitLab",
+   "all_event_types": [
+    "Push Hook",
+    "Tag Push Hook",
+    "Test Hook",
+    "Issue Hook open",
+    "Issue Hook close",
+    "Issue Hook reopen",
+    "Issue Hook update",
+    "Confidential Issue Hook open",
+    "Confidential Issue Hook close",
+    "Confidential Issue Hook reopen",
+    "Confidential Issue Hook update",
+    "Note Hook Commit",
+    "Note Hook MergeRequest",
+    "Note Hook Issue",
+    "Confidential Note Hook Issue",
+    "Note Hook DesignManagement::Design",
+    "Confidential Note Hook DesignManagement::Design",
+    "Note Hook Snippet",
+    "Merge Request Hook approved",
+    "Merge Request Hook unapproved",
+    "Merge Request Hook approval",
+    "Merge Request Hook unapproval",
+    "Merge Request Hook open",
+    "Merge Request Hook update",
+    "Merge Request Hook merge",
+    "Merge Request Hook close",
+    "Merge Request Hook reopen",
+    "Wiki Page Hook create",
+    "Wiki Page Hook update",
+    "Job Hook",
+    "Build Hook",
+    "Pipeline Hook",
+    "Release Hook",
+    "Feature Flag Hook",
+    "Resource Access Token Hook",
+    "Deployment Hook",
+    "Emoji Hook award",
+    "Emoji Hook revoke"
+   ],
+   "config_options": [],
+   "url_options": [
+    {
+     "key": "branches",
+     "label": "",
+     "input_type": "text"
+    },
+    {
+     "key": "ignore_private_projects",
+     "label": "Exclude notifications from private projects",
+     "input_type": "checkbox"
+    },
+    {
+     "key": "use_merge_request_title",
+     "label": "Include merge request titles in topics",
+     "input_type": "checkbox_enabled"
+    }
+   ]
+  },
+  {
+   "name": "gocd",
+   "display_name": "GoCD",
+   "all_event_types": null,
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "gogs",
+   "display_name": "Gogs",
+   "all_event_types": [
+    "issue_comment",
+    "issues",
+    "create",
+    "pull_request",
+    "push",
+    "release"
+   ],
+   "config_options": [],
+   "url_options": [
+    {
+     "key": "branches",
+     "label": "",
+     "input_type": "text"
+    }
+   ]
+  },
+  {
+   "name": "gosquared",
+   "display_name": "GoSquared",
+   "all_event_types": [
+    "chat_message",
+    "traffic_spike"
+   ],
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "grafana",
+   "display_name": "Grafana",
+   "all_event_types": [
+    "ok",
+    "pending",
+    "alerting",
+    "paused",
+    "firing",
+    "resolved"
+   ],
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "greenhouse",
+   "display_name": "Greenhouse",
+   "all_event_types": null,
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "groove",
+   "display_name": "Groove",
+   "all_event_types": [
+    "ticket_started",
+    "ticket_assigned",
+    "agent_replied",
+    "customer_replied",
+    "note_added"
+   ],
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "harbor",
+   "display_name": "Harbor",
+   "all_event_types": [
+    "PUSH_ARTIFACT",
+    "SCANNING_COMPLETED"
+   ],
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "helloworld",
+   "display_name": "Hello World",
+   "all_event_types": null,
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "heroku",
+   "display_name": "Heroku",
+   "all_event_types": null,
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "homeassistant",
+   "display_name": "Home Assistant",
+   "all_event_types": null,
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "ifttt",
+   "display_name": "IFTTT",
+   "all_event_types": null,
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "intercom",
+   "display_name": "Intercom",
+   "all_event_types": [
+    "ping"
+   ],
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "jira",
+   "display_name": "Jira",
+   "all_event_types": [
+    "jira:issue_created",
+    "jira:issue_deleted",
+    "jira:issue_updated",
+    "comment_created",
+    "comment_updated",
+    "comment_deleted"
+   ],
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "jotform",
+   "display_name": "Jotform",
+   "all_event_types": null,
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "json",
+   "display_name": "JSON formatter",
+   "all_event_types": null,
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "librato",
+   "display_name": "Librato",
+   "all_event_types": null,
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "lidarr",
+   "display_name": "Lidarr",
+   "all_event_types": [
+    "Test",
+    "Grab",
+    "Rename",
+    "Retag",
+    "Download"
+   ],
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "linear",
+   "display_name": "Linear",
+   "all_event_types": [
+    "issue",
+    "sub_issue",
+    "comment"
+   ],
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "mention",
+   "display_name": "Mention",
+   "all_event_types": null,
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "netlify",
+   "display_name": "Netlify",
+   "all_event_types": [
+    "deploy_failed",
+    "deploy_locked",
+    "deploy_unlocked",
+    "deploy_building",
+    "deploy_created"
+   ],
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "newrelic",
+   "display_name": "New Relic",
+   "all_event_types": [
+    "CREATED",
+    "ACTIVATED",
+    "CLOSED"
+   ],
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "notion",
+   "display_name": "Notion",
+   "all_event_types": [
+    "verification"
+   ],
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "opencollective",
+   "display_name": "Open Collective",
+   "all_event_types": null,
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "openproject",
+   "display_name": "OpenProject",
+   "all_event_types": [
+    "project:created",
+    "project:updated",
+    "work_package:created",
+    "work_package:updated",
+    "time_entry:created",
+    "attachment:created"
+   ],
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "opensearch",
+   "display_name": "OpenSearch",
+   "all_event_types": null,
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "opsgenie",
+   "display_name": "Opsgenie",
+   "all_event_types": [
+    "AddTeam",
+    "UnAcknowledge",
+    "AddNote",
+    "TestAction",
+    "Close",
+    "Escalate",
+    "AddRecipient",
+    "RemoveTags",
+    "Acknowledge",
+    "Delete",
+    "AddTags",
+    "TakeOwnership",
+    "Create",
+    "AssignOwnership"
+   ],
+   "config_options": [],
+   "url_options": [
+    {
+     "key": "eu_region",
+     "label": "Use Opsgenie's European service region",
+     "input_type": "checkbox"
+    }
+   ]
+  },
+  {
+   "name": "pagerduty",
+   "display_name": "PagerDuty",
+   "all_event_types": [
+    "resolved",
+    "assigned",
+    "unacknowledged",
+    "acknowledged",
+    "triggered",
+    "reassigned"
+   ],
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "papertrail",
+   "display_name": "Papertrail",
+   "all_event_types": null,
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "patreon",
+   "display_name": "Patreon",
+   "all_event_types": [
+    "members:create",
+    "members:update",
+    "members:delete",
+    "members:pledge:create",
+    "members:pledge:update",
+    "members:pledge:delete"
+   ],
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "pingdom",
+   "display_name": "Pingdom",
+   "all_event_types": [
+    "HTTP",
+    "HTTP_CUSTOM",
+    "HTTPS",
+    "SMTP",
+    "POP3",
+    "IMAP",
+    "PING",
+    "DNS",
+    "UDP",
+    "PORT_TCP"
+   ],
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "radarr",
+   "display_name": "Radarr",
+   "all_event_types": [
+    "ApplicationUpdate",
+    "Test",
+    "Rename",
+    "Download",
+    "Health",
+    "Grab",
+    "MovieDelete",
+    "MovieFileDelete",
+    "MovieAdded"
+   ],
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "raygun",
+   "display_name": "Raygun",
+   "all_event_types": [
+    "error_notification",
+    "error_activity"
+   ],
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "redmine",
+   "display_name": "Redmine",
+   "all_event_types": [
+    "opened",
+    "updated"
+   ],
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "reviewboard",
+   "display_name": "Review Board",
+   "all_event_types": [
+    "review_request_published",
+    "review_request_reopened",
+    "review_request_closed",
+    "review_published",
+    "reply_published"
+   ],
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "rhodecode",
+   "display_name": "RhodeCode",
+   "all_event_types": [
+    "repo-push"
+   ],
+   "config_options": [],
+   "url_options": [
+    {
+     "key": "branches",
+     "label": "",
+     "input_type": "text"
+    }
+   ]
+  },
+  {
+   "name": "rundeck",
+   "display_name": "Rundeck",
+   "all_event_types": null,
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "semaphore",
+   "display_name": "Semaphore",
+   "all_event_types": [
+    "build",
+    "tag",
+    "unknown",
+    "branch",
+    "deploy",
+    "pull_request"
+   ],
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "sentry",
+   "display_name": "Sentry",
+   "all_event_types": [
+    "event_alert",
+    "issue",
+    "error"
+   ],
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "shortcut",
+   "display_name": "Shortcut",
+   "all_event_types": [
+    "story_update_archived",
+    "epic_update_archived",
+    "story_create",
+    "pull-request_create",
+    "pull-request_comment",
+    "branch_create",
+    "story_delete",
+    "epic_delete",
+    "story-task_create",
+    "story-task_delete",
+    "story-task_update_complete",
+    "story_update_epic",
+    "story_update_estimate",
+    "story_update_attachment",
+    "story_update_label",
+    "story_update_owner",
+    "story_update_project",
+    "story_update_type",
+    "epic_create",
+    "epic-comment_create",
+    "story-comment_create",
+    "epic_update_description",
+    "story_update_description",
+    "epic_update_state",
+    "story_update_state",
+    "epic_update_name",
+    "story_update_name",
+    "story_update_batch"
+   ],
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "slack",
+   "display_name": "Slack",
+   "all_event_types": null,
+   "config_options": [],
+   "url_options": [
+    {
+     "key": "mapping",
+     "label": "",
+     "input_type": "text"
+    }
+   ]
+  },
+  {
+   "name": "slack_incoming",
+   "display_name": "Slack-compatible webhook",
+   "all_event_types": null,
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "sonarqube",
+   "display_name": "SonarQube",
+   "all_event_types": null,
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "sonarr",
+   "display_name": "Sonarr",
+   "all_event_types": [
+    "Grab",
+    "EpisodeFileDelete",
+    "Test",
+    "Download",
+    "SeriesDelete",
+    "Health",
+    "Rename"
+   ],
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "splunk",
+   "display_name": "Splunk",
+   "all_event_types": null,
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "statuspage",
+   "display_name": "Statuspage",
+   "all_event_types": [
+    "incident",
+    "component"
+   ],
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "stripe",
+   "display_name": "Stripe",
+   "all_event_types": [
+    "charge.dispute.closed",
+    "charge.dispute.created",
+    "charge.failed",
+    "charge.succeeded",
+    "customer.created",
+    "customer.deleted",
+    "customer.discount.created",
+    "customer.subscription.created",
+    "customer.subscription.deleted",
+    "customer.subscription.trial_will_end",
+    "customer.subscription.updated",
+    "customer.updated",
+    "invoice.created",
+    "invoice.updated",
+    "invoice.payment_failed",
+    "invoiceitem.created",
+    "charge.refund.updated"
+   ],
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "taiga",
+   "display_name": "Taiga",
+   "all_event_types": null,
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "teamcity",
+   "display_name": "Teamcity",
+   "all_event_types": null,
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "thinkst",
+   "display_name": "Thinkst",
+   "all_event_types": null,
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "transifex",
+   "display_name": "Transifex",
+   "all_event_types": [
+    "translated",
+    "review"
+   ],
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "travis",
+   "display_name": "Travis CI",
+   "all_event_types": [
+    "push",
+    "pull_request",
+    "api",
+    "cron"
+   ],
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "trello",
+   "display_name": "Trello",
+   "all_event_types": null,
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "updown",
+   "display_name": "Updown",
+   "all_event_types": [
+    "up",
+    "down"
+   ],
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "uptimerobot",
+   "display_name": "UptimeRobot",
+   "all_event_types": [
+    "up",
+    "down"
+   ],
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "wekan",
+   "display_name": "Wekan",
+   "all_event_types": null,
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "wordpress",
+   "display_name": "WordPress",
+   "all_event_types": [
+    "publish_post",
+    "publish_page"
+   ],
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "zabbix",
+   "display_name": "Zabbix",
+   "all_event_types": null,
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "zapier",
+   "display_name": "Zapier",
+   "all_event_types": null,
+   "config_options": [],
+   "url_options": []
+  },
+  {
+   "name": "zendesk",
+   "display_name": "Zendesk",
+   "all_event_types": null,
+   "config_options": [],
+   "url_options": []
+  }
+ ],
+ "subscriptions": [
+  {
+   "is_archived": false,
+   "audible_notifications": null,
+   "can_add_subscribers_group": 9,
+   "can_administer_channel_group": 9,
+   "can_create_topic_group": 15,
+   "can_delete_any_message_group": 9,
+   "can_delete_own_message_group": 9,
+   "can_move_messages_out_of_channel_group": 9,
+   "can_move_messages_within_channel_group": 9,
+   "can_send_message_group": 15,
+   "can_remove_subscribers_group": 11,
+   "can_resolve_topics_group": 9,
+   "can_subscribe_group": 9,
+   "color": "#76ce90",
+   "creator_id": null,
+   "date_created": 1792623922,
+   "description": "Questions and discussion about using Zulip.",
+   "desktop_notifications": null,
+   "email_notifications": null,
+   "first_message_id": 12,
+   "folder_id": null,
+   "is_recently_active": true,
+   "history_public_to_subscribers": true,
+   "in_home_view": true,
+   "invite_only": false,
+   "is_announcement_only": false,
+   "is_muted": false,
+   "is_web_public": false,
+   "message_retention_days": null,
+   "name": "Zulip",
+   "pin_to_top": false,
+   "push_notifications": null,
+   "rendered_description": "<p>Questions and discussion about using Zulip.</p>",
+   "stream_id": 1,
+   "stream_post_policy": 1,
+   "stream_weekly_traffic": null,
+   "subscriber_count": 13,
+   "topics_policy": "inherit",
+   "wildcard_mentions_notify": null
+  },
+  {
+   "is_archived": false,
+   "audible_notifications": null,
+   "can_add_subscribers_group": 9,
+   "can_administer_channel_group": 9,
+   "can_create_topic_group": 15,
+   "can_delete_any_message_group": 9,
+   "can_delete_own_message_group": 9,
+   "can_move_messages_out_of_channel_group": 9,
+   "can_move_messages_within_channel_group": 9,
+   "can_send_message_group": 15,
+   "can_remove_subscribers_group": 11,
+   "can_resolve_topics_group": 9,
+   "can_subscribe_group": 9,
+   "color": "#a6c7e5",
+   "creator_id": null,
+   "date_created": 1792623922,
+   "description": "For team-wide conversations",
+   "desktop_notifications": null,
+   "email_notifications": null,
+   "first_message_id": 9,
+   "folder_id": null,
+   "is_recently_active": true,
+   "history_public_to_subscribers": true,
+   "in_home_view": true,
+   "invite_only": false,
+   "is_announcement_only": false,
+   "is_muted": false,
+   "is_web_public": false,
+   "message_retention_days": null,
+   "name": "general",
+   "pin_to_top": false,
+   "push_notifications": null,
+   "rendered_description": "<p>For team-wide conversations</p>",
+   "stream_id": 3,
+   "stream_post_policy": 1,
+   "stream_weekly_traffic": null,
+   "subscriber_count": 13,
+   "topics_policy": "inherit",
+   "wildcard_mentions_notify": null
+  },
+  {
+   "is_archived": false,
+   "audible_notifications": null,
+   "can_add_subscribers_group": 9,
+   "can_administer_channel_group": 9,
+   "can_create_topic_group": 15,
+   "can_delete_any_message_group": 9,
+   "can_delete_own_message_group": 9,
+   "can_move_messages_out_of_channel_group": 9,
+   "can_move_messages_within_channel_group": 9,
+   "can_send_message_group": 15,
+   "can_remove_subscribers_group": 11,
+   "can_resolve_topics_group": 9,
+   "can_subscribe_group": 9,
+   "color": "#fae589",
+   "creator_id": null,
+   "date_created": 1792623922,
+   "description": "Experiment with Zulip here. :test_tube:",
+   "desktop_notifications": null,
+   "email_notifications": null,
+   "first_message_id": 7,
+   "folder_id": null,
+   "is_recently_active": true,
+   "history_public_to_subscribers": true,
+   "in_home_view": true,
+   "invite_only": false,
+   "is_announcement_only": false,
+   "is_muted": false,
+   "is_web_public": false,
+   "message_retention_days": null,
+   "name": "sandbox",
+   "pin_to_top": false,
+   "push_notifications": null,
+   "rendered_description": "<p>Experiment with Zulip here. <span aria-label=\"test tube\" class=\"emoji emoji-1f9ea\" role=\"img\" title=\"test tube\">:test_tube:</span></p>",
+   "stream_id": 2,
+   "stream_post_policy": 1,
+   "stream_weekly_traffic": null,
+   "subscriber_count": 13,
+   "topics_policy": "inherit",
+   "wildcard_mentions_notify": null
+  },
+  {
+   "is_archived": false,
+   "audible_notifications": null,
+   "can_add_subscribers_group": 9,
+   "can_administer_channel_group": {
+    "direct_members": [
+     8
+    ],
+    "direct_subgroups": []
+   },
+   "can_create_topic_group": 15,
+   "can_delete_any_message_group": 9,
+   "can_delete_own_message_group": 9,
+   "can_move_messages_out_of_channel_group": 9,
+   "can_move_messages_within_channel_group": 9,
+   "can_send_message_group": 15,
+   "can_remove_subscribers_group": 11,
+   "can_resolve_topics_group": 9,
+   "can_subscribe_group": 9,
+   "color": "#b0a5fd",
+   "creator_id": 8,
+   "date_created": 1792624232,
+   "description": "仅核心成员可见",
+   "desktop_notifications": null,
+   "email_notifications": null,
+   "first_message_id": 332,
+   "folder_id": null,
+   "is_recently_active": true,
+   "history_public_to_subscribers": false,
+   "in_home_view": true,
+   "invite_only": true,
+   "is_announcement_only": false,
+   "is_muted": false,
+   "is_web_public": false,
+   "message_retention_days": null,
+   "name": "公告",
+   "pin_to_top": false,
+   "push_notifications": null,
+   "rendered_description": "<p>仅核心成员可见</p>",
+   "stream_id": 7,
+   "stream_post_policy": 1,
+   "stream_weekly_traffic": null,
+   "subscriber_count": 5,
+   "topics_policy": "inherit",
+   "wildcard_mentions_notify": null
+  },
+  {
+   "is_archived": false,
+   "audible_notifications": null,
+   "can_add_subscribers_group": 9,
+   "can_administer_channel_group": {
+    "direct_members": [
+     8
+    ],
+    "direct_subgroups": []
+   },
+   "can_create_topic_group": 15,
+   "can_delete_any_message_group": 9,
+   "can_delete_own_message_group": 9,
+   "can_move_messages_out_of_channel_group": 9,
+   "can_move_messages_within_channel_group": 9,
+   "can_send_message_group": 15,
+   "can_remove_subscribers_group": 11,
+   "can_resolve_topics_group": 9,
+   "can_subscribe_group": 9,
+   "color": "#e79ab5",
+   "creator_id": 8,
+   "date_created": 1792624232,
+   "description": "开发讨论。**群公告**：周五下午 3 点例会。",
+   "desktop_notifications": null,
+   "email_notifications": null,
+   "first_message_id": 26,
+   "folder_id": null,
+   "is_recently_active": true,
+   "history_public_to_subscribers": true,
+   "in_home_view": true,
+   "invite_only": false,
+   "is_announcement_only": false,
+   "is_muted": false,
+   "is_web_public": false,
+   "message_retention_days": null,
+   "name": "开发",
+   "pin_to_top": false,
+   "push_notifications": null,
+   "rendered_description": "<p>开发讨论。<strong>群公告</strong>：周五下午 3 点例会。</p>",
+   "stream_id": 4,
+   "stream_post_policy": 1,
+   "stream_weekly_traffic": null,
+   "subscriber_count": 13,
+   "topics_policy": "inherit",
+   "wildcard_mentions_notify": null
+  },
+  {
+   "is_archived": false,
+   "audible_notifications": null,
+   "can_add_subscribers_group": 9,
+   "can_administer_channel_group": {
+    "direct_members": [
+     8
+    ],
+    "direct_subgroups": []
+   },
+   "can_create_topic_group": 15,
+   "can_delete_any_message_group": 9,
+   "can_delete_own_message_group": 9,
+   "can_move_messages_out_of_channel_group": 9,
+   "can_move_messages_within_channel_group": 9,
+   "can_send_message_group": 15,
+   "can_remove_subscribers_group": 11,
+   "can_resolve_topics_group": 9,
+   "can_subscribe_group": 9,
+   "color": "#f4ae55",
+   "creator_id": 8,
+   "date_created": 1792624232,
+   "description": "吃喝玩乐，随便聊",
+   "desktop_notifications": null,
+   "email_notifications": null,
+   "first_message_id": 230,
+   "folder_id": null,
+   "is_recently_active": true,
+   "history_public_to_subscribers": true,
+   "in_home_view": true,
+   "invite_only": false,
+   "is_announcement_only": false,
+   "is_muted": false,
+   "is_web_public": false,
+   "message_retention_days": null,
+   "name": "日常",
+   "pin_to_top": false,
+   "push_notifications": null,
+   "rendered_description": "<p>吃喝玩乐，随便聊</p>",
+   "stream_id": 6,
+   "stream_post_policy": 1,
+   "stream_weekly_traffic": null,
+   "subscriber_count": 13,
+   "topics_policy": "inherit",
+   "wildcard_mentions_notify": null
+  },
+  {
+   "is_archived": false,
+   "audible_notifications": null,
+   "can_add_subscribers_group": 9,
+   "can_administer_channel_group": {
+    "direct_members": [
+     8
+    ],
+    "direct_subgroups": []
+   },
+   "can_create_topic_group": 15,
+   "can_delete_any_message_group": 9,
+   "can_delete_own_message_group": 9,
+   "can_move_messages_out_of_channel_group": 9,
+   "can_move_messages_within_channel_group": 9,
+   "can_send_message_group": 15,
+   "can_remove_subscribers_group": 11,
+   "can_resolve_topics_group": 9,
+   "can_subscribe_group": 9,
+   "color": "#bfd56f",
+   "creator_id": 8,
+   "date_created": 1792624232,
+   "description": "下班一起打游戏",
+   "desktop_notifications": null,
+   "email_notifications": null,
+   "first_message_id": 128,
+   "folder_id": null,
+   "is_recently_active": true,
+   "history_public_to_subscribers": true,
+   "in_home_view": true,
+   "invite_only": false,
+   "is_announcement_only": false,
+   "is_muted": false,
+   "is_web_public": false,
+   "message_retention_days": null,
+   "name": "游戏",
+   "pin_to_top": false,
+   "push_notifications": null,
+   "rendered_description": "<p>下班一起打游戏</p>",
+   "stream_id": 5,
+   "stream_post_policy": 1,
+   "stream_weekly_traffic": null,
+   "subscriber_count": 13,
+   "topics_policy": "inherit",
+   "wildcard_mentions_notify": null
+  }
+ ],
+ "unsubscribed": [],
+ "never_subscribed": [],
+ "channel_folders": [],
+ "starred_messages": [
+  1,
+  3,
+  5,
+  8,
+  10,
+  13,
+  279,
+  287,
+  298,
+  304,
+  336,
+  345,
+  354,
+  379,
+  384,
+  386
+ ],
+ "streams": [
+  {
+   "is_archived": false,
+   "can_add_subscribers_group": 9,
+   "can_administer_channel_group": 9,
+   "can_create_topic_group": 15,
+   "can_delete_any_message_group": 9,
+   "can_delete_own_message_group": 9,
+   "can_move_messages_out_of_channel_group": 9,
+   "can_move_messages_within_channel_group": 9,
+   "can_send_message_group": 15,
+   "can_remove_subscribers_group": 11,
+   "can_resolve_topics_group": 9,
+   "can_subscribe_group": 9,
+   "creator_id": null,
+   "date_created": 1792623922,
+   "description": "Questions and discussion about using Zulip.",
+   "first_message_id": 12,
+   "folder_id": null,
+   "is_recently_active": true,
+   "history_public_to_subscribers": true,
+   "invite_only": false,
+   "is_web_public": false,
+   "message_retention_days": null,
+   "name": "Zulip",
+   "rendered_description": "<p>Questions and discussion about using Zulip.</p>",
+   "stream_id": 1,
+   "stream_post_policy": 1,
+   "is_announcement_only": false,
+   "stream_weekly_traffic": null,
+   "subscriber_count": 13,
+   "topics_policy": "inherit"
+  },
+  {
+   "is_archived": false,
+   "can_add_subscribers_group": 9,
+   "can_administer_channel_group": 9,
+   "can_create_topic_group": 15,
+   "can_delete_any_message_group": 9,
+   "can_delete_own_message_group": 9,
+   "can_move_messages_out_of_channel_group": 9,
+   "can_move_messages_within_channel_group": 9,
+   "can_send_message_group": 15,
+   "can_remove_subscribers_group": 11,
+   "can_resolve_topics_group": 9,
+   "can_subscribe_group": 9,
+   "creator_id": null,
+   "date_created": 1792623922,
+   "description": "For team-wide conversations",
+   "first_message_id": 9,
+   "folder_id": null,
+   "is_recently_active": true,
+   "history_public_to_subscribers": true,
+   "invite_only": false,
+   "is_web_public": false,
+   "message_retention_days": null,
+   "name": "general",
+   "rendered_description": "<p>For team-wide conversations</p>",
+   "stream_id": 3,
+   "stream_post_policy": 1,
+   "is_announcement_only": false,
+   "stream_weekly_traffic": null,
+   "subscriber_count": 13,
+   "topics_policy": "inherit"
+  },
+  {
+   "is_archived": false,
+   "can_add_subscribers_group": 9,
+   "can_administer_channel_group": 9,
+   "can_create_topic_group": 15,
+   "can_delete_any_message_group": 9,
+   "can_delete_own_message_group": 9,
+   "can_move_messages_out_of_channel_group": 9,
+   "can_move_messages_within_channel_group": 9,
+   "can_send_message_group": 15,
+   "can_remove_subscribers_group": 11,
+   "can_resolve_topics_group": 9,
+   "can_subscribe_group": 9,
+   "creator_id": null,
+   "date_created": 1792623922,
+   "description": "Experiment with Zulip here. :test_tube:",
+   "first_message_id": 7,
+   "folder_id": null,
+   "is_recently_active": true,
+   "history_public_to_subscribers": true,
+   "invite_only": false,
+   "is_web_public": false,
+   "message_retention_days": null,
+   "name": "sandbox",
+   "rendered_description": "<p>Experiment with Zulip here. <span aria-label=\"test tube\" class=\"emoji emoji-1f9ea\" role=\"img\" title=\"test tube\">:test_tube:</span></p>",
+   "stream_id": 2,
+   "stream_post_policy": 1,
+   "is_announcement_only": false,
+   "stream_weekly_traffic": null,
+   "subscriber_count": 13,
+   "topics_policy": "inherit"
+  },
+  {
+   "is_archived": false,
+   "can_add_subscribers_group": 9,
+   "can_administer_channel_group": {
+    "direct_members": [
+     8
+    ],
+    "direct_subgroups": []
+   },
+   "can_create_topic_group": 15,
+   "can_delete_any_message_group": 9,
+   "can_delete_own_message_group": 9,
+   "can_move_messages_out_of_channel_group": 9,
+   "can_move_messages_within_channel_group": 9,
+   "can_send_message_group": 15,
+   "can_remove_subscribers_group": 11,
+   "can_resolve_topics_group": 9,
+   "can_subscribe_group": 9,
+   "creator_id": 8,
+   "date_created": 1792624232,
+   "description": "仅核心成员可见",
+   "first_message_id": 332,
+   "folder_id": null,
+   "is_recently_active": true,
+   "history_public_to_subscribers": false,
+   "invite_only": true,
+   "is_web_public": false,
+   "message_retention_days": null,
+   "name": "公告",
+   "rendered_description": "<p>仅核心成员可见</p>",
+   "stream_id": 7,
+   "stream_post_policy": 1,
+   "is_announcement_only": false,
+   "stream_weekly_traffic": null,
+   "subscriber_count": 5,
+   "topics_policy": "inherit"
+  },
+  {
+   "is_archived": false,
+   "can_add_subscribers_group": 9,
+   "can_administer_channel_group": {
+    "direct_members": [
+     8
+    ],
+    "direct_subgroups": []
+   },
+   "can_create_topic_group": 15,
+   "can_delete_any_message_group": 9,
+   "can_delete_own_message_group": 9,
+   "can_move_messages_out_of_channel_group": 9,
+   "can_move_messages_within_channel_group": 9,
+   "can_send_message_group": 15,
+   "can_remove_subscribers_group": 11,
+   "can_resolve_topics_group": 9,
+   "can_subscribe_group": 9,
+   "creator_id": 8,
+   "date_created": 1792624232,
+   "description": "开发讨论。**群公告**：周五下午 3 点例会。",
+   "first_message_id": 26,
+   "folder_id": null,
+   "is_recently_active": true,
+   "history_public_to_subscribers": true,
+   "invite_only": false,
+   "is_web_public": false,
+   "message_retention_days": null,
+   "name": "开发",
+   "rendered_description": "<p>开发讨论。<strong>群公告</strong>：周五下午 3 点例会。</p>",
+   "stream_id": 4,
+   "stream_post_policy": 1,
+   "is_announcement_only": false,
+   "stream_weekly_traffic": null,
+   "subscriber_count": 13,
+   "topics_policy": "inherit"
+  },
+  {
+   "is_archived": false,
+   "can_add_subscribers_group": 9,
+   "can_administer_channel_group": {
+    "direct_members": [
+     8
+    ],
+    "direct_subgroups": []
+   },
+   "can_create_topic_group": 15,
+   "can_delete_any_message_group": 9,
+   "can_delete_own_message_group": 9,
+   "can_move_messages_out_of_channel_group": 9,
+   "can_move_messages_within_channel_group": 9,
+   "can_send_message_group": 15,
+   "can_remove_subscribers_group": 11,
+   "can_resolve_topics_group": 9,
+   "can_subscribe_group": 9,
+   "creator_id": 8,
+   "date_created": 1792624232,
+   "description": "吃喝玩乐，随便聊",
+   "first_message_id": 230,
+   "folder_id": null,
+   "is_recently_active": true,
+   "history_public_to_subscribers": true,
+   "invite_only": false,
+   "is_web_public": false,
+   "message_retention_days": null,
+   "name": "日常",
+   "rendered_description": "<p>吃喝玩乐，随便聊</p>",
+   "stream_id": 6,
+   "stream_post_policy": 1,
+   "is_announcement_only": false,
+   "stream_weekly_traffic": null,
+   "subscriber_count": 13,
+   "topics_policy": "inherit"
+  },
+  {
+   "is_archived": false,
+   "can_add_subscribers_group": 9,
+   "can_administer_channel_group": {
+    "direct_members": [
+     8
+    ],
+    "direct_subgroups": []
+   },
+   "can_create_topic_group": 15,
+   "can_delete_any_message_group": 9,
+   "can_delete_own_message_group": 9,
+   "can_move_messages_out_of_channel_group": 9,
+   "can_move_messages_within_channel_group": 9,
+   "can_send_message_group": 15,
+   "can_remove_subscribers_group": 11,
+   "can_resolve_topics_group": 9,
+   "can_subscribe_group": 9,
+   "creator_id": 8,
+   "date_created": 1792624232,
+   "description": "下班一起打游戏",
+   "first_message_id": 128,
+   "folder_id": null,
+   "is_recently_active": true,
+   "history_public_to_subscribers": true,
+   "invite_only": false,
+   "is_web_public": false,
+   "message_retention_days": null,
+   "name": "游戏",
+   "rendered_description": "<p>下班一起打游戏</p>",
+   "stream_id": 5,
+   "stream_post_policy": 1,
+   "is_announcement_only": false,
+   "stream_weekly_traffic": null,
+   "subscriber_count": 13,
+   "topics_policy": "inherit"
+  }
+ ],
+ "realm_default_streams": [
+  1,
+  2,
+  3
+ ],
+ "realm_default_stream_groups": [],
+ "stop_words": [
+  "i",
+  "me",
+  "my",
+  "myself",
+  "we",
+  "our",
+  "ours",
+  "ourselves",
+  "you",
+  "your",
+  "yours",
+  "yourself",
+  "yourselves",
+  "he",
+  "him",
+  "his",
+  "himself",
+  "she",
+  "her",
+  "hers",
+  "herself",
+  "it",
+  "its",
+  "itself",
+  "they",
+  "them",
+  "their",
+  "theirs",
+  "themselves",
+  "what",
+  "which",
+  "who",
+  "whom",
+  "this",
+  "that",
+  "these",
+  "those",
+  "am",
+  "is",
+  "are",
+  "was",
+  "were",
+  "be",
+  "been",
+  "being",
+  "have",
+  "has",
+  "had",
+  "having",
+  "do",
+  "does",
+  "did",
+  "doing",
+  "a",
+  "an",
+  "the",
+  "and",
+  "but",
+  "if",
+  "or",
+  "because",
+  "as",
+  "until",
+  "while",
+  "of",
+  "at",
+  "by",
+  "for",
+  "with",
+  "about",
+  "against",
+  "between",
+  "into",
+  "through",
+  "during",
+  "before",
+  "after",
+  "above",
+  "below",
+  "to",
+  "from",
+  "up",
+  "down",
+  "in",
+  "out",
+  "on",
+  "off",
+  "over",
+  "under",
+  "again",
+  "further",
+  "then",
+  "once",
+  "here",
+  "there",
+  "when",
+  "where",
+  "why",
+  "how",
+  "all",
+  "any",
+  "both",
+  "each",
+  "few",
+  "more",
+  "most",
+  "other",
+  "some",
+  "such",
+  "no",
+  "nor",
+  "not",
+  "only",
+  "own",
+  "same",
+  "so",
+  "than",
+  "too",
+  "very",
+  "s",
+  "t",
+  "can",
+  "will",
+  "just",
+  "don",
+  "should",
+  "now",
+  "b",
+  "c",
+  "d",
+  "e",
+  "f",
+  "g",
+  "h",
+  "j",
+  "k",
+  "l",
+  "m",
+  "n",
+  "o",
+  "p",
+  "q",
+  "r",
+  "u",
+  "v",
+  "w",
+  "x",
+  "y",
+  "z"
+ ],
+ "user_settings": {
+  "automatically_follow_topics_policy": 3,
+  "automatically_follow_topics_where_mentioned": true,
+  "automatically_unmute_topics_in_muted_streams_policy": 2,
+  "desktop_icon_count_display": 1,
+  "email_notifications_batching_period_seconds": 120,
+  "enable_desktop_notifications": true,
+  "enable_digest_emails": true,
+  "enable_followed_topic_audible_notifications": true,
+  "enable_followed_topic_desktop_notifications": true,
+  "enable_followed_topic_email_notifications": true,
+  "enable_followed_topic_push_notifications": true,
+  "enable_followed_topic_wildcard_mentions_notify": true,
+  "enable_login_emails": true,
+  "enable_marketing_emails": true,
+  "enable_offline_email_notifications": true,
+  "enable_offline_push_notifications": true,
+  "enable_online_push_notifications": true,
+  "enable_sounds": true,
+  "enable_stream_audible_notifications": false,
+  "enable_stream_desktop_notifications": false,
+  "enable_stream_email_notifications": false,
+  "enable_stream_push_notifications": false,
+  "message_content_in_email_notifications": true,
+  "notification_sound": "zulip",
+  "pm_content_in_desktop_notifications": true,
+  "presence_enabled": true,
+  "realm_name_in_email_notifications_policy": 1,
+  "wildcard_mentions_notify": true,
+  "allow_private_data_export": false,
+  "color_scheme": 1,
+  "default_language": "en",
+  "demote_inactive_streams": 1,
+  "display_emoji_reaction_users": true,
+  "email_address_visibility": 3,
+  "emojiset": "google",
+  "enable_drafts_synchronization": true,
+  "enter_sends": false,
+  "fluid_layout_width": false,
+  "hide_ai_features": false,
+  "high_contrast_mode": false,
+  "left_side_userlist": false,
+  "receives_typing_notifications": true,
+  "resolved_topic_notice_auto_read_policy": "except_followed",
+  "send_private_typing_notifications": true,
+  "send_read_receipts": true,
+  "send_stream_typing_notifications": true,
+  "starred_message_counts": true,
+  "translate_emoticons": false,
+  "twenty_four_hour_time": false,
+  "user_list_style": 3,
+  "web_animate_image_previews": "on_hover",
+  "web_channel_default_view": 1,
+  "web_escape_navigates_to_home_view": true,
+  "web_font_size_px": 16,
+  "web_home_view": "inbox",
+  "web_inbox_show_channel_folders": true,
+  "web_left_sidebar_show_channel_folders": true,
+  "web_left_sidebar_unreads_count_summary": true,
+  "web_line_height_percent": 140,
+  "web_mark_read_on_scroll_policy": 1,
+  "web_navigate_to_sent_message": true,
+  "web_stream_unreads_count_display_policy": 2,
+  "web_suggest_update_timezone": true,
+  "emojiset_choices": [
+   {
+    "key": "google",
+    "text": "Google"
+   },
+   {
+    "key": "twitter",
+    "text": "Twitter"
+   },
+   {
+    "key": "text",
+    "text": "Plain text"
+   }
+  ],
+  "timezone": "",
+  "available_notification_sounds": [
+   "ascend",
+   "beep_boop",
+   "bink",
+   "bright",
+   "brlip",
+   "chime",
+   "deep tom",
+   "ding",
+   "double tap",
+   "down",
+   "dry bongos",
+   "dutdut",
+   "fast ascend",
+   "flute",
+   "friendly",
+   "kick roll",
+   "loud tintong",
+   "metallic snare",
+   "pan",
+   "shaker",
+   "simple",
+   "stairs",
+   "subtle",
+   "swish",
+   "tintong",
+   "up",
+   "wood block",
+   "zaping",
+   "zing",
+   "zulip"
+  ]
+ },
+ "user_status": {},
+ "user_topics": [
+  {
+   "stream_id": 7,
+   "topic_name": "人事通知",
+   "visibility_policy": 3,
+   "last_updated": 1792624240
+  },
+  {
+   "stream_id": 7,
+   "topic_name": "假期安排",
+   "visibility_policy": 3,
+   "last_updated": 1792624240
+  },
+  {
+   "stream_id": 7,
+   "topic_name": "预算",
+   "visibility_policy": 3,
+   "last_updated": 1792624241
+  },
+  {
+   "stream_id": 4,
+   "topic_name": "构建失败",
+   "visibility_policy": 3,
+   "last_updated": 1792624242
+  },
+  {
+   "stream_id": 5,
+   "topic_name": "吐槽",
+   "visibility_policy": 1,
+   "last_updated": 1792624305
+  }
+ ],
+ "has_zoom_token": false,
+ "has_webex_token": false,
+ "giphy_api_key": "",
+ "tenor_api_key": "",
+ "klipy_api_key": "",
+ "devices": {},
+ "unread_msgs": {
+  "pms": [
+   {
+    "other_user_id": 9,
+    "sender_id": 9,
+    "unread_message_ids": [
+     472
+    ]
+   }
+  ],
+  "streams": [
+   {
+    "stream_id": 4,
+    "topic": "接口设计",
+    "unread_message_ids": [
+     474,
+     478
+    ]
+   },
+   {
+    "stream_id": 4,
+    "topic": "构建失败",
+    "unread_message_ids": [
+     429,
+     430,
+     431,
+     432,
+     433,
+     434,
+     435,
+     436,
+     437,
+     438,
+     439,
+     440,
+     441,
+     442,
+     443,
+     444,
+     445,
+     446,
+     447,
+     448,
+     449,
+     450,
+     451,
+     452,
+     453,
+     454,
+     455,
+     456,
+     457,
+     458,
+     459,
+     460,
+     461,
+     462,
+     463,
+     464,
+     465,
+     466,
+     467,
+     468,
+     469
+    ]
+   },
+   {
+    "stream_id": 5,
+    "topic": "周末开黑",
+    "unread_message_ids": [
+     470,
+     475,
+     479
+    ]
+   },
+   {
+    "stream_id": 6,
+    "topic": "午饭吃什么",
+    "unread_message_ids": [
+     476,
+     480
+    ]
+   },
+   {
+    "stream_id": 6,
+    "topic": "宠物",
+    "unread_message_ids": [
+     471
+    ]
+   },
+   {
+    "stream_id": 7,
+    "topic": "人事通知",
+    "unread_message_ids": [
+     477,
+     481
+    ]
+   }
+  ],
+  "huddles": [],
+  "mentions": [
+   459,
+   470
+  ],
+  "count": 52,
+  "old_unreads_missing": false
+ },
+ "realm_users": [
+  {
+   "email": "user8@localhost.localdomain",
+   "user_id": 8,
+   "avatar_version": 1,
+   "is_admin": true,
+   "is_owner": true,
+   "is_guest": false,
+   "role": 100,
+   "is_bot": false,
+   "full_name": "群主大大",
+   "timezone": "",
+   "date_joined": "2026-10-21T23:05+00:00",
+   "delivery_email": "owner@zulip.test",
+   "is_imported_stub": false,
+   "avatar_url": "/user_avatars/2/485b1acbb71862ec06b5ff57a72769dcbbf99bc4.png",
+   "profile_data": {}
+  },
+  {
+   "email": "user9@localhost.localdomain",
+   "user_id": 9,
+   "avatar_version": 1,
+   "is_admin": false,
+   "is_owner": false,
+   "is_guest": false,
+   "role": 400,
+   "is_bot": false,
+   "full_name": "阿杰",
+   "timezone": "",
+   "date_joined": "2026-10-21T23:10+00:00",
+   "delivery_email": "u01@zulip.test",
+   "is_imported_stub": false,
+   "avatar_url": "/user_avatars/2/258b84582cd4d2817ba99fe59a9861b20a30d5ec.png",
+   "profile_data": {}
+  },
+  {
+   "email": "user10@localhost.localdomain",
+   "user_id": 10,
+   "avatar_version": 1,
+   "is_admin": false,
+   "is_owner": false,
+   "is_guest": false,
+   "role": 400,
+   "is_bot": false,
+   "full_name": "小雨",
+   "timezone": "",
+   "date_joined": "2026-10-21T23:10+00:00",
+   "delivery_email": "u02@zulip.test",
+   "is_imported_stub": false,
+   "avatar_url": "/user_avatars/2/760c9c9554fed6098f24e232ffc2fa817864cbbd.png",
+   "profile_data": {}
+  },
+  {
+   "email": "user11@localhost.localdomain",
+   "user_id": 11,
+   "avatar_version": 1,
+   "is_admin": false,
+   "is_owner": false,
+   "is_guest": false,
+   "role": 400,
+   "is_bot": false,
+   "full_name": "老王",
+   "timezone": "",
+   "date_joined": "2026-10-21T23:10+00:00",
+   "delivery_email": "u03@zulip.test",
+   "is_imported_stub": false,
+   "avatar_url": "/user_avatars/2/39f89eedc298aa1d8950239439f577f36e5550cf.png",
+   "profile_data": {}
+  },
+  {
+   "email": "user12@localhost.localdomain",
+   "user_id": 12,
+   "avatar_version": 1,
+   "is_admin": false,
+   "is_owner": false,
+   "is_guest": false,
+   "role": 400,
+   "is_bot": false,
+   "full_name": "晓晓",
+   "timezone": "",
+   "date_joined": "2026-10-21T23:10+00:00",
+   "delivery_email": "u04@zulip.test",
+   "is_imported_stub": false,
+   "avatar_url": "/user_avatars/2/9d0bd9dcada0ee305e061f52abc16d7b78a94dea.png",
+   "profile_data": {}
+  },
+  {
+   "email": "user13@localhost.localdomain",
+   "user_id": 13,
+   "avatar_version": 1,
+   "is_admin": false,
+   "is_owner": false,
+   "is_guest": false,
+   "role": 400,
+   "is_bot": false,
+   "full_name": "大熊",
+   "timezone": "",
+   "date_joined": "2026-10-21T23:10+00:00",
+   "delivery_email": "u05@zulip.test",
+   "is_imported_stub": false,
+   "avatar_url": "/user_avatars/2/0a9f5d714e7341565052851d1627d82eba6caed9.png",
+   "profile_data": {}
+  },
+  {
+   "email": "user14@localhost.localdomain",
+   "user_id": 14,
+   "avatar_version": 1,
+   "is_admin": false,
+   "is_owner": false,
+   "is_guest": false,
+   "role": 400,
+   "is_bot": false,
+   "full_name": "米粒",
+   "timezone": "",
+   "date_joined": "2026-10-21T23:10+00:00",
+   "delivery_email": "u06@zulip.test",
+   "is_imported_stub": false,
+   "avatar_url": "/user_avatars/2/ce644c992c87972efff46e33d53e42f334284c11.png",
+   "profile_data": {}
+  },
+  {
+   "email": "user15@localhost.localdomain",
+   "user_id": 15,
+   "avatar_version": 1,
+   "is_admin": false,
+   "is_owner": false,
+   "is_guest": false,
+   "role": 400,
+   "is_bot": false,
+   "full_name": "阿飞",
+   "timezone": "",
+   "date_joined": "2026-10-21T23:10+00:00",
+   "delivery_email": "u07@zulip.test",
+   "is_imported_stub": false,
+   "avatar_url": "/user_avatars/2/b01ab2f0058136042ddd307ab72e149cd47aeced.png",
+   "profile_data": {}
+  },
+  {
+   "email": "user16@localhost.localdomain",
+   "user_id": 16,
+   "avatar_version": 1,
+   "is_admin": false,
+   "is_owner": false,
+   "is_guest": false,
+   "role": 400,
+   "is_bot": false,
+   "full_name": "橙子",
+   "timezone": "",
+   "date_joined": "2026-10-21T23:10+00:00",
+   "delivery_email": "u08@zulip.test",
+   "is_imported_stub": false,
+   "avatar_url": "/user_avatars/2/d45e019ca3dcd883c5c792b1285ceaefdf864f20.png",
+   "profile_data": {}
+  },
+  {
+   "email": "user17@localhost.localdomain",
+   "user_id": 17,
+   "avatar_version": 1,
+   "is_admin": false,
+   "is_owner": false,
+   "is_guest": false,
+   "role": 400,
+   "is_bot": false,
+   "full_name": "小鹿",
+   "timezone": "",
+   "date_joined": "2026-10-21T23:10+00:00",
+   "delivery_email": "u09@zulip.test",
+   "is_imported_stub": false,
+   "avatar_url": "/user_avatars/2/302e4dd5d3ff2442f39765dde3f3c0874ee22de7.png",
+   "profile_data": {}
+  },
+  {
+   "email": "user18@localhost.localdomain",
+   "user_id": 18,
+   "avatar_version": 1,
+   "is_admin": false,
+   "is_owner": false,
+   "is_guest": false,
+   "role": 400,
+   "is_bot": false,
+   "full_name": "石头",
+   "timezone": "",
+   "date_joined": "2026-10-21T23:10+00:00",
+   "delivery_email": "u10@zulip.test",
+   "is_imported_stub": false,
+   "avatar_url": "/user_avatars/2/d26589ea06de1ef3e3c5be6b4ad8f4c9c9114519.png",
+   "profile_data": {}
+  },
+  {
+   "email": "user19@localhost.localdomain",
+   "user_id": 19,
+   "avatar_version": 1,
+   "is_admin": false,
+   "is_owner": false,
+   "is_guest": false,
+   "role": 400,
+   "is_bot": false,
+   "full_name": "可乐",
+   "timezone": "",
+   "date_joined": "2026-10-21T23:10+00:00",
+   "delivery_email": "u11@zulip.test",
+   "is_imported_stub": false,
+   "avatar_url": "/user_avatars/2/edaf94f7f7603bea88ed1ceeb216b05e8f63d52e.png",
+   "profile_data": {}
+  },
+  {
+   "email": "user20@localhost.localdomain",
+   "user_id": 20,
+   "avatar_version": 1,
+   "is_admin": false,
+   "is_owner": false,
+   "is_guest": false,
+   "role": 400,
+   "is_bot": false,
+   "full_name": "豆豆",
+   "timezone": "",
+   "date_joined": "2026-10-21T23:10+00:00",
+   "delivery_email": "u12@zulip.test",
+   "is_imported_stub": false,
+   "avatar_url": "/user_avatars/2/3607435f1c4a2d410bb18fbcff0c3fe89ad1be09.png",
+   "profile_data": {}
+  }
+ ],
+ "realm_non_active_users": [],
+ "recent_private_conversations": [
+  {
+   "user_ids": [
+    9
+   ],
+   "max_message_id": 472
+  },
+  {
+   "user_ids": [],
+   "max_message_id": 428
+  },
+  {
+   "user_ids": [
+    13,
+    14
+   ],
+   "max_message_id": 427
+  },
+  {
+   "user_ids": [
+    10,
+    11,
+    12
+   ],
+   "max_message_id": 426
+  },
+  {
+   "user_ids": [
+    13
+   ],
+   "max_message_id": 423
+  },
+  {
+   "user_ids": [
+    12
+   ],
+   "max_message_id": 420
+  },
+  {
+   "user_ids": [
+    11
+   ],
+   "max_message_id": 417
+  },
+  {
+   "user_ids": [
+    10
+   ],
+   "max_message_id": 414
+  },
+  {
+   "user_ids": [
+    7
+   ],
+   "max_message_id": 13
+  }
+ ],
+ "last_event_id": -1
+}

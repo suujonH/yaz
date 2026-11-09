@@ -1,0 +1,2 @@
+/* Message reminders */
+.reminder-failed { flex: none; color: var(--danger); font-size: var(--fs-sub); }

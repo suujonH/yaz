@@ -1,0 +1,40 @@
+/* Contacts page */
+.contacts-page { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.contacts-entries { flex: none; }
+.contacts-manager {
+  display: flex; align-items: center; justify-content: center; gap: 4px; width: calc(100% - 32px); height: 32px; margin: 2px 16px 8px;
+  border: 1px solid var(--manager-border); border-radius: var(--radius-lg); background: var(--manager-bg); color: var(--text-primary); font-size: var(--fs-small);
+}
+.contacts-manager:hover { background: var(--list-hover); }
+.contacts-manager:active { background: var(--list-pressed); }
+.contacts-entry { display: flex; align-items: center; height: 36px; padding: 0 16px; font-size: var(--fs-small); }
+.contacts-entry:hover { background: var(--list-hover); }
+.contacts-entry:active { background: var(--list-pressed); }
+.contacts-entry-title { flex: 1; min-width: 0; margin-left: 8px; }
+.contacts-entry-count { margin-right: 6px; color: var(--text-tertiary); }
+.contacts-entry-dot { width: 8px; height: 8px; margin-right: 6px; border-radius: 50%; background: var(--danger); }
+.contacts-entry-arrow { display: flex; color: var(--text-tertiary); }
+.contacts-divider { flex: none; height: 1px; margin: 6px 0; background: var(--divider); }
+.contacts-tabs { flex: none; margin: 6px 16px 8px; }
+.contacts-list { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.contacts-section { display: flex; align-items: center; gap: 6px; height: 36px; padding: 0 16px; font-size: var(--fs-small); }
+.contacts-section.channel { height: 48px; }
+.contacts-section.clickable:hover { background: var(--list-hover); }
+.contacts-section.clickable:active { background: var(--list-pressed); }
+.contacts-section.dimmed .contacts-section-title { color: var(--text-tertiary); }
+.contacts-section-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.contacts-section-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.contacts-section-text .contacts-section-title { flex: none; }
+.contacts-chevron { display: flex; flex: none; transition: transform 0.15s; color: var(--list-chevron); }
+.contacts-chevron.open { transform: rotate(90deg); }
+.contacts-lock { display: flex; flex: none; width: 12px; color: var(--text-secondary); }
+.contacts-flags { display: flex; flex: none; gap: 2px; }
+.contacts-loading { padding: 8px 40px; }
+.contacts-list .list-row.clickable:hover { background: var(--list-hover); }
+.contacts-list .list-row.clickable:active, .contacts-list .list-row.pressed { background: var(--list-pressed); }
+.contacts-list .list-row.selected, .contacts-list .list-row.selected:hover { background: var(--selected-row); }
+.contacts-list .list-row.normal { min-height: 56px; padding: 0 16px; }
+.contacts-list .list-row.normal .list-row-text { gap: 3px; }
+.contacts-topic .list-row.compact { min-height: 48px; padding: 0 16px 0 36px; gap: 10px; border-radius: 0; }
+.contacts-topic.lock-space .list-row.compact { padding-left: 54px; }
+.contacts-topic-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }

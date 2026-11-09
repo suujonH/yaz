@@ -1,0 +1,21 @@
+//! Zulip REST client and data structures. Independent of the UI; all requests are asynchronous.
+
+mod client;
+mod config;
+pub mod dto;
+mod endpoints;
+mod error;
+mod form;
+mod narrow;
+mod trace;
+mod transfer;
+
+pub use client::{ClientBuilder, ZulipClient};
+pub use config::{CLIENT_NAME, ClientConfig, DESKTOP_CLIENT_NAME, WEB_CLIENT_NAME, user_agent_for};
+pub use dto::*;
+pub use error::ApiError;
+pub use form::Form;
+pub use narrow::{NarrowTerm, dm_narrow, topic_narrow};
+pub use reqwest::Method;
+pub use tokio_util::sync::CancellationToken;
+pub use trace::{LogEntry, RequestLog, TraceRequest, TraceResponse, TraceSink};

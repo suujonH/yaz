@@ -1,0 +1,12 @@
+/* Developer mode: request list and details. Debug builds only */
+.settings-request-head { display: grid; grid-template-columns: 112px 56px 56px minmax(0, 1fr) 72px; align-items: center; padding: 4px 8px; border-bottom: 1px solid var(--row-divider); }
+.settings-request-head .btn { justify-self: start; padding: 0; }
+.settings-request-head span:nth-child(4) { padding-left: 8px; }
+.settings-request-head span:last-child { text-align: right; }
+.settings-requests { height: 360px; position: relative; }
+.settings-request-lead { display: grid; grid-template-columns: 112px 56px 56px; font-family: Consolas, monospace; }
+.settings-request-failed { color: var(--danger); }
+.settings-detail { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; padding: 12px 16px; background: var(--panel-bg); }
+.settings-detail-info { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; }
+.settings-detail-body { flex: 1; min-height: 0; margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.settings-mono { font-family: Consolas, "Cascadia Mono", monospace; font-size: var(--fs-small); }

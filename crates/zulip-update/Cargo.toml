@@ -1,0 +1,30 @@
+[package]
+name = "zulip-update"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+default = ["service"]
+# Check and download on the main app side (HTTP); the standalone updater does not need it.
+service = ["dep:zip", "dep:reqwest", "dep:tokio", "dep:tokio-util", "dep:parking_lot"]
+
+[dependencies]
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+semver.workspace = true
+windows = { workspace = true, features = ["Win32_System_Diagnostics_ToolHelp", "Win32_System_SystemInformation", "Win32_UI_Input_KeyboardAndMouse"] }
+zip = { workspace = true, optional = true }
+reqwest = { workspace = true, optional = true }
+tokio = { workspace = true, optional = true }
+tokio-util = { workspace = true, optional = true }
+parking_lot = { workspace = true, optional = true }
+
+[dev-dependencies]
+tempfile.workspace = true
+tokio.workspace = true

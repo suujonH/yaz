@@ -1,0 +1,50 @@
+{
+  "id": "com.yaz.translator",
+  "name": "翻译",
+  "version": "1.0.0",
+  "author": "YaZ",
+  "description": "在消息右键菜单中点击“翻译”，用模型中心中的 AI 模型把消息翻译为指定语言，气泡中临时显示译文，可随时切回原文",
+  "api_version": 1,
+  "library": "plugin_translator.dll",
+  "permissions": [
+    "read_message",
+    "annotate_message",
+    "render_message"
+  ],
+  "dependencies": [
+    "com.yaz.model-center"
+  ],
+  "message_menus": [
+    {
+      "id": 1,
+      "name": "翻译",
+      "shortcut": "middle_click"
+    }
+  ],
+  "settings": [
+    {
+      "key": "language",
+      "label": "目标语言",
+      "default": "简体中文",
+      "placeholder": "简体中文"
+    },
+    {
+      "key": "model",
+      "label": "模型",
+      "type": "resource",
+      "resource": "model",
+      "plugin": "com.yaz.model-center"
+    },
+    {
+      "key": "prompt",
+      "label": "提示词",
+      "type": "multiline",
+      "default": "你是翻译助手。把用户给出的聊天消息翻译为{language}。只输出译文，保留原有的换行、链接、代码和 @提及，不要解释。如果消息已经是{language}，原样输出。"
+    },
+    {
+      "key": "test",
+      "label": "测试",
+      "type": "button"
+    }
+  ]
+}

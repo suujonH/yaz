@@ -1,0 +1,17 @@
+[package]
+name = "zulip-plugin-sdk"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+# AnnotationStore: stores per-message attached content in SQLite.
+annotation-store = ["dep:rusqlite"]
+
+[dependencies]
+chrono.workspace = true
+rusqlite = { workspace = true, optional = true }
+serde_json.workspace = true

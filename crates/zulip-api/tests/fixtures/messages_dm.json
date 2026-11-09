@@ -1,0 +1,189 @@
+{
+ "result": "success",
+ "msg": "",
+ "messages": [
+  {
+   "id": 409,
+   "sender_id": 9,
+   "content": "<p>在吗？我是阿杰</p>",
+   "recipient_id": 21,
+   "timestamp": 1792624241,
+   "client": "Mozilla",
+   "subject": "",
+   "topic_links": [],
+   "is_me_message": false,
+   "reactions": [],
+   "submessages": [],
+   "flags": [
+    "read"
+   ],
+   "sender_full_name": "阿杰",
+   "sender_email": "user9@localhost.localdomain",
+   "sender_realm_str": "",
+   "display_recipient": [
+    {
+     "id": 8,
+     "email": "user8@localhost.localdomain",
+     "full_name": "群主大大",
+     "is_mirror_dummy": false
+    },
+    {
+     "id": 9,
+     "email": "user9@localhost.localdomain",
+     "full_name": "阿杰",
+     "is_mirror_dummy": false
+    }
+   ],
+   "type": "private",
+   "avatar_url": "/user_avatars/2/258b84582cd4d2817ba99fe59a9861b20a30d5ec.png",
+   "content_type": "text/html"
+  },
+  {
+   "id": 410,
+   "sender_id": 8,
+   "content": "<p>在的，怎么了</p>",
+   "recipient_id": 21,
+   "timestamp": 1792624241,
+   "client": "Mozilla",
+   "subject": "",
+   "topic_links": [],
+   "is_me_message": false,
+   "reactions": [],
+   "submessages": [],
+   "flags": [
+    "read"
+   ],
+   "sender_full_name": "群主大大",
+   "sender_email": "user8@localhost.localdomain",
+   "sender_realm_str": "",
+   "display_recipient": [
+    {
+     "id": 8,
+     "email": "user8@localhost.localdomain",
+     "full_name": "群主大大",
+     "is_mirror_dummy": false
+    },
+    {
+     "id": 9,
+     "email": "user9@localhost.localdomain",
+     "full_name": "阿杰",
+     "is_mirror_dummy": false
+    }
+   ],
+   "type": "private",
+   "avatar_url": "/user_avatars/2/485b1acbb71862ec06b5ff57a72769dcbbf99bc4.png",
+   "content_type": "text/html"
+  },
+  {
+   "id": 411,
+   "sender_id": 9,
+   "content": "<p>我觉得可以</p>",
+   "recipient_id": 21,
+   "timestamp": 1792624241,
+   "client": "Mozilla",
+   "subject": "",
+   "topic_links": [],
+   "is_me_message": false,
+   "reactions": [],
+   "submessages": [],
+   "flags": [
+    "read"
+   ],
+   "sender_full_name": "阿杰",
+   "sender_email": "user9@localhost.localdomain",
+   "sender_realm_str": "",
+   "display_recipient": [
+    {
+     "id": 8,
+     "email": "user8@localhost.localdomain",
+     "full_name": "群主大大",
+     "is_mirror_dummy": false
+    },
+    {
+     "id": 9,
+     "email": "user9@localhost.localdomain",
+     "full_name": "阿杰",
+     "is_mirror_dummy": false
+    }
+   ],
+   "type": "private",
+   "avatar_url": "/user_avatars/2/258b84582cd4d2817ba99fe59a9861b20a30d5ec.png",
+   "content_type": "text/html"
+  },
+  {
+   "id": 424,
+   "sender_id": 9,
+   "content": "<p>给你发个压缩包 <a href=\"/user_uploads/2/85/w2mHFXQfWiwC9zDw9-ArxllQ/资料.zip\">资料.zip</a></p>",
+   "recipient_id": 21,
+   "timestamp": 1792624242,
+   "client": "Mozilla",
+   "subject": "",
+   "topic_links": [],
+   "is_me_message": false,
+   "reactions": [],
+   "submessages": [],
+   "flags": [
+    "read"
+   ],
+   "sender_full_name": "阿杰",
+   "sender_email": "user9@localhost.localdomain",
+   "sender_realm_str": "",
+   "display_recipient": [
+    {
+     "id": 8,
+     "email": "user8@localhost.localdomain",
+     "full_name": "群主大大",
+     "is_mirror_dummy": false
+    },
+    {
+     "id": 9,
+     "email": "user9@localhost.localdomain",
+     "full_name": "阿杰",
+     "is_mirror_dummy": false
+    }
+   ],
+   "type": "private",
+   "avatar_url": "/user_avatars/2/258b84582cd4d2817ba99fe59a9861b20a30d5ec.png",
+   "content_type": "text/html"
+  },
+  {
+   "id": 472,
+   "sender_id": 9,
+   "content": "<p>有空回我一下</p>",
+   "recipient_id": 21,
+   "timestamp": 1792624243,
+   "client": "Mozilla",
+   "subject": "",
+   "topic_links": [],
+   "is_me_message": false,
+   "reactions": [],
+   "submessages": [],
+   "flags": [],
+   "sender_full_name": "阿杰",
+   "sender_email": "user9@localhost.localdomain",
+   "sender_realm_str": "",
+   "display_recipient": [
+    {
+     "id": 8,
+     "email": "user8@localhost.localdomain",
+     "full_name": "群主大大",
+     "is_mirror_dummy": false
+    },
+    {
+     "id": 9,
+     "email": "user9@localhost.localdomain",
+     "full_name": "阿杰",
+     "is_mirror_dummy": false
+    }
+   ],
+   "type": "private",
+   "avatar_url": "/user_avatars/2/258b84582cd4d2817ba99fe59a9861b20a30d5ec.png",
+   "content_type": "text/html"
+  }
+ ],
+ "found_anchor": false,
+ "found_oldest": true,
+ "found_newest": true,
+ "history_limited": false,
+ "anchor": 10000000000000000
+}

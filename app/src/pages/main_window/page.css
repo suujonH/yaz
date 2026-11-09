@@ -1,0 +1,44 @@
+/* Main window */
+.window:has(.main-page) { --caption-height: 38px; }
+.window:has(.main-page) > .caption-bar { background: var(--sidebar-bg); }
+.window:has(.main-page) .caption-drag { padding-left: 16px; gap: 8px; }
+.main-page { flex: 1; min-height: 0; display: flex; }
+.main-nav { width: 52px; flex: none; display: flex; flex-direction: column; align-items: center; padding: 4px 0 8px; background: var(--sidebar-bg); }
+.main-nav-items { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.main-nav-spacer { flex: 1; }
+.main-nav-divider { width: 24px; height: 1px; background: var(--divider); margin: 2px 0; }
+.nav-btn { position: relative; width: 36px; height: 36px; padding: 0; border: 0; background: transparent; border-radius: var(--radius); color: var(--text-primary); display: flex; align-items: center; justify-content: center; }
+.nav-btn:hover { background: var(--hover); }
+.nav-btn.active { color: var(--brand); }
+/* The outline fades to gray while held down; on release the button is selected and the outline is
+   gray at once, staying gray while the filled icon spreads over it */
+.nav-btn:active > .icon { color: var(--text-secondary); transition: color 0.3s; }
+.nav-btn.active > .icon { color: var(--text-secondary); transition: none; }
+.nav-btn .circle-reveal { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+.nav-badge { position: absolute; right: -4px; top: -2px; display: flex; pointer-events: none; }
+.nav-account { position: relative; width: 36px; height: 36px; padding: 0; border: 2px solid transparent; border-radius: 50%; background: transparent; display: flex; align-items: center; justify-content: center; }
+.nav-account.active { border-color: var(--brand); }
+.nav-account-failed { position: absolute; right: -4px; top: -2px; width: 14px; height: 14px; border-radius: 50%; background: var(--danger); color: #fff; font-size: var(--fs-caption); line-height: 14px; text-align: center; }
+.main-middle { width: 318px; flex: none; min-height: 0; display: flex; flex-direction: column; background: var(--sidebar-bg); }
+.main-middle.classic { flex: 1; width: auto; min-width: 0; padding-right: 4px; }
+.main-middle-page { flex: 1; min-height: 0; position: relative; display: flex; flex-direction: column; }
+.main-search { display: flex; align-items: center; gap: 6px; padding: 0 12px 8px; }
+.main-search > :first-child { flex: 1; min-width: 0; }
+.main-search-box { display: flex; }
+.main-search-box > * { flex: 1; min-width: 0; }
+.main-search-add { background: var(--search-add-bg); }
+.main-search-add:hover:not(:disabled) { background: var(--search-add-hover); }
+.main-search-add:active:not(:disabled) { background: var(--search-add-pressed); }
+.main-right { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--panel-bg); border-left: 1px solid var(--divider); }
+.main-placeholder { flex: 1; display: flex; align-items: center; justify-content: center; color: var(--placeholder-logo); }
+.main-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 0 20px; text-align: center; }
+.title-logo { display: flex; color: var(--brand); }
+.title-self { display: flex; align-items: center; }
+.title-name { flex: none; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-sub); }
+.title-signature { min-width: 0; max-width: 260px; display: flex; align-items: center; }
+.title-signature-text { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 2px 6px; border: 0; border-radius: var(--radius); background: transparent; color: var(--text-secondary); font-size: var(--fs-small); }
+.title-signature-text:hover { background: var(--hover); }
+.main-menu { padding: 8px; display: flex; flex-direction: column; gap: 2px; }
+.main-menu-tiles { display: flex; gap: 4px; padding-bottom: 6px; margin-bottom: 4px; border-bottom: 1px solid var(--divider); }
+.main-menu-tile { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 4px; border: 0; border-radius: var(--radius); background: transparent; color: var(--text-primary); font-size: var(--fs-small); }
+.main-menu-tile:hover { background: var(--hover); }

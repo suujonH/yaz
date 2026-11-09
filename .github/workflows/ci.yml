@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Format
+        run: cargo fmt --all --check
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Test
+        run: cargo test --workspace
+      - name: Publish
+        if: github.event_name == 'push'
+        shell: pwsh
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          cargo build --release -p yaz-updater
+          cargo build --release -p yaz
+          New-Item -ItemType Directory -Force publish/YaZ | Out-Null
+          Copy-Item target/release/yaz.exe, target/release/yaz-updater.exe, LICENSE, THIRD-PARTY-NOTICES.md publish/YaZ
+          ./tools/build-plugins.ps1 -OutDir publish/YaZ/plugins
+      - name: Upload artifact
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v7
+        with:
+          name: YaZ-win-x64
+          path: publish/YaZ

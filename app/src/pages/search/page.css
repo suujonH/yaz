@@ -1,0 +1,24 @@
+/* Global search */
+/* A floating card over the middle column, just under the search box; as tall as its results, at
+   most down to the bottom of the window */
+.search-panel {
+  position: absolute; top: 0; left: 8px; right: 8px; max-height: calc(100% - 8px); z-index: 5; padding: 4px 4px 8px; display: flex; flex-direction: column;
+  background: var(--card); border-radius: var(--radius-lg); box-shadow: var(--shadow-menu);
+}
+.search-panel > .search-head ~ .search-head { margin-top: 6px; border-top: 1px solid var(--divider); padding-top: 4px; }
+.search-head { display: flex; align-items: center; justify-content: space-between; min-height: 30px; padding: 0 8px; }
+.search-empty { padding: 32px 0; text-align: center; }
+.search-more { flex: 1; min-height: 0; padding: 4px; background: var(--panel-bg); }
+.search-file-icon { color: var(--brand); }
+.search-recent-clear { color: var(--text-secondary); }
+
+/* Chat records window */
+.records { flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--panel-bg); }
+.records-bar { flex: none; padding: 10px 16px; }
+.records-main { flex: 1; min-height: 0; display: flex; }
+.records-groups { flex: none; width: 250px; padding: 4px 8px 8px; border-right: 1px solid var(--divider); position: relative; }
+.records-groups .list-row { border-radius: var(--radius); }
+.records-status { padding: 32px 0; text-align: center; }
+.records-detail { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.records-head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 40px; padding: 4px 8px 0 16px; }
+.records-count { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

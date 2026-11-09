@@ -1,0 +1,10 @@
+/* Data directory migration */
+.data-move { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 10px; padding: 0 24px 16px; background: var(--panel-bg); }
+.data-move-bar { height: 6px; border-radius: 3px; background: var(--fill); overflow: hidden; }
+.data-move-fill { height: 100%; background: var(--brand); transition: width 0.2s; }
+.data-move-actions { display: flex; justify-content: flex-end; }
+
+/* Notice for a data directory problem */
+.data-problem { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; background: var(--panel-bg); }
+.data-problem > div { max-height: 100%; }
+.data-problem .confirm-message { overflow-wrap: anywhere; }

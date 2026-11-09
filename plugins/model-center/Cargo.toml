@@ -1,0 +1,16 @@
+[package]
+name = "plugin-model-center"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[lints]
+workspace = true
+
+[dependencies]
+zulip-plugin-sdk.workspace = true
+base64.workspace = true
+ureq.workspace = true

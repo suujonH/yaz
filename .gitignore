@@ -1,0 +1,34 @@
+# Build artifacts
+/target/
+/target-*/
+/publish/
+/release-out/
+
+# Local runtime data
+/.port/
+.env
+*.db
+*.db-wal
+*.db-shm
+*.log
+
+# Editors and tools
+.claude/
+.vs/
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+*.swp
+*~
+
+# System
+.DS_Store
+Thumbs.db
+[Dd]esktop.ini
+__pycache__/
+*.pyc
+node_modules/

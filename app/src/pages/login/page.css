@@ -1,0 +1,11 @@
+/* Login */
+.login { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; padding: 8px 28px 24px; background: var(--panel-bg); }
+.login-logo { display: flex; justify-content: center; padding: 4px 0 12px; color: var(--brand); }
+.login-email { position: relative; }
+.login-history { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); }
+.login-history-list { max-height: 240px; padding: 4px; }
+.login-links { display: flex; align-items: center; justify-content: space-between; min-height: 24px; font-size: var(--fs-small); }
+.login-advanced { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; font-size: var(--fs-small); }
+.login-error { color: var(--danger); font-size: var(--fs-small); overflow-wrap: anywhere; }
+.login-spacer { flex: 1; }
+.login-submit { width: 100%; gap: 6px; }
