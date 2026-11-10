@@ -22,12 +22,13 @@
 .composer-placeholder { position: absolute; left: 20px; top: 4px; color: var(--text-tertiary); pointer-events: none; font-size: var(--fs-body); }
 .composer-foot { display: flex; justify-content: flex-end; align-items: center; padding: 0 20px 12px; flex: none; }
 .composer-send-menu { display: inline-flex; }
-.composer-send { border-radius: var(--radius-sm) 0 0 var(--radius-sm); min-width: 64px; }
+.composer-send { border-radius: var(--radius) 0 0 var(--radius); min-width: 64px; }
 /* When sending is not possible the background stays the same, only the text gets lighter */
 .composer-foot .composer-send:disabled { background: var(--brand); color: rgba(255, 255, 255, 0.6); }
-.composer-send-split { width: 1px; height: 32px; background: #fff; opacity: 0.4; }
+/* Divider between send and its menu: a short line in the middle, on the button color */
+.composer-send-split { width: 1px; height: 32px; flex: none; background: linear-gradient(rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.5)) center / 1px 14px no-repeat, var(--brand); }
 .composer-foot .composer-send-more {
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0; background: var(--brand); color: #fff; height: 32px; width: 28px;
+  border-radius: 0 var(--radius) var(--radius) 0; background: var(--brand); color: #fff; height: 32px; width: 28px;
 }
 .composer-foot .composer-send-more:hover:not(:disabled) { background: var(--brand-hover); }
 .composer-popup { padding: 4px; width: 300px; max-height: 320px; }
@@ -80,10 +81,16 @@
 .zl-dim { color: var(--text-tertiary); }
 .zl-fence { color: var(--text-tertiary); font-size: var(--fs-sub); }
 .zl-close, .zl-rule { color: var(--text-tertiary); }
-/* Language box below a code block, at the right (on its closing fence line, takes no source text).
-   The fence itself is never shown there, even with the cursor on the line. Gray until focused */
-.zl-close:has(> .zlang) { display: flex; justify-content: flex-end; align-items: center; padding-top: 4px; }
+/* Language box of a code block, on its closing fence line (takes no source text). The line takes no
+   height: the box shows only while the cursor is in the block (.zactive), as an overlay below the
+   block at the right. The fence itself is never shown there. Gray until focused */
+.zl-close:has(> .zlang) { position: relative; min-height: 0; height: 0; }
 .zl-close:has(> .zlang) > .zm { display: none !important; }
+.zl-close > .zlang { display: none; position: absolute; right: 8px; top: 2px; z-index: 2; }
+.zl-close.zactive > .zlang { display: inline-flex; }
+.zl-close > .zlang .zlang-input { box-shadow: var(--shadow-menu); }
+/* Focused: a 2px brand border (the extra pixel drawn as a ring, so the box keeps its size) */
+.zl-close > .zlang .zlang-input:focus { box-shadow: 0 0 0 1px var(--brand), var(--shadow-menu); }
 /* The opening fence line of a code block shows nothing and is only the block's top padding */
 .zl-code-open { min-height: 0; height: 4px; overflow: hidden; }
 /* Same space below the last code line, so the lines sit centered in the block */
@@ -115,11 +122,17 @@
 .zl.open > .zf, .zr.open > .zf { display: none; }
 .zs { color: var(--text-tertiary); }
 .zf::before { content: attr(data-label); }
-.zb::before { content: "• "; color: var(--text-secondary); }
+/* List symbols and indentation: one character column per source character (width set inline) */
+.zi, .zo, .zb { display: inline-block; white-space: pre; }
+/* Each indentation space as wide as 1ch, so the cursor in or after it sits on the columns (--zsp is
+   measured by editor.js) */
+.zi { letter-spacing: var(--zsp, 0px); }
+.zb::before { content: "•"; color: var(--text-secondary); }
 .zB { font-weight: 700; }
 .zI { font-style: italic; }
 .zD { text-decoration: line-through; }
 .zu { color: var(--brand); }
+.composer-editor.zctrl [data-href]:hover { cursor: pointer; text-decoration: underline; }
 .za { user-select: all; -webkit-user-select: all; cursor: default; }
 .zn { color: var(--brand); }
 .zw, .zh { background: var(--fill); border-radius: var(--radius-sm); padding: 0 3px; }

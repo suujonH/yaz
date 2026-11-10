@@ -62,6 +62,19 @@ pub fn describe_login_error(error: &SessionError) -> String {
     }
 }
 
+/// The server could not be reached (timeout, network; not a certificate problem, which needs the
+/// user): trying again later may succeed.
+pub fn is_connection_error(error: &SessionError) -> bool {
+    let SessionError::Api(api) = error else {
+        return false;
+    };
+    match api.as_ref() {
+        ApiError::Timeout(_) => true,
+        ApiError::Network(message) => !message.to_lowercase().contains("certificate"),
+        _ => false,
+    }
+}
+
 fn describe_api_error(error: &ApiError) -> String {
     match error.code() {
         Some("AUTHENTICATION_FAILED") => return "邮箱或密码错误".to_owned(),

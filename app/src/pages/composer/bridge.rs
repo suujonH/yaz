@@ -4,6 +4,7 @@
 use super::control::Ctl;
 use super::core::{CellPos, EditorCore, Sel};
 use crate::ui::Rect;
+use crate::widgets::open_link;
 use crate::windows;
 use dioxus::prelude::*;
 use serde::Deserialize;
@@ -98,6 +99,10 @@ enum Incoming {
     },
     /// The language box lost the focus.
     LangBlur,
+    /// Ctrl + click on a link.
+    OpenLink {
+        href: String,
+    },
     Widths {
         table: usize,
         required: Vec<f64>,
@@ -131,6 +136,8 @@ enum EditorCmd {
     CodeUnwrap,
     /// Backspace at the start of the line after a code block: back into the block.
     CodeBack,
+    /// Ctrl + Enter in a code block: leave it for the line below.
+    CodeExit,
     Newline,
     /// Enter at the end of the opening fence line (the key that sends / inserts a line break).
     FenceSend,
@@ -387,6 +394,10 @@ impl Ctl {
             } => self.code_language_query(line, query, Rect { x, y, w, h }),
             Incoming::LangKey { key } => self.code_language_key(&key),
             Incoming::LangBlur => self.close_language_list(),
+            Incoming::OpenLink { href } => {
+                let (overlays, session) = (self.overlays, self.session());
+                spawn(async move { open_link(overlays, &session, &href).await });
+            }
             Incoming::Widths {
                 table: index,
                 required,
@@ -432,6 +443,7 @@ impl Ctl {
             EditorCmd::Unprefix => self.edit(EditorCore::remove_prefix),
             EditorCmd::CodeUnwrap => self.edit(EditorCore::unwrap_code_block),
             EditorCmd::CodeBack => self.edit(EditorCore::back_into_code),
+            EditorCmd::CodeExit => self.edit(EditorCore::exit_code_block),
             EditorCmd::Newline => self.edit(EditorCore::newline),
             // Enter at the end of an opening fence line: complete it into a code block; elsewhere
             // handle Enter as usual

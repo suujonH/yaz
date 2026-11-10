@@ -18,6 +18,7 @@
 .nav-badge { position: absolute; right: -4px; top: -2px; display: flex; pointer-events: none; }
 .nav-account { position: relative; width: 36px; height: 36px; padding: 0; border: 2px solid transparent; border-radius: 50%; background: transparent; display: flex; align-items: center; justify-content: center; }
 .nav-account.active { border-color: var(--brand); }
+.nav-account.offline { filter: grayscale(1); opacity: 0.5; }
 .nav-account-failed { position: absolute; right: -4px; top: -2px; width: 14px; height: 14px; border-radius: 50%; background: var(--danger); color: #fff; font-size: var(--fs-caption); line-height: 14px; text-align: center; }
 .main-middle { width: 318px; flex: none; min-height: 0; display: flex; flex-direction: column; background: var(--sidebar-bg); }
 .main-middle.classic { flex: 1; width: auto; min-width: 0; padding-right: 4px; }
@@ -32,6 +33,13 @@
 .main-right { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--panel-bg); border-left: 1px solid var(--divider); }
 .main-placeholder { flex: 1; display: flex; align-items: center; justify-content: center; color: var(--placeholder-logo); }
 .main-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 0 20px; text-align: center; }
+/* Accounts the server could not be reached for: grey avatar, name and reason, retry */
+.unreachable-list { display: flex; flex-direction: column; gap: 8px; width: 100%; max-width: 360px; margin-top: 8px; }
+.unreachable-row { display: flex; align-items: center; gap: 10px; text-align: left; }
+.unreachable-avatar { filter: grayscale(1); opacity: 0.5; }
+.unreachable-text { flex: 1; min-width: 0; }
+.unreachable-name { color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.unreachable-text .text-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .title-logo { display: flex; color: var(--brand); }
 .title-self { display: flex; align-items: center; }
 .title-name { flex: none; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-sub); }

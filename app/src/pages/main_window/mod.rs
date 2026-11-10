@@ -304,7 +304,7 @@ fn MainBody(classic: bool) -> Element {
                         Icon { name: IconName::Loading, size: 22.0, class: "spin" }
                     }
                 } else {
-                    EmptyAccounts {}
+                    NoSession {}
                 }
             }
             if !classic {
@@ -345,6 +345,61 @@ pub fn use_logging_in() -> Memo<bool> {
                 Some(a.account.id) == (state.account)() && a.status == AccountStatus::Connecting
             })
     })
+}
+
+/// No account online: accounts the server could not be reached for (retried in the background,
+/// or connecting again) are listed grey with the reason and a retry button; otherwise
+/// [`EmptyAccounts`].
+#[component]
+fn NoSession() -> Element {
+    let state = use_app_state();
+    let waiting: Vec<(i64, String, Option<String>)> = state
+        .accounts
+        .read()
+        .iter()
+        .filter_map(|e| {
+            let error = match &e.status {
+                AccountStatus::Unreachable(error) => Some(error.clone()),
+                AccountStatus::Connecting if services().hub.is_unreachable(e.account.id) => None,
+                _ => return None,
+            };
+            Some((e.account.id, e.account.full_name.clone(), error))
+        })
+        .collect();
+    if waiting.is_empty() {
+        return rsx! { EmptyAccounts {} };
+    }
+    rsx! {
+        div { class: "main-empty",
+            div { class: "text-title", "无法连接服务器" }
+            div { class: "text-sub", "连接恢复后会自动登录" }
+            div { class: "unreachable-list",
+                for (id, name, error) in waiting {
+                    div { key: "{id}", class: "unreachable-row",
+                        div { class: "unreachable-avatar", Avatar { text: name.clone(), size: 36.0 } }
+                        div { class: "unreachable-text",
+                            div { class: "unreachable-name", "{name}" }
+                            div { class: "text-sub",
+                                {error.clone().unwrap_or_else(|| "正在重新连接…".to_owned())}
+                            }
+                        }
+                        Button {
+                            disabled: error.is_none(),
+                            onclick: move |_| retry_account(id),
+                            "重试"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Logs in an unreachable account now (instead of waiting for the background retry).
+fn retry_account(id: i64) {
+    spawn(async move {
+        let _ = services().hub.login_account(id).await;
+    });
 }
 
 #[component]
@@ -568,6 +623,7 @@ fn select_account(entry: &AccountEntry, overlays: Overlays) {
                     .await;
             });
         }
+        AccountStatus::Unreachable(_) => retry_account(id),
         AccountStatus::Connecting => {}
     }
 }
@@ -592,12 +648,18 @@ fn AccountButton(account_id: i64, active: bool, tick: u64) -> Element {
         .as_ref()
         .map_or(0, |s| s.total_unread_for_badge());
     let failed = matches!(entry.status, AccountStatus::Failed(_));
+    // Unreachable (also while connecting again): grey
+    let offline = entry.session.is_none() && services().hub.is_unreachable(account_id);
     let tip = format!("{name}（{}）", entry.status.text());
     let on_select = entry.clone();
     rsx! {
         Tooltip { text: tip,
             button {
-                class: if active { "nav-account active" } else { "nav-account" },
+                class: format!(
+                    "nav-account{}{}",
+                    if active { " active" } else { "" },
+                    if offline { " offline" } else { "" },
+                ),
                 r#type: "button",
                 onclick: move |_| select_account(&on_select, overlays),
                 Avatar { text: name, size: 30.0 }

@@ -414,19 +414,25 @@ fn classify_line(text: &str, raw: &[(usize, usize)], index: usize, state: &mut B
         return make(LineKind::Rule, prefixes);
     }
 
-    if let Some(m) = LIST.captures(body)
-        && let (Some(marker), Some(space)) = (m.name("marker"), m.name("space"))
-    {
-        let ordered = marker.as_str().starts_with(|c: char| c.is_ascii_digit());
-        prefixes.push(Prefix {
-            kind: if ordered {
-                PrefixKind::Ordered
-            } else {
-                PrefixKind::Bullet
-            },
-            start: start + rest + marker.start(),
-            end: start + rest + space.end(),
-        });
+    if LIST.is_match(body) {
+        // Several list symbols in a row are nested lists (`- 1. a`: a numbered list inside a
+        // bullet item), one prefix each
+        let mut pos = rest;
+        while let Some(m) = LIST.captures(&line[pos..])
+            && let (Some(marker), Some(space)) = (m.name("marker"), m.name("space"))
+        {
+            let ordered = marker.as_str().starts_with(|c: char| c.is_ascii_digit());
+            prefixes.push(Prefix {
+                kind: if ordered {
+                    PrefixKind::Ordered
+                } else {
+                    PrefixKind::Bullet
+                },
+                start: start + pos + marker.start(),
+                end: start + pos + space.end(),
+            });
+            pos += space.end();
+        }
         return make(LineKind::ListItem, prefixes);
     }
 

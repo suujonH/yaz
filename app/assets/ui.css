@@ -442,7 +442,8 @@ mark.hit { background: var(--search-highlight); color: inherit; border-radius: 2
 .profile-name { font-size: var(--fs-large); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .profile-field { display: flex; align-items: center; min-height: 30px; font-size: var(--fs-small); }
 .profile-label { width: 64px; flex: none; color: var(--text-secondary); }
-.profile-value { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+/* Values on the right, lined up with the action buttons below */
+.profile-value { flex: 1; min-width: 0; overflow-wrap: anywhere; text-align: right; }
 .profile-actions { display: flex; justify-content: flex-end; gap: 8px; }
 
 /* ---------- Picker ---------- */

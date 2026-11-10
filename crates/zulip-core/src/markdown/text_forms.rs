@@ -99,18 +99,21 @@ pub fn to_plain_text(
             }
             LineKind::Blank => out.clear(),
             LineKind::ListItem => {
-                // The indentation before the list marker (nested lists) is kept
-                if let Some(marker) = line.prefixes.last() {
-                    let indent_start = match line.prefixes.len() {
-                        n if n > 1 => line.prefixes[n - 2].end,
-                        _ => line.start,
-                    };
+                // The indentation before the list markers (nested lists) is kept; several markers
+                // on one line (`- 1. a`) are all shown
+                let mut indent_start = line.start;
+                for marker in &line.prefixes {
+                    if marker.kind == PrefixKind::Quote {
+                        indent_start = marker.end;
+                        continue;
+                    }
                     out.push_str(&text[indent_start..marker.start]);
                     out.push_str(if marker.kind == PrefixKind::Bullet {
                         "• "
                     } else {
                         &text[marker.start..marker.end]
                     });
+                    indent_start = marker.end;
                 }
                 append_line(&mut out, text, &model, line, false, emoji_text);
             }

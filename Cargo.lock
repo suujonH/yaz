@@ -3910,14 +3910,14 @@ checksum = "f6b464fbc74e149a392436b17d523f769e057cb6877f6a5c4618bc6f11800548"
 
 [[package]]
 name = "plugin-echo"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "zulip-plugin-sdk",
 ]
 
 [[package]]
 name = "plugin-model-center"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "base64 0.22.1",
  "ureq",
@@ -3926,7 +3926,7 @@ dependencies = [
 
 [[package]]
 name = "plugin-reply-assistant"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "rusqlite",
  "zulip-plugin-sdk",
@@ -3934,7 +3934,7 @@ dependencies = [
 
 [[package]]
 name = "plugin-translator"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "zulip-plugin-sdk",
 ]
@@ -5415,7 +5415,7 @@ dependencies = [
 
 [[package]]
 name = "test-server"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "axum",
  "base64 0.22.1",
@@ -6838,7 +6838,7 @@ checksum = "7a5a4b21e1a62b67a2970e6831bc091d7b87e119e7f9791aef9702e3bef04448"
 
 [[package]]
 name = "yaz"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "arboard",
  "chrono",
@@ -6870,7 +6870,7 @@ dependencies = [
 
 [[package]]
 name = "yaz-updater"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "chrono",
  "tempfile",
@@ -7091,7 +7091,7 @@ dependencies = [
 
 [[package]]
 name = "zulip-api"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "axum",
  "bytes",
@@ -7111,7 +7111,7 @@ dependencies = [
 
 [[package]]
 name = "zulip-core"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "chrono",
  "ego-tree",
@@ -7126,7 +7126,7 @@ dependencies = [
 
 [[package]]
 name = "zulip-plugin-host"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "base64 0.22.1",
  "chrono",
@@ -7151,7 +7151,7 @@ dependencies = [
 
 [[package]]
 name = "zulip-plugin-sdk"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "chrono",
  "rusqlite",
@@ -7160,7 +7160,7 @@ dependencies = [
 
 [[package]]
 name = "zulip-session"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "chrono",
  "futures",
@@ -7187,7 +7187,7 @@ dependencies = [
 
 [[package]]
 name = "zulip-store"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "chrono",
  "dirs",
@@ -7205,7 +7205,7 @@ dependencies = [
 
 [[package]]
 name = "zulip-update"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "parking_lot",
  "reqwest",

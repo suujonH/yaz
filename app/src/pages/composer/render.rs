@@ -246,13 +246,21 @@ impl RenderCtx<'_> {
             _ => {}
         }
         self.prefixes(&mut out, line, class, attrs);
+        // A line without list symbols starts with its indentation (a continuation line)
+        let mut from = line.content_start;
+        if line.prefixes.iter().all(|p| p.kind == PrefixKind::Quote) {
+            let rest = &self.text[from..line.end];
+            let lead = rest.len() - rest.trim_start_matches(' ').len();
+            self.indentation(&mut out, &rest[..lead]);
+            from += lead;
+        }
         let spans: Vec<&Span> = self
             .model
             .spans
             .iter()
-            .filter(|s| s.start >= line.content_start && s.end <= line.end)
+            .filter(|s| s.start >= from && s.end <= line.end)
             .collect();
-        self.inline(&mut out, line, line.content_start, line.end, &spans);
+        self.inline(&mut out, line, from, line.end, &spans);
         out
     }
 
@@ -294,20 +302,31 @@ impl RenderCtx<'_> {
         let mut pos = line.start;
         let mut hidden_to = 0;
         for prefix in &line.prefixes {
-            encode_into(out, &self.text[pos..prefix.start]);
+            self.indentation(out, &self.text[pos..prefix.start]);
             let raw = &self.text[prefix.start..prefix.end];
+            // List symbols are as wide as their characters, like indentation (see `indentation`)
+            let width = raw.chars().count();
             if self.source {
                 out.push_str(r#"<span class="zs">"#);
                 encode_into(out, raw);
                 out.push_str("</span>");
             } else if prefix.kind == PrefixKind::Ordered {
-                encode_into(out, raw);
+                // The number in its box, the spaces after it as indentation (so the cursor after
+                // them is at the content column)
+                let number = raw.trim_end_matches(' ');
+                let width = number.chars().count();
+                out.push_str(&format!(r#"<span class="zo" style="width:{width}ch">"#));
+                encode_into(out, number);
+                out.push_str("</span>");
+                self.indentation(out, &raw[number.len()..]);
             } else {
                 out.push_str(r#"<span class="zm">"#);
                 encode_into(out, raw);
                 out.push_str("</span>");
                 if prefix.kind == PrefixKind::Bullet {
-                    out.push_str(r#"<span class="zb"></span>"#);
+                    out.push_str(&format!(
+                        r#"<span class="zb" style="width:{width}ch"></span>"#
+                    ));
                 }
                 hidden_to = prefix.end;
             }
@@ -326,6 +345,22 @@ impl RenderCtx<'_> {
                 utf16_len(&self.text[line.start..hidden_to])
             ));
         }
+    }
+
+    // Indentation (spaces before a list symbol, or of a continuation line in a list item): shown one
+    // character column (`ch`) per space, the same unit as list symbols, so the content of a list
+    // item and its continuation lines line up. Other text, and source mode, as it is.
+    fn indentation(&self, out: &mut String, text: &str) {
+        if self.source || text.is_empty() || !text.bytes().all(|b| b == b' ') {
+            encode_into(out, text);
+            return;
+        }
+        out.push_str(&format!(
+            r#"<span class="zi" style="width:{}ch">"#,
+            text.len()
+        ));
+        out.push_str(text);
+        out.push_str("</span>");
     }
 
     // Nested inline elements (parse results do not cross; if they ever do, the later one is shown
@@ -380,14 +415,26 @@ impl RenderCtx<'_> {
         } else {
             ("zm", reveals(span.kind))
         };
+        // `data-href`: the address opened by Ctrl + click. Rich mode: the whole link; source mode:
+        // only the address (a bare address is all address)
+        let href = matches!(span.kind, SpanKind::Link | SpanKind::Url)
+            .then(|| span.data.clone().unwrap_or_default());
+        let href_attr = match &href {
+            Some(href) if !self.source || span.kind == SpanKind::Url => {
+                format!(r#" data-href="{}""#, encode(href))
+            }
+            _ => String::new(),
+        };
         if reveal {
+            // `data-ie`: the end of the text inside the markers (Up / Down into the span lands there)
             out.push_str(&format!(
-                r#"<span class="zr {class}" data-s="{}" data-e="{}">"#,
+                r#"<span class="zr {class}" data-s="{}" data-e="{}" data-ie="{}"{href_attr}>"#,
                 utf16_len(&self.text[line.start..span.start]),
                 utf16_len(&self.text[line.start..span.end]),
+                utf16_len(&self.text[line.start..span.content_end]),
             ));
         } else {
-            out.push_str(&format!(r#"<span class="{class}">"#));
+            out.push_str(&format!(r#"<span class="{class}"{href_attr}>"#));
         }
         // A link with no text shows its address
         let empty_link =
@@ -408,7 +455,25 @@ impl RenderCtx<'_> {
             ));
         }
         self.inline(out, line, span.content_start, span.content_end, inner);
-        write_mark(out, &self.text[span.content_end..span.end]);
+        let close = &self.text[span.content_end..span.end];
+        // Source mode: the address inside `](...)` of a link is its own element for Ctrl + click
+        let address = href
+            .as_deref()
+            .filter(|href| self.source && span.kind == SpanKind::Link && !href.is_empty())
+            .and_then(|href| close.find(href).map(|at| (at, href)));
+        match address {
+            Some((at, href)) => {
+                write_mark(out, &close[..at]);
+                out.push_str(&format!(
+                    r#"<span class="{mark}" data-href="{}">"#,
+                    encode(href)
+                ));
+                encode_into(out, href);
+                out.push_str("</span>");
+                write_mark(out, &close[at + href.len()..]);
+            }
+            None => write_mark(out, close),
+        }
         out.push_str("</span>");
     }
 

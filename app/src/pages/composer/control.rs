@@ -30,7 +30,7 @@ use zulip_core::markdown::format::{self, FormatKind};
 use zulip_core::markdown::table::TableAlign;
 use zulip_core::markdown::{SpanKind, quote};
 use zulip_core::text::time::datetime_label;
-use zulip_session::{DeleteTarget, Session};
+use zulip_session::{ConnectionState, DeleteTarget, Session};
 use zulip_store::AccountSettings;
 
 const DRAFT_DELAY: Duration = Duration::from_secs(1);
@@ -99,6 +99,9 @@ pub struct Ctl {
     pub table_rect: Signal<Option<TableRect>>,
     pub uploads: Signal<Vec<UploadRow>>,
     pub sending: Signal<bool>,
+    /// The account is connected to the server; otherwise nothing can be sent (the send button is
+    /// grey).
+    pub connected: Signal<bool>,
     pub edit: Signal<Option<EditState>>,
     pub source: Signal<bool>,
     /// Text typed in the language box under a code block, while its language list is shown.
@@ -145,6 +148,7 @@ pub fn use_ctl(
     let table_rect = use_signal(|| None);
     let uploads = use_signal(Vec::new);
     let sending = use_signal(|| false);
+    let connected = use_signal(|| session.connection() == ConnectionState::Connected);
     let edit = use_signal(|| None);
     let source_signal = use_signal(|| false);
     let lang = use_signal(|| None);
@@ -187,6 +191,7 @@ pub fn use_ctl(
             table_rect,
             uploads,
             sending,
+            connected,
             edit,
             source: source_signal,
         };
@@ -460,6 +465,7 @@ impl Ctl {
     pub fn can_send(self) -> bool {
         let view = self.view.peek();
         !*self.sending.peek()
+            && *self.connected.peek()
             && self.uploads.peek().is_empty()
             && (self.is_editing() || (!view.blank && !view.quote_only))
     }

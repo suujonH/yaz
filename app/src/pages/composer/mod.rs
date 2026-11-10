@@ -29,7 +29,7 @@ use zulip_core::ConversationKey;
 use zulip_core::markdown::format::FormatKind;
 use zulip_core::markdown::table::{MAX_COLUMNS, MAX_ROWS, TableAlign};
 use zulip_plugin_host::PluginEvent;
-use zulip_session::{Session, SessionEvent};
+use zulip_session::{ConnectionState, Session, SessionEvent};
 
 const GRID_COLUMNS: usize = 10;
 const GRID_ROWS: usize = 8;
@@ -104,6 +104,14 @@ fn ComposerBody(session: crate::widgets::SessionRef, conversation: ConversationK
             ctl.refresh_lookup();
         }
         SessionEvent::SettingsChanged(name) if name == "enter_sends" => ctl.send_options(),
+        SessionEvent::Connection(state) => {
+            let mut connected = ctl.connected;
+            connected.set(state == ConnectionState::Connected);
+        }
+        SessionEvent::Resynced => {
+            let mut connected = ctl.connected;
+            connected.set(ctl.session().connection() == ConnectionState::Connected);
+        }
         _ => {}
     });
     use_effect(move || ctl.on_editing(*handle.editing.read()));
@@ -703,8 +711,12 @@ fn Footer(permitted: bool) -> Element {
     let uploading = !ctl.uploads.read().is_empty();
     let sending = *ctl.sending.read();
     let editing = ctl.edit.read().is_some();
-    let enabled =
-        permitted && !sending && !uploading && (editing || (!view.blank && !view.quote_only));
+    let connected = *ctl.connected.read();
+    let enabled = permitted
+        && connected
+        && !sending
+        && !uploading
+        && (editing || (!view.blank && !view.quote_only));
     rsx! {
         div {
             class: "composer-foot",

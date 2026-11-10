@@ -204,16 +204,18 @@ impl MentionTarget {
     }
 }
 
-/// Clicking a mention: insert it at the cursor in the composer. When the composer cannot post, a
-/// user mention shows the profile card instead; without permission to @-mention everyone, only a
-/// hint is shown.
+/// Clicking a mention: a user mention shows the profile card; a group / everyone mention is
+/// inserted at the cursor in the composer (nothing when the composer cannot post; without
+/// permission to @-mention everyone, only a hint is shown).
 pub fn click_mention(chat: Chat, target: MentionTarget, x: f64, y: f64) {
+    // A user (in messages and in notices like "X moved this topic"): their profile card
+    if let MentionTarget::User(id, _) = target {
+        open_user_card(chat.overlays, anchor_at(x, y), id);
+        return;
+    }
     let session = chat.session();
     let key = chat.current_key();
     if !crate::pages::composer::can_post(&session, &key) {
-        if let MentionTarget::User(id, _) = target {
-            open_user_card(chat.overlays, anchor_at(x, y), id);
-        }
         return;
     }
     if let MentionTarget::Wildcard(name) = &target

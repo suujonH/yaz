@@ -9,7 +9,7 @@ use tokio::sync::broadcast;
 use zulip_api::{ClientConfig, ZulipClient};
 use zulip_store::{AccountRepo, AccountRow, AppPaths, Db, protect_key, unprotect_key};
 
-use crate::error::{Result, SessionError, describe_login_error};
+use crate::error::{Result, SessionError, describe_login_error, is_connection_error};
 use crate::event::{ConnectionState, SessionEvent};
 use crate::hooks::SessionHooks;
 use crate::login::{normalize_realm, parse_zuliprc};
@@ -17,6 +17,10 @@ use crate::session::{MIN_FEATURE_LEVEL, Session};
 
 const AUTH_EXPIRED: &str = "登录已失效，请重新登录";
 const HOOK_ENDING_LIMIT: Duration = Duration::from_secs(2);
+/// Background retries of an unreachable account: the first wait, doubled each time up to the
+/// longest.
+const RETRY_FIRST: Duration = Duration::from_secs(2);
+const RETRY_LONGEST: Duration = Duration::from_secs(60);
 
 /// Account state.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -25,6 +29,9 @@ pub enum AccountStatus {
     Online,
     /// Login failed; the content is the error description.
     Failed(String),
+    /// The server could not be reached (timeout, network); the content is the error description.
+    /// Retried in the background (see [`Hub::start`]).
+    Unreachable(String),
     /// Not logged in (the user logged out or login at startup is not enabled).
     Disabled,
 }
@@ -34,7 +41,7 @@ impl AccountStatus {
         match self {
             Self::Connecting => "正在登录…",
             Self::Online => "在线",
-            Self::Failed(message) => message,
+            Self::Failed(message) | Self::Unreachable(message) => message,
             Self::Disabled => "未启用",
         }
     }
@@ -74,6 +81,8 @@ struct HubState {
     /// Incrementing login sequence number: if it changed by the time an in-progress login finishes,
     /// the user acted again, so the result is discarded.
     attempts: HashMap<i64, u64>,
+    /// Failed background retries in a row of an unreachable account (cleared once online).
+    retries: HashMap<i64, u32>,
     active: Option<i64>,
 }
 
@@ -141,6 +150,12 @@ impl Hub {
                 account,
             })
             .collect())
+    }
+
+    /// The server of account `account_id` could not be reached and it is being retried (its
+    /// status is [`AccountStatus::Unreachable`], or `Connecting` during a retry).
+    pub fn is_unreachable(&self, account_id: i64) -> bool {
+        self.state.lock().retries.contains_key(&account_id)
     }
 
     pub fn session(&self, account_id: i64) -> Option<Arc<Session>> {
@@ -288,6 +303,7 @@ impl Hub {
                     .lock()
                     .sessions
                     .insert(account_id, session.clone());
+                self.state.lock().retries.remove(&account_id);
                 self.set_status(account_id, AccountStatus::Online);
                 self.forward_events(account_id, attempt, &session);
                 if let Some(hooks) = self.hooks.lock().clone() {
@@ -298,7 +314,17 @@ impl Hub {
                 }
                 Ok(session)
             }
+            // The server could not be reached: shown as such, and tried again later
+            Err(error) if is_connection_error(&error) => {
+                self.set_status(
+                    account_id,
+                    AccountStatus::Unreachable(describe_login_error(&error)),
+                );
+                self.retry_later(account_id, attempt);
+                Err(error)
+            }
             Err(error) => {
+                self.state.lock().retries.remove(&account_id);
                 self.set_status(
                     account_id,
                     AccountStatus::Failed(describe_login_error(&error)),
@@ -306,6 +332,29 @@ impl Hub {
                 Err(error)
             }
         }
+    }
+
+    /// Logs in unreachable account `account_id` again after a wait (2s, doubled each time, at most
+    /// 60s). Skipped when anything else happened to the account meanwhile (the user retried,
+    /// disabled or removed it: a newer attempt).
+    fn retry_later(self: &Arc<Self>, account_id: i64, attempt: u64) {
+        let count = {
+            let mut state = self.state.lock();
+            let count = state.retries.entry(account_id).or_default();
+            *count += 1;
+            *count
+        };
+        let wait = RETRY_FIRST
+            .saturating_mul(1 << (count - 1).min(6))
+            .min(RETRY_LONGEST);
+        let hub = Arc::downgrade(self);
+        tokio::spawn(async move {
+            tokio::time::sleep(wait).await;
+            let Some(hub) = hub.upgrade() else { return };
+            if hub.is_current(account_id, attempt) {
+                let _ = hub.start(account_id).await;
+            }
+        });
     }
 
     async fn connect(&self, account_id: i64) -> Result<Arc<Session>> {
@@ -428,6 +477,7 @@ impl Hub {
 
     async fn end_session(&self, account_id: i64) {
         self.begin_attempt(account_id);
+        self.state.lock().retries.remove(&account_id);
         let session = self.state.lock().sessions.remove(&account_id);
         if let Some(session) = session {
             self.stop_session(&session).await;

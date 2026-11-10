@@ -80,6 +80,7 @@ fn status_hint(status: &AccountStatus) -> Option<String> {
         AccountStatus::Online | AccountStatus::Disabled => None,
         AccountStatus::Connecting => Some("登录中".to_owned()),
         AccountStatus::Failed(_) => Some("登录失败".to_owned()),
+        AccountStatus::Unreachable(_) => Some("无法连接".to_owned()),
     }
 }
 
@@ -274,6 +275,17 @@ fn OfflineAccount(entry: EntryRef) -> Element {
                                     kind: ButtonKind::Primary,
                                     onclick: move |_| windows::open_add_account(AddAccountArgs { account: Some(id), error: Some(error.clone()) }),
                                     "重新登录"
+                                }
+                            },
+                            AccountStatus::Unreachable(_) => rsx! {
+                                Button {
+                                    kind: ButtonKind::Primary,
+                                    onclick: move |_| {
+                                        spawn_forever(async move {
+                                            let _ = services().hub.login_account(id).await;
+                                        });
+                                    },
+                                    "重试"
                                 }
                             },
                             AccountStatus::Disabled => rsx! {

@@ -13,9 +13,16 @@
   const isBlock = (n) => n.nodeType === 1 && BLOCK.test(n.tagName);
   const isPhantom = (n) => n.classList.contains("zphantom") && !n.textContent;
   const isAtomic = (n) => n.dataset.src !== undefined;
+  // A line of a code block: its block ends at the closing line holding the language box
+  const inCodeBlock = (line) => {
+    let n = line;
+    while (n && n.matches(".zl-bc")) n = n.nextElementSibling;
+    return n !== line && !!n && !!n.querySelector(".zlang-input");
+  };
   // Quote and list markers at the line start (same as markdown::markup in zulip-core): for a line
   // with a marker, line break and Backspace are left to Rust to continue / delete
-  const MARKUP = /^(?: {0,3}> ?)*(?: *(?:[*+-]|\d{1,9}\.) +(?:\[[ xX]\] +)?)?/;
+  // Line-start symbols: quotes, then list symbols (with their indentation; several are nested lists) or indentation alone
+  const MARKUP = /^(?: {0,3}> ?)*(?:(?: *(?:[*+-]|\d{1,9}\.) +)+(?:\[[ xX]\] +)?| +)?/;
   const markupLength = (line) => MARKUP.exec(serialize(line))[0].length;
   // Opening fence (same as code_language in zulip-core): Enter at the end of the line is left to
   // Rust to complete into a code block
@@ -137,6 +144,25 @@
   const lineCount = (el) => (isPhantom(el) ? 0 : isAtomic(el) ? el.dataset.src.split("\n").length : 1);
 
   class Editor {
+    // Indentation spaces (.zi) are one character column (1ch) wide, so a cursor anywhere in them is
+    // where the text after it starts: the gap between a space and a "0" in the editor's font, as
+    // extra letter spacing (--zsp; word spacing would miss the last space of a line). Measured in
+    // the editing area itself (its font), against a 10ch box (the unit the boxes are sized in).
+    measureSpaces() {
+      const hidden = "position:absolute;visibility:hidden;white-space:pre;letter-spacing:0;";
+      const columns = document.createElement("span");
+      columns.style.cssText = `${hidden}display:inline-block;width:10ch`;
+      const spaces = document.createElement("span");
+      spaces.style.cssText = hidden;
+      spaces.textContent = " ".repeat(10);
+      this.el.append(columns, spaces);
+      const column = columns.getBoundingClientRect().width / 10;
+      const space = spaces.getBoundingClientRect().width / 10;
+      columns.remove();
+      spaces.remove();
+      if (column > 0) this.el.style.setProperty("--zsp", `${Math.max(0, column - space)}px`);
+    }
+
     constructor(el, send) {
       this.el = el;
       this.send = send;
@@ -145,10 +171,30 @@
       this.composing = false;
       this.held = null;
       this.pressed = false;
+      // Home / End just pressed: the move past hidden markers is finished in report
+      this.homeEnd = null;
+      // Where the focus last was in the editor: "editor" (the editing area; its selection is
+      // lastPlaced) or a code block's language box. Kept while the focus goes nowhere (switching to
+      // another program, the webview's focus juggling on return) and given back when the window is
+      // focused again; dropped once the user moves on to something else.
+      this.lastFocus = null;
+      // The window was left for another program (until the next press or key), and the press
+      // that brought it back is in progress
+      this.away = false;
+      this.returnClick = false;
+      // The line Up / Down left: entering a span is finished in report
+      this.vertical = null;
       this.opts = {};
       this.fileId = 0;
       this.measured = new Map();
       this.lastSel = "";
+      this.measureSpaces();
+      // The editor's font may load only after the editor shows text (measured with a fallback font
+      // until then): measured again whenever a font finishes loading
+      if (document.fonts) {
+        document.fonts.ready.then(() => this.measureSpaces());
+        document.fonts.addEventListener("loadingdone", () => this.measureSpaces());
+      }
       this.lastRect = "";
       this.handlers = [];
       const raw = (target, type, fn, opts) => {
@@ -165,24 +211,42 @@
       };
       raw(el, "input", (e) => {
         const box = langBox(e.target);
-        if (box) this.send({ t: "lang-query", line: +box.dataset.open, query: box.value, ...langRect(box) });
+        if (!box) return;
+        // Typing opens the language list; until then Up / Down leave the box
+        box.dataset.typed = "1";
+        this.send({ t: "lang-query", line: +box.dataset.open, query: box.value, ...langRect(box) });
       });
       raw(el, "keydown", (e) => {
         const box = langBox(e.target);
         if (!box || e.isComposing) return;
+        if ((e.key === "ArrowUp" || e.key === "ArrowDown") && !box.dataset.typed) {
+          e.preventDefault();
+          e.stopPropagation();
+          this.leaveLangBox(box, e.key === "ArrowUp");
+          return;
+        }
         const key = { ArrowDown: "down", ArrowUp: "up", Enter: "enter", Escape: "escape" }[e.key];
         if (!key) return;
         e.preventDefault();
         e.stopPropagation();
         this.send({ t: "lang-key", key });
-        if (key === "escape") box.blur();
+        if (key === "escape") {
+          this.leaveFocus();
+          box.blur();
+        }
       });
       raw(el, "focusout", (e) => {
         const box = langBox(e.target);
+        // The focus going nowhere (another program, the webview's juggling) keeps the box as it is
+        if (!box || !e.relatedTarget) return;
+        if (el.contains(e.relatedTarget)) this.resetLangBox(box);
+        else this.leaveFocus();
+      });
+      raw(el, "focusin", (e) => {
+        const box = langBox(e.target);
         if (!box) return;
-        // Leaving without picking shows the current language again
-        box.value = box.defaultValue;
-        this.send({ t: "lang-blur" });
+        this.lastFocus = box;
+        this.markActiveCode(box.closest(".zl"));
       });
       on(el, "beforeinput", (e) => this.onBeforeInput(e));
       on(el, "input", (e) => {
@@ -203,6 +267,11 @@
         }
       });
       on(el, "keydown", (e) => this.onKey(e));
+      // Home / End that did not move the cursor leave nothing to finish
+      on(el, "keyup", () => {
+        this.homeEnd = null;
+        this.vertical = null;
+      });
       on(el, "paste", (e) => this.onPaste(e));
       on(el, "copy", (e) => {
         e.preventDefault();
@@ -213,7 +282,46 @@
         this.send({ t: "cmd", cmd: "cut" });
       });
       on(el, "dragstart", (e) => e.preventDefault());
+      // Ctrl held: links show they can be opened, and Ctrl + click opens them
+      const setCtrl = (e) => el.classList.toggle("zctrl", e.ctrlKey || e.metaKey);
+      on(document, "keydown", setCtrl);
+      on(document, "keyup", setCtrl);
+      on(el, "mousemove", setCtrl);
+      on(window, "blur", () => el.classList.remove("zctrl"));
+      // Back from another program the last focus place takes the focus again when it went
+      // nowhere: on the window's focus (the webview may leave it on the page body), and after the
+      // click that brought the window back (a click on a blank part, the title bar, takes it off)
+      on(window, "blur", () => {
+        this.away = true;
+      });
+      on(window, "focus", () => this.restoreFocus());
+      on(
+        document,
+        "mousedown",
+        () => {
+          this.returnClick = this.away;
+          this.away = false;
+        },
+        true,
+      );
+      on(document, "mouseup", () => {
+        if (!this.returnClick) return;
+        this.returnClick = false;
+        // A drag that selected text elsewhere keeps its selection
+        const sel = getSelection();
+        if (sel.rangeCount && !sel.isCollapsed) return;
+        this.restoreFocus();
+      });
+      on(document, "keydown", () => {
+        this.away = false;
+      });
       on(el, "mousedown", (e) => {
+        const link = (e.ctrlKey || e.metaKey) && e.button === 0 && e.target.closest("[data-href]");
+        if (link && el.contains(link)) {
+          e.preventDefault();
+          this.send({ t: "open-link", href: link.dataset.href });
+          return;
+        }
         this.pressed = true;
         if (e.target.closest("[data-act]")) e.preventDefault();
       });
@@ -228,13 +336,17 @@
         if (!this.composing && !this.pressed) this.report();
       });
       on(el, "focusin", () => {
+        this.lastFocus = "editor";
         this.send({ t: "focus", on: true });
-        this.report();
+        // Focused by a press (e.g. from the language box): the selection is still the old one
+        // until the press places it, so it is reported on release instead
+        if (!this.pressed) this.report();
       });
       on(el, "focusout", (e) => {
-        if (e.relatedTarget && el.contains(e.relatedTarget)) return;
-        this.clearReveal();
-        this.send({ t: "focus", on: false });
+        // Within the editor, or going nowhere (another program, the webview's juggling): the
+        // cursor's markers and language box stay as they are
+        if (!e.relatedTarget || el.contains(e.relatedTarget)) return;
+        this.leaveFocus();
       });
       on(el, "scroll", () => this.reportRect(), true);
       this.resize = new ResizeObserver(() => this.measureTables());
@@ -458,21 +570,71 @@
       this.revealCaret();
     }
 
+    // Show the markers of the span holding the cursor. Showing or hiding markers moves the text, so
+    // a selection keeps whatever is shown: selecting never shifts the text it is selecting.
+    applyReveal() {
+      const caret = this.caretLine();
+      if (caret) this.revealIn(caret.line, caret.rel);
+    }
+
     clearReveal() {
       for (const open of this.el.querySelectorAll(".zr.open")) open.classList.remove("open");
     }
 
     setReveal(host, offset) {
-      this.clearReveal();
       const at = blockAt(host, offset);
-      if (!at.el) return;
+      if (!at.el) {
+        this.clearReveal();
+        return;
+      }
       this.revealIn(at.el, at.rel);
     }
 
+    // Open the markers around the cursor at `rel` of `line`, close the rest. A span opens as soon
+    // as the cursor reaches it (its edges included) and closes only once the cursor fully leaves
+    // it; a marker line (fence, rule) opens anywhere on it.
     revealIn(line, rel) {
       const targets = [...line.querySelectorAll(".zr")];
       if (line.matches(".zr")) targets.push(line);
+      for (const open of this.el.querySelectorAll(".zr.open")) {
+        if (!targets.includes(open)) open.classList.remove("open");
+      }
       for (const el of targets) el.classList.toggle("open", +el.dataset.s <= rel && rel <= +el.dataset.e);
+    }
+
+    // Left / Right on the edge of a closed span steps into it: the span opens and the cursor goes
+    // one unit inside (next to its marker) instead of jumping over the hidden markers
+    stepIntoSpan(e, line, rel, left) {
+      const span = [...line.querySelectorAll(".zr")].find(
+        (el) => !el.classList.contains("open") && +(left ? el.dataset.e : el.dataset.s) === rel,
+      );
+      if (!span) return false;
+      e.preventDefault();
+      const target = left ? rel - 1 : rel + 1;
+      // Open first: the target is next to a marker, which an open span holds on to
+      span.classList.add("open");
+      this.revealIn(line, target);
+      const [node, offset] = inLine(line, target);
+      getSelection().collapse(node, offset);
+      this.revealCaret();
+      return true;
+    }
+
+    // Left / Right one unit away from a closed span reaches its outer edge: the span opens and the
+    // cursor stops outside its markers (after the closing one, before the opening one). The
+    // browser would put it next to the visible text instead, past the hidden markers.
+    approachSpan(e, line, rel, left) {
+      const target = left ? rel - 1 : rel + 1;
+      const span = [...line.querySelectorAll(".zr")].find(
+        (el) => !el.classList.contains("open") && +(left ? el.dataset.e : el.dataset.s) === target,
+      );
+      if (!span) return false;
+      e.preventDefault();
+      this.revealIn(line, target);
+      const [node, offset] = inLine(line, target);
+      getSelection().collapse(node, offset);
+      this.revealCaret();
+      return true;
     }
 
     // The line holding the cursor and the relative offset
@@ -508,20 +670,125 @@
       else if (rect.top < view.top) this.el.scrollTop -= view.top - rect.top + 4;
     }
 
+    // Home / End stop next to the visible text, after (before) the hidden markers of a span that
+    // starts (ends) the row: move on past those markers, so the cursor is at the very start (end)
+    // and the span opens around it
+    finishHomeEnd() {
+      const home = this.homeEnd === "Home";
+      this.homeEnd = null;
+      const caret = this.caretLine();
+      if (!caret) return;
+      const spans = [...caret.line.querySelectorAll(".zr")];
+      const mark = (span) => {
+        const m = home ? span.firstElementChild : span.lastElementChild;
+        return m && m.classList.contains("zm") ? m.textContent.length : 0;
+      };
+      let target = caret.rel;
+      for (let moved = true; moved; ) {
+        moved = false;
+        for (const span of spans) {
+          const len = mark(span);
+          const edge = home ? +span.dataset.s : +span.dataset.e;
+          if (len && (home ? edge + len : edge - len) === target) {
+            target = edge;
+            moved = true;
+          }
+        }
+      }
+      if (target === caret.rel) return;
+      this.revealIn(caret.line, target);
+      const [node, offset] = inLine(caret.line, target);
+      getSelection().collapse(node, offset);
+    }
+
+    // Up / Down from another line into a span: the cursor goes to the end of the span's text,
+    // before its closing marker (the end of the code / bold / italic text, the end of a link's
+    // text before `]`). The innermost span holding the landing place counts.
+    finishVertical() {
+      const from = this.vertical;
+      this.vertical = null;
+      const caret = this.caretLine();
+      if (!caret || caret.line === from) return;
+      const { line, rel } = caret;
+      let span = null;
+      for (const el of line.querySelectorAll(".zr")) {
+        if (el.dataset.ie !== undefined && +el.dataset.s <= rel && rel <= +el.dataset.e) span = el;
+      }
+      if (!span) return;
+      const target = +span.dataset.ie;
+      this.revealIn(line, target);
+      const [node, offset] = inLine(line, target);
+      getSelection().collapse(node, offset);
+    }
+
+    // Up / Down in a code block's language box (nothing typed): Up goes to the end of the code's
+    // last line, Down to the start of the line after the block
+    leaveLangBox(box, up) {
+      const close = box.closest(".zl");
+      const line = close && (up ? close.previousElementSibling : close.nextElementSibling);
+      if (!line || isAtomic(line)) return;
+      // The focus moving to the editing area resets the box (see its focusout)
+      this.el.focus({ preventScroll: true });
+      const [node, offset] = inLine(line, up ? serialize(line).length : 0);
+      getSelection().collapse(node, offset);
+      this.revealCaret();
+    }
+
+    // The language box of a code block shows (over what follows the block) only while the cursor or
+    // the selection end is in that block, or the box has the focus. `close` is the closing line to
+    // show; without it, the one of the cursor's block (`null`: none).
+    markActiveCode(close) {
+      if (close === undefined) {
+        close = null;
+        const sel = getSelection();
+        const node = sel.rangeCount && this.el.contains(sel.focusNode) ? sel.focusNode : null;
+        const at = node && (node.nodeType === 1 ? node : node.parentElement);
+        let line = at && at.closest(".zl");
+        if (line && inCodeBlock(line)) {
+          while (line.matches(".zl-bc")) line = line.nextElementSibling;
+          close = line;
+        }
+      }
+      for (const n of this.el.querySelectorAll(".zl-close.zactive")) if (n !== close) n.classList.remove("zactive");
+      if (close) close.classList.add("zactive");
+    }
+
+    // Give the focus back to the last focus place when it is nowhere (on the page body)
+    restoreFocus() {
+      const last = this.lastFocus;
+      const nowhere = !document.activeElement || document.activeElement === document.body;
+      if (!last || !nowhere) return;
+      if (last === "editor") this.placeSel(this.lastPlaced);
+      else if (last.isConnected) last.focus();
+    }
+
+    // Leaving a language box without picking shows the current language again
+    resetLangBox(box) {
+      box.value = box.defaultValue;
+      delete box.dataset.typed;
+      this.send({ t: "lang-blur" });
+    }
+
+    // The user moved on from the editor: the kept focus place is dropped and a language box being
+    // typed in is reset. What the cursor's last place shows (opened markers, the code block's
+    // language box) stays: it follows only the cursor moving within the editor.
+    leaveFocus() {
+      const last = this.lastFocus;
+      this.lastFocus = null;
+      if (last && last !== "editor") this.resetLangBox(last);
+      this.send({ t: "focus", on: false });
+    }
+
     report() {
       // Typing in the language box does not move the editor's cursor
       if (document.activeElement && document.activeElement.matches(".zlang-input")) return;
+      if (this.homeEnd) this.finishHomeEnd();
+      if (this.vertical) this.finishVertical();
+      // A selection outside the editor leaves what the cursor's last place shows
       const sel = this.readSel();
       if (!sel) return;
-      if (!this.pressed) {
-        const caret = this.caretLine();
-        if (caret) {
-          this.clearReveal();
-          this.revealIn(caret.line, caret.rel);
-        } else if (!getSelection().isCollapsed) {
-          this.clearReveal();
-        }
-      }
+      this.markActiveCode();
+      if (!this.pressed) this.applyReveal();
       const rect = this.caretRect();
       const msg = { t: "sel", rev: this.rev, ...sel, x: rect ? rect.left : 0, y: rect ? rect.top : 0 };
       const key = JSON.stringify(msg);
@@ -646,6 +913,8 @@
       }
       if (plain && key === "Escape" && this.opts.editing) return cmd("cancel-edit");
       if (key === "Enter" && !alt) {
+        // Ctrl + Enter in a code block leaves it (instead of sending or a new line)
+        if (ctrl && !shift && !td && !this.opts.source && caret && inCodeBlock(caret.line)) return cmd("code-exit");
         const send = this.opts.enterSends ? !ctrl && !shift : ctrl && !shift;
         if (!td && caret && getSelection().isCollapsed) {
           const text = serialize(caret.line);
@@ -724,13 +993,20 @@
             e.preventDefault();
           }
           break;
+        case "Home":
+        case "End":
+          // The browser stops next to the visible text; the move is finished in report
+          this.homeEnd = e.key;
+          break;
         case "ArrowLeft":
+          if (this.stepIntoSpan(e, line, rel, true) || this.approachSpan(e, line, rel, true)) break;
           if (start && prev && prev.classList.contains("zt")) {
             e.preventDefault();
             this.enterTable(prev, true);
           }
           break;
         case "ArrowRight":
+          if (this.stepIntoSpan(e, line, rel, false) || this.approachSpan(e, line, rel, false)) break;
           if (end && next && next.classList.contains("zt")) {
             e.preventDefault();
             this.enterTable(next, false);
@@ -740,12 +1016,26 @@
           if (prev && prev.classList.contains("zt") && this.onEdgeRow(line, true)) {
             e.preventDefault();
             this.enterTable(prev, true);
+          } else if (prev && prev.querySelector(".zlang-input") && this.onEdgeRow(line, true)) {
+            // Up from below a code block reaches its language box first
+            e.preventDefault();
+            this.markActiveCode(prev);
+            prev.querySelector(".zlang-input").focus();
+          } else {
+            this.vertical = line;
           }
           break;
         case "ArrowDown":
           if (next && next.classList.contains("zt") && this.onEdgeRow(line, false)) {
             e.preventDefault();
             this.enterTable(next, false);
+          } else if (next && next.querySelector(".zlang-input") && this.onEdgeRow(line, false)) {
+            // Down from the last line of a code block reaches its language box
+            e.preventDefault();
+            this.markActiveCode(next);
+            next.querySelector(".zlang-input").focus();
+          } else {
+            this.vertical = line;
           }
           break;
       }

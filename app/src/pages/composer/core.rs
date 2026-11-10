@@ -676,6 +676,46 @@ impl EditorCore {
         self.apply(&edit);
     }
 
+    /// Ctrl + Enter in a code block (rendered mode): the cursor leaves the block for the empty line
+    /// right below it, adding that line when the next line is not empty (or there is none).
+    pub fn exit_code_block(&mut self) {
+        use markdown::LineKind;
+        if self.source || self.sel.cell.is_some() {
+            return;
+        }
+        let lines = &self.model.lines;
+        let Some(index) = self.model.line_index_at(self.sel.end) else {
+            return;
+        };
+        if lines[index].kind != LineKind::FenceBody {
+            return;
+        }
+        let Some(close) = (index + 1..lines.len()).find(|&i| lines[i].kind != LineKind::FenceBody)
+        else {
+            return;
+        };
+        if self.code_fence_role(close) != Some(false) {
+            return;
+        }
+        match lines.get(close + 1) {
+            Some(next) if next.start == next.end && !self.starts_atomic_block(close + 1) => {
+                self.sel = Sel::caret(next.start);
+            }
+            _ => {
+                let at = lines[close].end;
+                self.apply(&MarkdownEdit::new(
+                    at,
+                    0,
+                    "
+"
+                    .to_owned(),
+                    at + 1,
+                    at + 1,
+                ));
+            }
+        }
+    }
+
     /// The cursor is in a code block or math block (its fences included) or indented code, where
     /// nothing inserted is formatted. Never in source mode or a table cell.
     pub fn caret_in_code(&self) -> bool {
@@ -1622,6 +1662,72 @@ mod tests {
         // Up from the line below onto the closing fence: into the block
         c.set_sel(Sel::caret(9));
         assert_eq!(c.sel.start, 7);
+    }
+
+    #[test]
+    fn ctrl_enter_leaves_code_block() {
+        // No line after the block: one is added and the cursor goes there
+        let mut c = EditorCore::new(
+            "```
+ab
+```"
+            .into(),
+            false,
+            Lookup::default(),
+        );
+        c.set_sel(Sel::caret(5));
+        c.exit_code_block();
+        assert_eq!(
+            c.text(),
+            "```
+ab
+```
+"
+        );
+        assert_eq!(c.sel.start, 11);
+        // An empty line after the block is used as it is
+        let mut c = EditorCore::new(
+            "```
+ab
+```
+
+x"
+            .into(),
+            false,
+            Lookup::default(),
+        );
+        c.set_sel(Sel::caret(5));
+        c.exit_code_block();
+        assert_eq!(
+            c.text(),
+            "```
+ab
+```
+
+x"
+        );
+        assert_eq!(c.sel.start, 11);
+        // Text right after the block: an empty line is added before it
+        let mut c = EditorCore::new(
+            "```
+ab
+```
+x"
+            .into(),
+            false,
+            Lookup::default(),
+        );
+        c.set_sel(Sel::caret(5));
+        c.exit_code_block();
+        assert_eq!(
+            c.text(),
+            "```
+ab
+```
+
+x"
+        );
+        assert_eq!(c.sel.start, 11);
     }
 
     #[test]
