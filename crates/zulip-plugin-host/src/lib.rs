@@ -23,11 +23,11 @@ mod thread;
 
 pub use event::PluginEvent;
 pub use host::{
-    ActionOutcome, ActionView, AnnotationCard, ApprovalInfo, CHAIN_TIMEOUT, ComposerButton,
-    ContextMenuKind, ContextMenuTarget, DIALOG_TIMEOUT, MessageAnnotations, OutgoingRejected,
-    PendingDialog, PluginError, PluginHost, PluginHostConfig, PluginStatusText, RenderedContent,
-    ResourceOption, SettingsButtonClick, ShortcutRow, TargetCandidate, ToggleOutcome,
-    default_plugins_dir,
+    ActionOutcome, ActionView, AnnotationCard, AnnotationTool, ApprovalInfo, CHAIN_TIMEOUT,
+    ComposerButton, ContextMenuKind, ContextMenuTarget, DIALOG_TIMEOUT, MessageAnnotations,
+    OutgoingRejected, PendingDialog, PluginError, PluginHost, PluginHostConfig, PluginStatusText,
+    RenderedContent, ResourceOption, SettingsButtonClick, ShortcutRow, TargetCandidate,
+    ToggleOutcome, default_plugins_dir,
 };
 pub use manifest::{
     ComposerIcon, ManifestError, MenuContext, MenuConv, MenuWhen, PluginComposerButton,

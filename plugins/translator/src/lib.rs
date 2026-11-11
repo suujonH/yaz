@@ -2,8 +2,9 @@
 //! below the message, translates through the model center on a worker thread, then on success
 //! temporarily replaces the bubble's displayed content with replace (the host provides a "show
 //! original" toggle and does not modify the message's original text). The translation is saved in
-//! translator.db in the data directory and re-attached when the message is shown again; clicking
-//! "Translate" again re-translates.
+//! translator.db in the data directory and re-attached when the message is shown again. Next to the
+//! toggle are refresh (translate again) and close (remove the translation from the message, it stays
+//! saved); clicking "Translate" when a translation is saved shows it without a new request.
 
 use std::sync::OnceLock;
 
@@ -11,11 +12,14 @@ use zulip_plugin_sdk::abi::{LOG_ERROR, LOG_INFO, LOG_WARNING};
 use zulip_plugin_sdk::annotation_store::AnnotationStore;
 use zulip_plugin_sdk::serde_json::{Value, json};
 use zulip_plugin_sdk::{
-    Message, MessagesShown, Plugin, SettingsButton, annotate, export_plugin, log, model_center,
-    post, select_account, set_annotation, settings, settings_text, str_of,
+    Message, MessagesShown, Plugin, SettingsButton, annotate, clear_annotation, export_plugin, log,
+    model_center, post, select_account, set_annotation, settings, settings_text, str_of,
 };
 
 const MENU_TRANSLATE: i32 = 1;
+// Buttons next to the translation (not in plugin.json's menus).
+const MENU_REFRESH: i32 = 2;
+const MENU_REMOVE: i32 = 3;
 const MODEL_FIELD: &str = "model";
 const TEST_BUTTON: &str = "test";
 const TEST_TEXT: &str = "你好";
@@ -43,37 +47,33 @@ struct Translator;
 
 impl Plugin for Translator {
     fn on_message_menu(&self, menu_id: i32, message: &Message) {
-        if menu_id != MENU_TRANSLATE {
-            return;
-        }
-        if message.text.trim().is_empty() {
-            annotate(message.id, &json!({"text": "这条消息没有可翻译的文字"}));
-            return;
-        }
-        let settings = settings();
-        let Some(model) = model_center::selection(&settings, MODEL_FIELD) else {
-            annotate(
-                message.id,
-                &json!({"text": "请先在“设置 > 插件 > 翻译 > 设置”中选择模型"}),
-            );
-            return;
-        };
-        let (language, prompt) = prompt_of(&settings);
-        annotate(
-            message.id,
-            &json!({"text": format!("正在翻译为{language}…")}),
-        );
-        let target = message.clone();
-        if !post(move || translate(&target, &model, &prompt)) {
-            annotate(message.id, &json!({"text": "待翻译的消息过多，请稍后再试"}));
+        match menu_id {
+            MENU_TRANSLATE => {
+                set_hidden(message.account_id, message.id, false);
+                match saved(message.account_id, &[message.id], true).pop() {
+                    Some((_, translated)) => annotate(message.id, &translation(&translated)),
+                    None => start_translation(message),
+                }
+            }
+            MENU_REFRESH => {
+                set_hidden(message.account_id, message.id, false);
+                start_translation(message);
+            }
+            MENU_REMOVE => {
+                set_hidden(message.account_id, message.id, true);
+                if let Err(error) = clear_annotation(message.id) {
+                    log(LOG_WARNING, &format!("移除译文失败：{error}"));
+                }
+            }
+            _ => {}
         }
     }
 
     // Re-attach the saved translation when a message is shown (the callback's account is the
-    // message's account).
+    // message's account); removed ones are not.
     fn on_messages_shown(&self, shown: &MessagesShown) {
-        for (message_id, translated) in saved(shown.account_id, &shown.message_ids) {
-            annotate(message_id, &json!({ "replace": translated }));
+        for (message_id, translated) in saved(shown.account_id, &shown.message_ids, false) {
+            annotate(message_id, &translation(&translated));
         }
     }
 
@@ -94,6 +94,43 @@ impl Plugin for Translator {
         if !post(move || test(&model, &prompt)) {
             show_text(TEST_BUTTON, "待翻译的消息过多，请稍后再试");
         }
+    }
+}
+
+/// The refresh and close buttons.
+fn tools() -> Value {
+    json!([
+        {"menu": MENU_REFRESH, "icon": "refresh", "tooltip": "重新翻译"},
+        {"menu": MENU_REMOVE, "icon": "close", "tooltip": "关闭译文（再次翻译时直接显示，不重新请求）"},
+    ])
+}
+
+fn translation(translated: &str) -> Value {
+    json!({"replace": translated, "tools": tools()})
+}
+
+// Shows progress below the message and translates on a worker thread.
+fn start_translation(message: &Message) {
+    if message.text.trim().is_empty() {
+        annotate(message.id, &json!({"text": "这条消息没有可翻译的文字"}));
+        return;
+    }
+    let settings = settings();
+    let Some(model) = model_center::selection(&settings, MODEL_FIELD) else {
+        annotate(
+            message.id,
+            &json!({"text": "请先在“设置 > 插件 > 翻译 > 设置”中选择模型"}),
+        );
+        return;
+    };
+    let (language, prompt) = prompt_of(&settings);
+    annotate(
+        message.id,
+        &json!({"text": format!("正在翻译为{language}…")}),
+    );
+    let target = message.clone();
+    if !post(move || translate(&target, &model, &prompt)) {
+        annotate(message.id, &json!({"text": "待翻译的消息过多，请稍后再试"}));
     }
 }
 
@@ -120,10 +157,10 @@ fn translate(message: &Message, model: &Value, prompt: &str) {
             .as_ref()
             .err()
             .map_or("模型没有返回文字", String::as_str);
-        json!({"text": format!("翻译失败：{reason}")})
+        json!({"text": format!("翻译失败：{reason}"), "tools": tools()})
     } else {
         save(message.account_id, message.id, translated);
-        json!({ "replace": translated })
+        translation(translated)
     };
     match set_annotation(message.id, &annotation) {
         Err(error) => log(LOG_WARNING, &format!("显示译文失败：{error}")),
@@ -138,15 +175,20 @@ fn database() -> Option<&'static AnnotationStore> {
         .as_ref()
 }
 
-// Saved translations: (message id, translation).
-fn saved(account: i64, message_ids: &[i64]) -> Vec<(i64, String)> {
+// Saved translations: (message id, translation). `with_hidden`: also those the user removed.
+fn saved(account: i64, message_ids: &[i64], with_hidden: bool) -> Vec<(i64, String)> {
     if message_ids.is_empty() {
         return Vec::new();
     }
     let Some(db) = database() else {
         return Vec::new();
     };
-    db.load(account, message_ids).unwrap_or_else(|error| {
+    let rows = if with_hidden {
+        db.load(account, message_ids)
+    } else {
+        db.load_visible(account, message_ids)
+    };
+    rows.unwrap_or_else(|error| {
         log(LOG_WARNING, &format!("读取译文失败：{error}"));
         Vec::new()
     })
@@ -157,6 +199,15 @@ fn save(account: i64, message_id: i64, translated: &str) {
         return;
     };
     if let Err(error) = db.save(account, message_id, translated) {
+        log(LOG_WARNING, &format!("保存译文失败：{error}"));
+    }
+}
+
+fn set_hidden(account: i64, message_id: i64, hidden: bool) {
+    let Some(db) = database() else {
+        return;
+    };
+    if let Err(error) = db.set_hidden(account, message_id, hidden) {
         log(LOG_WARNING, &format!("保存译文失败：{error}"));
     }
 }

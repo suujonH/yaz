@@ -773,6 +773,27 @@ impl EditorCore {
         self.insert(markdown);
     }
 
+    /// A candidate reply: first removes `previous` (the candidate appended before, its last
+    /// occurrence; nothing when the user has changed it), then appends `text` to the end unless the
+    /// content already contains it. One undo step; the cursor goes to the end.
+    pub fn append_candidate(&mut self, previous: Option<&str>, text: &str) {
+        let mut content = self.text.clone();
+        if let Some(previous) = previous.filter(|p| !p.is_empty())
+            && let Some(at) = content.rfind(previous)
+        {
+            content.replace_range(at..at + previous.len(), "");
+        }
+        if !content.contains(text) {
+            content.push_str(text);
+        }
+        if content != self.text {
+            self.replace_all(&content);
+        } else {
+            let end = self.text.len();
+            self.set_sel(Sel::caret(end));
+        }
+    }
+
     /// Content put in by paste or canned replies: a line break is appended at the end for
     /// multi-line content.
     pub fn insert_block(&mut self, markdown: &str) {
@@ -1510,6 +1531,24 @@ mod tests {
 
     fn core(text: &str) -> EditorCore {
         EditorCore::new(text.to_owned(), false, Lookup::default())
+    }
+
+    #[test]
+    fn candidate_replaces_previous_and_is_not_repeated() {
+        let mut c = core("我想说：");
+        c.append_candidate(None, "好的");
+        assert_eq!(c.text(), "我想说：好的");
+        assert_eq!(c.sel, Sel::caret(c.text().len()));
+        c.append_candidate(Some("好的"), "好的");
+        assert_eq!(c.text(), "我想说：好的");
+        c.append_candidate(Some("好的"), "明天再看");
+        assert_eq!(c.text(), "我想说：明天再看");
+        // The user changed the earlier candidate: it is kept.
+        let mut c = core("明天再看看");
+        c.append_candidate(Some("明天再看吧"), "收到");
+        assert_eq!(c.text(), "明天再看看收到");
+        assert!(c.undo());
+        assert_eq!(c.text(), "明天再看看");
     }
 
     #[test]

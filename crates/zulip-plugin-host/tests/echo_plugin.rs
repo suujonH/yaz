@@ -476,13 +476,15 @@ async fn menus_annotations_panel_and_settings() {
         }
     }
 
-    host.set_annotation_collapsed(account, id, ID, true);
-    assert!(host.message_annotations(account, id).cards[0].is_collapsed);
-
     // A disabled plugin shows no attached content.
     host.toggle(&plugin, false).await;
     assert!(host.message_annotations(account, id).cards.is_empty());
     host.toggle(&plugin, true).await;
+    assert_eq!(host.message_annotations(account, id).cards.len(), 1);
+
+    // The X without a close button of the plugin removes the card for this run.
+    host.close_annotation(account, id, ID);
+    assert!(host.message_annotations(account, id).cards.is_empty());
 
     // Panel.
     let target = PluginTarget::User {

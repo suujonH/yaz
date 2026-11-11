@@ -245,6 +245,7 @@ fn ChatRoot(
     let overlays = use_overlays();
     let composer = ComposerHandle {
         insert: use_signal(|| None),
+        candidate: use_signal(|| None),
         editing: use_signal(|| None),
     };
     use_context_provider(|| composer);

@@ -363,18 +363,23 @@ async fn reply_assistant_shows_analysis_and_candidates() {
         host.message_annotations(account, id)
             .cards
             .first()
-            .is_some_and(|c| !c.actions.is_empty())
+            .is_some_and(|c| !c.replies.is_empty())
     })
     .await;
     let annotations = host.message_annotations(account, id);
     let card = &annotations.cards[0];
-    assert!(card.text.contains("分析场景：工作 / 同事"), "{}", card.text);
+    assert_eq!(card.title, "对方意图：打招呼");
+    // jev's conflict level 1, no risk from the reply model: low danger; the scene is on hover.
+    assert_eq!(card.tags[0].text, "危险 低");
     assert!(
-        card.text.contains("对方在：没有明确识别到"),
+        card.tags[0].tip.contains("分析场景：工作 / 同事"),
         "{}",
-        card.text
+        card.tags[0].tip
     );
-    assert!(card.text.contains("冲突："), "{}", card.text);
-    assert!(card.text.contains("意图：打招呼"), "{}", card.text);
-    assert_eq!(card.actions.len(), 2);
+    // jev identified nothing and the model gave no confidence or preparation.
+    assert!(card.fields.is_empty(), "{:?}", card.fields);
+    assert_eq!(card.replies.len(), 2);
+    assert_eq!(card.replies[1].action.fill, "在的");
+    assert_eq!(card.tools[0].icon, "refresh");
+    assert!(card.close.is_some());
 }

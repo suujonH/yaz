@@ -73,7 +73,8 @@
 .msg-row.checked .bubble.other { background: var(--other-bubble-selected); }
 .msg-source { margin: 0; white-space: pre-wrap; font-family: var(--font-mono, Consolas, monospace); font-size: inherit; line-height: inherit; }
 .msg-versions { display: flex; justify-content: flex-end; align-items: center; gap: 2px; margin-top: 4px; font-size: var(--fs-caption); color: var(--text-tertiary); }
-.msg-render-toggle { margin-top: 4px; font-size: var(--fs-caption); color: var(--brand); cursor: pointer; }
+.msg-render-toggle { display: flex; align-items: center; gap: 4px; margin-top: 4px; font-size: var(--fs-caption); color: var(--brand); cursor: pointer; }
+.msg-render-toggle .msg-annotation-tool { color: var(--text-secondary); }
 .msg-attachment { width: 280px; max-width: 100%; }
 .msg-attachment + .msg-attachment, .msg-html + .msg-attachment, .msg-attachment + .msg-html { margin-top: 6px; }
 
@@ -169,10 +170,31 @@
 /* Plugin annotations */
 .msg-annotation { width: 100%; max-width: 420px; padding: 6px 10px; border-left: 3px solid var(--brand); border-radius: 4px; background: var(--fill); }
 .msg-annotation-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: var(--fs-caption); color: var(--text-secondary); }
+.msg-annotation-name { flex: 1; min-width: 0; }
 .msg-annotation-text { overflow-wrap: anywhere; font-size: var(--fs-sub); }
 .msg-annotation-text p, .msg-annotation-text ul, .msg-annotation-text pre { margin: 0; }
 .msg-annotation-text pre { white-space: pre-wrap; }
 .msg-annotation-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.msg-annotation-tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 2px; }
+.msg-annotation-tag { padding: 1px 8px; border-radius: 10px; font-size: var(--fs-caption); font-weight: 600; line-height: 18px; color: var(--text-secondary); background: var(--card); }
+.msg-annotation-tag.success { color: var(--resolved-avatar); background: color-mix(in srgb, var(--resolved-avatar) 14%, transparent); }
+.msg-annotation-tag.warning { color: var(--warning-text); background: var(--warning-fill); }
+.msg-annotation-tag.danger { color: var(--danger); background: color-mix(in srgb, var(--danger) 14%, transparent); }
+.msg-annotation-tag.info { color: var(--brand); background: color-mix(in srgb, var(--brand) 14%, transparent); }
+.msg-annotation-tag.accent { color: var(--accent-purple); background: color-mix(in srgb, var(--accent-purple) 14%, transparent); }
+.msg-annotation-value .msg-annotation-tag { display: inline-block; margin: 0 4px 2px 0; font-weight: 500; }
+.msg-annotation-title { margin: 4px 0 2px; font-size: var(--fs-body); font-weight: 600; color: var(--text-primary); overflow-wrap: anywhere; }
+.msg-annotation-fields { display: grid; grid-template-columns: auto 1fr; align-items: baseline; gap: 4px 10px; margin: 4px 0; font-size: var(--fs-sub); }
+.msg-annotation-field { display: contents; }
+.msg-annotation-label { color: var(--text-secondary); white-space: nowrap; }
+.msg-annotation-value { min-width: 0; color: var(--text-primary); overflow-wrap: anywhere; }
+.msg-annotation-replies { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--divider); }
+.msg-annotation-replies-title { font-size: var(--fs-caption); color: var(--text-secondary); }
+.msg-annotation-reply { display: flex; gap: 8px; padding: 6px 10px; border-radius: var(--radius); background: var(--card); font-size: var(--fs-sub); cursor: pointer; }
+.msg-annotation-reply:hover { background: var(--hover); }
+.msg-annotation-reply.disabled { cursor: default; color: var(--text-tertiary); }
+.msg-annotation-reply-label { flex: none; color: var(--text-secondary); }
+.msg-annotation-reply-text { min-width: 0; color: var(--text-primary); overflow-wrap: anywhere; white-space: pre-wrap; }
 
 /* Polls, to-dos */
 .widget-card { display: flex; flex-direction: column; gap: 6px; min-width: 220px; }

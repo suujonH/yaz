@@ -28,7 +28,7 @@ use zulip_core::model::{ChatMessage, MessageState, Reaction};
 use zulip_core::notice;
 use zulip_core::text::time;
 use zulip_core::{emoji, widget};
-use zulip_plugin_host::{ActionOutcome, ActionView, AnnotationCard};
+use zulip_plugin_host::{ActionOutcome, ActionView, AnnotationCard, AnnotationTool};
 use zulip_session::Session;
 
 const AVATAR_SIZE: f64 = 32.0;
@@ -490,6 +490,7 @@ fn MessageBubble(message: std::sync::Arc<ChatMessage>, own: bool) -> Element {
                     } else {
                         "显示原文"
                     }
+                    AnnotationTools { id, plugin_id: r.plugin_id.clone(), tools: r.tools.clone() }
                 }
             }
         }
@@ -685,39 +686,88 @@ impl PartialEq for CardProp {
 fn AnnotationView(id: i64, card: CardProp) -> Element {
     let chat = use_context::<Chat>();
     let card = card.0;
-    let collapsed = card.is_collapsed;
     let plugin_id = card.plugin_id.clone();
-    let chevron = if collapsed {
-        IconName::ChevronRight
-    } else {
-        IconName::ChevronDown
-    };
+    let close = card.close.clone();
+    let close_tip = close.as_ref().map_or_else(
+        || format!("关闭 {} 附加的内容", card.plugin_name),
+        |c| c.tooltip.clone(),
+    );
     rsx! {
         div { class: "msg-annotation",
             div { class: "msg-annotation-head",
                 span { class: "msg-annotation-name", "{card.plugin_name}" }
-                span {
-                    title: "{card.toggle_tooltip}",
+                AnnotationTools { id, plugin_id: card.plugin_id.clone(), tools: card.tools.clone() }
+                span { class: "msg-annotation-tool", title: "{close_tip}",
                     IconButton {
-                        icon: chevron,
+                        icon: IconName::Close,
                         size: 18.0,
-                        icon_size: 10.0,
+                        icon_size: 12.0,
                         onclick: move |e: MouseEvent| {
                             e.stop_propagation();
-                            plugins().set_annotation_collapsed(chat.account, id, &plugin_id, !collapsed);
-                            let mut tick = chat.plugin_tick;
-                            tick += 1;
+                            match &close {
+                                // The plugin's close button: the plugin decides (e.g. keeps it hidden).
+                                Some(tool) => {
+                                    if let Some(message) = chat.message(id) {
+                                        plugins().invoke_annotation_tool(&plugin_id, tool.menu, &message, &chat.session());
+                                    }
+                                }
+                                None => plugins().close_annotation(chat.account, id, &plugin_id),
+                            }
                         },
                     }
                 }
             }
-            if !collapsed {
-                div { class: "msg-annotation-text selectable", dangerous_inner_html: "{card.text_html}" }
-                if !card.actions.is_empty() {
-                    div { class: "msg-annotation-actions",
-                        for (i, action) in card.actions.iter().cloned().enumerate() {
-                            AnnotationAction { key: "{i}", action: ActionProp(action) }
+            if !card.tags.is_empty() {
+                div { class: "msg-annotation-tags",
+                    for (i, tag) in card.tags.iter().enumerate() {
+                        span {
+                            key: "{i}",
+                            class: "msg-annotation-tag {tag.tone.class()}",
+                            title: "{tag.tip}",
+                            "{tag.text}"
                         }
+                    }
+                }
+            }
+            if !card.title.is_empty() {
+                div { class: "msg-annotation-title selectable", "{card.title}" }
+            }
+            if !card.fields.is_empty() {
+                div { class: "msg-annotation-fields selectable",
+                    for (i, field) in card.fields.iter().enumerate() {
+                        div { key: "{i}", class: "msg-annotation-field",
+                            span { class: "msg-annotation-label", "{field.label}" }
+                            span { class: "msg-annotation-value",
+                                "{field.value}"
+                                for (j, item) in field.items.iter().enumerate() {
+                                    span {
+                                        key: "{j}",
+                                        class: "msg-annotation-tag {field.tone.class()}",
+                                        "{item}"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if !card.text.is_empty() {
+                div { class: "msg-annotation-text selectable", dangerous_inner_html: "{card.text_html}" }
+            }
+            if !card.replies.is_empty() {
+                div { class: "msg-annotation-replies",
+                    if !card.replies_title.is_empty() {
+                        div { class: "msg-annotation-replies-title", "{card.replies_title}" }
+                    }
+                    for (i, reply) in card.replies.iter().cloned().enumerate() {
+                        AnnotationReply { key: "{i}", action: ActionProp(reply) }
+                    }
+                }
+            }
+            if !card.actions.is_empty() {
+                div { class: "msg-annotation-actions",
+                    for (i, action) in card.actions.iter().cloned().enumerate() {
+                        AnnotationAction { key: "{i}", action: ActionProp(action) }
                     }
                 }
             }
@@ -731,6 +781,70 @@ struct ActionProp(ActionView);
 impl PartialEq for ActionProp {
     fn eq(&self, _: &Self) -> bool {
         false
+    }
+}
+
+/// A plugin's icon buttons for the content it attached to a message: clicking calls the plugin back
+/// with the button's menu id and this message.
+#[component]
+fn AnnotationTools(id: i64, plugin_id: String, tools: Vec<AnnotationTool>) -> Element {
+    let chat = use_context::<Chat>();
+    rsx! {
+        for (i, tool) in tools.into_iter().enumerate() {
+            span { key: "{i}", class: "msg-annotation-tool", title: "{tool.tooltip}",
+                IconButton {
+                    icon: crate::pages::composer::builtin_icon(&tool.icon),
+                    size: 18.0,
+                    icon_size: 12.0,
+                    onclick: {
+                        let plugin_id = plugin_id.clone();
+                        move |e: MouseEvent| {
+                            e.stop_propagation();
+                            if let Some(message) = chat.message(id) {
+                                plugins()
+                                    .invoke_annotation_tool(&plugin_id, tool.menu, &message, &chat.session());
+                            }
+                        }
+                    },
+                }
+            }
+        }
+    }
+}
+
+/// A candidate reply: the full text; clicking it fills it into the composer (see
+/// `ComposerHandle::candidate`).
+#[component]
+fn AnnotationReply(action: ActionProp) -> Element {
+    let chat = use_context::<Chat>();
+    let view = action.0;
+    let text = view.action.fill.clone();
+    let can_run = view.can_run;
+    let tip = view.tooltip.clone();
+    let label = view.label.clone();
+    rsx! {
+        div {
+            class: if can_run { "msg-annotation-reply" } else { "msg-annotation-reply disabled" },
+            title: "{tip}",
+            onclick: move |e: MouseEvent| {
+                e.stop_propagation();
+                if !can_run {
+                    return;
+                }
+                match plugins().run_action(&view) {
+                    Ok(ActionOutcome::Fill(text)) => {
+                        let mut candidate = chat.composer.candidate;
+                        candidate.set(Some(text));
+                    }
+                    Ok(ActionOutcome::Done) => {}
+                    Err(error) => chat.overlays.report_error("操作失败", error),
+                }
+            },
+            if !label.is_empty() {
+                span { class: "msg-annotation-reply-label", "{label}" }
+            }
+            span { class: "msg-annotation-reply-text", "{text}" }
+        }
     }
 }
 

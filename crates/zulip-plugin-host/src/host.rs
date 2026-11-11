@@ -38,7 +38,7 @@ use crate::shortcuts::{self, Bindings};
 use crate::thread::{self, PluginThread};
 
 pub use crate::annotation::{
-    ActionOutcome, ActionView, AnnotationCard, MessageAnnotations, RenderedContent,
+    ActionOutcome, ActionView, AnnotationCard, AnnotationTool, MessageAnnotations, RenderedContent,
 };
 pub use crate::chain::{CHAIN_TIMEOUT, OutgoingRejected, PREFILTER_LIMIT};
 pub use crate::resources::ResourceOption;
@@ -979,6 +979,26 @@ impl PluginHost {
             return;
         };
         self.post_with(Some(session.clone()), plugin, move |p| {
+            p.call_message_menu(menu_id, &snapshot);
+        });
+    }
+
+    /// Clicks an icon button in the header of a plugin's attached content: calls that plugin's
+    /// on_message_menu with the button's menu id and the message, with the message's account.
+    pub fn invoke_annotation_tool(
+        &self,
+        plugin_id: &str,
+        menu_id: i32,
+        message: &ChatMessage,
+        session: &Arc<Session>,
+    ) {
+        let Some(plugin) = self.plugin(plugin_id).filter(|p| p.is_enabled()) else {
+            return;
+        };
+        let Some(snapshot) = MessageSnapshot::new(message, session, true) else {
+            return;
+        };
+        self.post_with(Some(session.clone()), &plugin, move |p| {
             p.call_message_menu(menu_id, &snapshot);
         });
     }

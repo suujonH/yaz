@@ -26,24 +26,33 @@ pub struct Findings {
     pub cues: Vec<String>,
     pub tones: Vec<String>,
     pub missing: usize,
-    pub friction: Option<String>,
+    /// Text and level (1 to 5); None when below 1 or not answered.
+    pub friction: Option<(String, usize)>,
+    /// Conflict level 0 to 5; None when the conflict request failed.
+    pub friction_level: Option<usize>,
+    /// Probability (0 to 1) of the most likely "what the other side is doing" item; None when
+    /// nothing reached the threshold.
+    pub confidence: Option<f64>,
 }
 
 impl Findings {
-    /// The few lines shown below the message.
+    /// As text lines (passed to the reply-writing model).
     pub fn lines(&self) -> Vec<String> {
-        let mut lines = vec![if self.doing.is_empty() {
-            "对方在：没有明确识别到".to_owned()
-        } else {
-            format!("对方在：{}", self.doing.join("、"))
-        }];
+        let mut lines = vec![format!(
+            "对方在：{}",
+            if self.doing.is_empty() {
+                "没有明确识别到".to_owned()
+            } else {
+                self.doing.join("、")
+            }
+        )];
         if !self.cues.is_empty() {
             lines.push(format!("信号：{}", self.cues.join("、")));
         }
         if !self.tones.is_empty() {
             lines.push(format!("语气：{}", self.tones.join("、")));
         }
-        if let Some(friction) = &self.friction {
+        if let Some((friction, _)) = &self.friction {
             lines.push(format!("冲突：{friction}"));
         }
         if self.missing > 0 {
@@ -210,7 +219,8 @@ fn read_findings(
             probabilities.insert(&q.id, p);
         }
     }
-    let labels = |filter: &dyn Fn(&Question) -> bool| {
+    // Hits by descending probability (at most MAX_LABELS).
+    let hits = |filter: &dyn Fn(&Question) -> bool| {
         let mut hits: Vec<(&Question, f64)> = questions
             .iter()
             .filter(|q| filter(q))
@@ -220,26 +230,43 @@ fn read_findings(
             })
             .collect();
         hits.sort_by(|a, b| b.1.total_cmp(&a.1));
-        hits.iter()
-            .take(MAX_LABELS)
-            .map(|(q, _)| q.label.clone())
-            .collect::<Vec<_>>()
+        hits.truncate(MAX_LABELS);
+        hits
     };
+    let labels = |hits: &[(&Question, f64)]| hits.iter().map(|(q, _)| q.label.clone()).collect();
+    let doing = hits(&|q| q.kind == "behavior" && q.role != "cue");
     Findings {
-        doing: labels(&|q| q.kind == "behavior" && q.role != "cue"),
-        cues: labels(&|q| q.kind == "behavior" && q.role == "cue"),
-        tones: labels(&|q| q.kind == "tone"),
+        doing: labels(&doing),
+        cues: labels(&hits(&|q| q.kind == "behavior" && q.role == "cue")),
+        tones: labels(&hits(&|q| q.kind == "tone")),
         missing: questions
             .iter()
             .filter(|q| !probabilities.contains_key(q.id.as_str()))
             .count(),
         friction: friction_text(catalog, friction_answers),
+        friction_level: friction_level(catalog, friction_answers),
+        confidence: doing.first().map(|(_, p)| *p),
     }
 }
 
+// The higher of the two sides, 0 to 5 (below 1 counts as 0); None when neither side was answered.
+fn friction_level(catalog: &Catalog, answers: Option<&Value>) -> Option<usize> {
+    let answers = answers?;
+    let other = answers[FRICTION_OTHER]["score"].as_f64();
+    let own = answers[FRICTION_SELF]["score"].as_f64();
+    if other.is_none() && own.is_none() {
+        return None;
+    }
+    let level = other.unwrap_or(0.0).max(own.unwrap_or(0.0));
+    if level < 1.0 {
+        return Some(0);
+    }
+    Some((level.round() as usize).min(catalog.friction_levels.len().saturating_sub(1)))
+}
+
 // The higher of the two sides (0 to 5); when >= 1 the level and source are shown; None when there
-// is no answer.
-fn friction_text(catalog: &Catalog, answers: Option<&Value>) -> Option<String> {
+// is no answer. Returns (text, level index).
+fn friction_text(catalog: &Catalog, answers: Option<&Value>) -> Option<(String, usize)> {
     let answers = answers?;
     let other = answers[FRICTION_OTHER]["score"].as_f64();
     let own = answers[FRICTION_SELF]["score"].as_f64();
@@ -256,9 +283,9 @@ fn friction_text(catalog: &Catalog, answers: Option<&Value>) -> Option<String> {
         _ => "来自你",
     };
     let index = (level.round() as usize).min(catalog.friction_levels.len().saturating_sub(1));
-    Some(format!(
-        "{}（{source}）",
-        catalog.friction_levels[index].label
+    Some((
+        format!("{}（{source}）", catalog.friction_levels[index].label),
+        index,
     ))
 }
 
@@ -377,6 +404,7 @@ mod tests {
             vec![behaviours[1].label.clone(), behaviours[0].label.clone()]
         );
         assert_eq!(findings.missing, 0);
+        assert_eq!(findings.confidence, Some(0.95));
 
         let empty = read_findings(&CATALOG, &behaviours, &json!({}), None);
         assert_eq!(empty.missing, 3);
@@ -391,15 +419,35 @@ mod tests {
         let levels = &CATALOG.friction_levels;
         assert_eq!(
             text(json!({FRICTION_OTHER: {"score": 2}, FRICTION_SELF: {"score": 0}})),
-            Some(format!("{}（来自对方）", levels[2].label))
+            Some((format!("{}（来自对方）", levels[2].label), 2))
         );
         assert_eq!(
             text(json!({FRICTION_OTHER: {"score": 1}, FRICTION_SELF: {"score": 3}})),
-            Some(format!("{}（双方都有）", levels[3].label))
+            Some((format!("{}（双方都有）", levels[3].label), 3))
         );
         assert_eq!(
             text(json!({FRICTION_SELF: {"score": 9}})),
-            Some(format!("{}（来自你）", levels[5].label))
+            Some((format!("{}（来自你）", levels[5].label), 5))
+        );
+    }
+
+    #[test]
+    fn friction_level_and_lines() {
+        let level = |answers: Value| friction_level(&CATALOG, Some(&answers));
+        assert_eq!(friction_level(&CATALOG, None), None);
+        assert_eq!(level(json!({})), None);
+        assert_eq!(level(json!({FRICTION_OTHER: {"score": 0.4}})), Some(0));
+        assert_eq!(
+            level(json!({FRICTION_OTHER: {"score": 1}, FRICTION_SELF: {"score": 3.2}})),
+            Some(3)
+        );
+        let findings = Findings {
+            cues: vec!["催促".into(), "追问".into()],
+            ..Default::default()
+        };
+        assert_eq!(
+            findings.lines(),
+            ["对方在：没有明确识别到", "信号：催促、追问"]
         );
     }
 

@@ -13,17 +13,21 @@ use zulip_plugin_host::{ComposerIcon, PluginEvent};
 /// A file that is too large is not an icon and is not read into the UI.
 const MAX_SVG_BYTES: u64 = 256 * 1024;
 
-fn builtin_icon(name: &str) -> IconName {
+/// Built-in icon a plugin names (composer buttons, icon buttons of attached content).
+pub(crate) fn builtin_icon(name: &str) -> IconName {
     match name {
         "add" => IconName::Add,
         "chat" => IconName::Chat,
         "check" => IconName::Check,
+        "close" => IconName::Close,
+        "delete" => IconName::Delete,
         "edit" => IconName::Edit,
         "file" => IconName::File,
         "folder" => IconName::Folder,
         "history" => IconName::History,
         "image" => IconName::Image,
         "lock" => IconName::Lock,
+        "refresh" => IconName::Refresh,
         "search" => IconName::Search,
         "smile" => IconName::Smile,
         "time" => IconName::Time,

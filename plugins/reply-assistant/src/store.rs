@@ -196,18 +196,40 @@ pub fn set_analysis(account: i64, message_id: i64, annotation: &str) {
 }
 
 /// Among these messages, those with saved analysis results: (message id, JSON of the attached
-/// content).
-pub fn analyses(account: i64, message_ids: &[i64]) -> Vec<(i64, String)> {
+/// content). `with_hidden`: also those the user removed from below the message.
+pub fn analyses(account: i64, message_ids: &[i64], with_hidden: bool) -> Vec<(i64, String)> {
     if message_ids.is_empty() {
         return Vec::new();
     }
     let Some(db) = database() else {
         return Vec::new();
     };
-    db.load(account, message_ids).unwrap_or_else(|error| {
+    let rows = if with_hidden {
+        db.load(account, message_ids)
+    } else {
+        db.load_visible(account, message_ids)
+    };
+    rows.unwrap_or_else(|error| {
         log(LOG_WARNING, &format!("读取数据失败：{error}"));
         Vec::new()
     })
+}
+
+/// The saved analysis result of a message, including a removed one.
+pub fn analysis(account: i64, message_id: i64) -> Option<String> {
+    analyses(account, &[message_id], true)
+        .into_iter()
+        .next()
+        .map(|(_, content)| content)
+}
+
+/// Whether the result is removed from below the message (not re-attached when shown).
+pub fn set_hidden(account: i64, message_id: i64, hidden: bool) {
+    if let Some(db) = database()
+        && let Err(error) = db.set_hidden(account, message_id, hidden)
+    {
+        log(LOG_WARNING, &format!("保存数据失败：{error}"));
+    }
 }
 
 #[cfg(test)]

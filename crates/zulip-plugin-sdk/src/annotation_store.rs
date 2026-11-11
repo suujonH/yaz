@@ -49,7 +49,9 @@ impl AnnotationStore {
             "{extra_schema}
 CREATE TABLE IF NOT EXISTS {table}(
     account INTEGER NOT NULL, message_id INTEGER NOT NULL, content TEXT NOT NULL, updated_at INTEGER NOT NULL,
-    PRIMARY KEY(account, message_id));"
+    PRIMARY KEY(account, message_id));
+CREATE TABLE IF NOT EXISTS {table}_hidden(
+    account INTEGER NOT NULL, message_id INTEGER NOT NULL, PRIMARY KEY(account, message_id));"
         ))?;
         Ok(Self {
             connection: Mutex::new(connection),
@@ -102,6 +104,51 @@ CREATE TABLE IF NOT EXISTS {table}(
                 .collect()
         })
     }
+
+    /// Like `load`, without the ones the user removed from below the message (`set_hidden`).
+    pub fn load_visible(
+        &self,
+        account: i64,
+        message_ids: &[i64],
+    ) -> rusqlite::Result<Vec<(i64, String)>> {
+        let mut rows = self.load(account, message_ids)?;
+        if rows.is_empty() {
+            return Ok(rows);
+        }
+        let sql = format!(
+            "SELECT 1 FROM {}_hidden WHERE account = ?1 AND message_id = ?2",
+            self.table
+        );
+        let hidden = self.with(|db| {
+            let mut query = db.prepare(&sql)?;
+            let mut hidden = Vec::new();
+            for (id, _) in &rows {
+                if query.exists(params![account, id])? {
+                    hidden.push(*id);
+                }
+            }
+            Ok(hidden)
+        })?;
+        rows.retain(|(id, _)| !hidden.contains(id));
+        Ok(rows)
+    }
+
+    /// Whether the user removed the content from below the message (it stays saved, and `load`
+    /// still returns it).
+    pub fn set_hidden(&self, account: i64, message_id: i64, hidden: bool) -> rusqlite::Result<()> {
+        let sql = if hidden {
+            format!(
+                "INSERT OR IGNORE INTO {}_hidden(account, message_id) VALUES(?1, ?2)",
+                self.table
+            )
+        } else {
+            format!(
+                "DELETE FROM {}_hidden WHERE account = ?1 AND message_id = ?2",
+                self.table
+            )
+        };
+        self.with(|db| db.execute(&sql, params![account, message_id]).map(drop))
+    }
 }
 
 #[cfg(test)]
@@ -119,6 +166,23 @@ mod tests {
         rows.sort();
         assert_eq!(rows, vec![(10, "新".to_owned()), (11, "b".to_owned())]);
         assert!(store.load(1, &[]).unwrap().is_empty());
+    }
+
+    #[test]
+    fn hidden_are_left_out_of_visible() {
+        let store = AnnotationStore::open_in_memory("note", "").unwrap();
+        store.save(1, 10, "a").unwrap();
+        store.save(1, 11, "b").unwrap();
+        store.set_hidden(1, 10, true).unwrap();
+        store.set_hidden(1, 10, true).unwrap();
+        store.set_hidden(2, 11, true).unwrap();
+        assert_eq!(
+            store.load_visible(1, &[10, 11]).unwrap(),
+            vec![(11, "b".to_owned())]
+        );
+        assert_eq!(store.load(1, &[10]).unwrap().len(), 1);
+        store.set_hidden(1, 10, false).unwrap();
+        assert_eq!(store.load_visible(1, &[10]).unwrap().len(), 1);
     }
 
     #[test]

@@ -13,6 +13,7 @@ mod render;
 mod upload;
 
 pub use emoji::open_emoji_picker;
+pub(crate) use plugin_tools::builtin_icon;
 pub use registry::{filled_draft, is_composer_open};
 
 use crate::state::{use_plugin_events, use_session, use_session_data, use_session_event};
@@ -47,6 +48,9 @@ pub struct ComposerHandle {
     /// Text waiting to be inserted at the cursor (quotes, the plugin "fill into composer" button,
     /// etc.); set back to `None` once the composer takes it.
     pub insert: Signal<Option<String>>,
+    /// A candidate reply chosen in a plugin card: appended to the end of the composer (not twice),
+    /// replacing the candidate chosen before; set back to `None` once the composer takes it.
+    pub candidate: Signal<Option<String>>,
     /// When non-empty, this message is being edited: the composer shows its source and sending
     /// becomes saving.
     pub editing: Signal<Option<i64>>,
@@ -79,11 +83,15 @@ pub fn can_post(session: &Arc<Session>, key: &ConversationKey) -> bool {
 fn ComposerBody(session: crate::widgets::SessionRef, conversation: ConversationKey) -> Element {
     let overlays = use_overlays();
     let own_insert = use_signal(|| None);
+    let own_candidate = use_signal(|| None);
     let own_editing = use_signal(|| None);
     let handle = try_consume_context::<ComposerHandle>().unwrap_or(ComposerHandle {
         insert: own_insert,
+        candidate: own_candidate,
         editing: own_editing,
     });
+    // The candidate reply appended last (removed when another one is chosen).
+    let mut last_candidate = use_signal(|| None::<String>);
     let ctl = use_ctl(session.0.clone(), conversation.clone(), overlays, handle);
     use_context_provider(|| ctl);
 
@@ -121,6 +129,16 @@ fn ComposerBody(session: crate::widgets::SessionRef, conversation: ConversationK
             ctl.edit(|core| core.insert_smart(&text));
             let mut insert = handle.insert;
             insert.set(None);
+        }
+    });
+    use_effect(move || {
+        let text = handle.candidate.read().clone();
+        if let Some(text) = text {
+            let previous = last_candidate.peek().clone();
+            ctl.edit(|core| core.append_candidate(previous.as_deref(), &text));
+            last_candidate.set(Some(text));
+            let mut candidate = handle.candidate;
+            candidate.set(None);
         }
     });
     let account = session.0.account_id();

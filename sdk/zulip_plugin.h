@@ -303,8 +303,16 @@ typedef struct zulip_plugin_host_api {
        {"text": "text below the bubble, restricted Markdown supported (bold, italic, inline code, code blocks, lists, headings, http(s) links; everything else is escaped)",
         "replace": "plain text that temporarily replaces what the bubble shows",
         "actions": [{"label": "button", "target": "URI or program", "args": "program arguments", "style": "primary" | "secondary"} or
-                    {"label": "button", "fill": "text to put into the composer", "style": ...}]}
-       (at most 5 buttons); a json of NULL or an empty string clears it, and calling again overwrites this plugin's previous content. One card per plugin on a message.
+                    {"label": "button", "fill": "text to put into the composer", "style": ...}],
+        "tags": [{"text": "short label", "tone": "neutral" | "success" | "warning" | "danger" | "info" | "accent", "tip": "hover text"}],
+        "title": "headline in bold",
+        "fields": [{"label": "name", "value": "plain text", "items": ["short label shown as a chip", ...], "tone": same as tags (color of the chips)}],
+        "replies_title": "heading above the candidate replies",
+        "replies": [{"label": "#1", "fill": "candidate text, shown in full; clicking it appends it to the end of the composer, replacing the candidate chosen before (not added twice)"}],
+        "tools": [{"menu": 2, "icon": "refresh", "tooltip": "hover text"}]}
+       tools are icon buttons in the card header (icon names as composer_buttons, plus refresh, delete and close; a tool with icon close is the X at the right of the card header, which otherwise removes the card for this run); clicking calls zulip_plugin_on_message_menu
+       with that menu id and this message (the id need not be declared in message_menus).
+       (at most 5 buttons, 6 tags, 12 fields with at most 8 items each, 5 replies, 3 tools; shown in the order tags, title, fields, text, replies, buttons); a json of NULL or an empty string clears it, and calling again overwrites this plugin's previous content. One card per plugin on a message.
        Needs annotate_message; replace also needs render_message, fill buttons need fill_composer, target buttons need launch */
     int32_t (ZULIP_PLUGIN_CALL *set_annotation)(void* ctx, int64_t message_id, const char* json);
     /* Open a URI on the allowlist or run a program on the allowlist (args is for programs only, may be NULL); ZULIP_PLUGIN_ERR_PERMISSION if not on the allowlist. Needs launch */
