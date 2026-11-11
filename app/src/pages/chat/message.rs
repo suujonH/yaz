@@ -402,8 +402,33 @@ fn MessageBubble(message: std::sync::Arc<ChatMessage>, own: bool) -> Element {
     let current = version().unwrap_or(total.saturating_sub(1));
     drop(list);
 
+    // A plugin's replacement is rendered by the server so it looks like a message (quotes, code,
+    // mentions); plain text is shown until then or when that fails.
+    let replacement = plugin_rendered
+        .as_ref()
+        .filter(|r| !r.original_shown)
+        .map(|r| r.markdown.clone());
+    use_effect(use_reactive!(|replacement| {
+        let Some(markdown) = replacement else {
+            return;
+        };
+        if chat.plugin_html.peek().contains_key(&markdown) {
+            return;
+        }
+        chat.spawn(async move {
+            if let Ok(html) = chat.session().render_preview(&markdown).await {
+                let mut rendered = chat.plugin_html;
+                rendered.write().insert(markdown, html);
+            }
+        });
+    }));
     let html = shown_version.unwrap_or_else(|| match &plugin_rendered {
-        Some(r) if !r.original_shown => r.html.clone(),
+        Some(r) if !r.original_shown => chat
+            .plugin_html
+            .read()
+            .get(&r.markdown)
+            .cloned()
+            .unwrap_or_else(|| r.html.clone()),
         _ => message.content_html.clone(),
     });
     let session = chat.session();

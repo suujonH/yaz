@@ -140,7 +140,8 @@ pub struct PluginAnnotation {
     pub actions: Vec<PluginAction>,
     /// Icon buttons in the header (only shown when there is a card).
     pub tools: Vec<AnnotationTool>,
-    /// Plain text that temporarily replaces the bubble content.
+    /// Zulip Markdown that temporarily replaces the bubble content (the client renders it through
+    /// the server like a message).
     pub replace: String,
 }
 
@@ -474,6 +475,10 @@ pub struct RenderedContent {
     /// The plugin's icon buttons, shown next to the toggle when it has no card (otherwise they are in
     /// the card header).
     pub tools: Vec<AnnotationTool>,
+    /// The replacement's Zulip Markdown; the client renders it through the server.
+    pub markdown: String,
+    /// Plain-text HTML of `markdown`, shown until the server's rendering is available or when it
+    /// fails.
     pub html: String,
     /// The user chose to show the original text.
     pub original_shown: bool,
@@ -534,6 +539,7 @@ impl PluginHost {
                     } else {
                         annotation.tools.clone()
                     },
+                    markdown: annotation.replace.clone(),
                     html: plain_text_html(&annotation.replace),
                     original_shown: self.annotations.is_original_shown(account_id, message_id),
                 });

@@ -301,7 +301,7 @@ typedef struct zulip_plugin_host_api {
     /* Attach content to a message (does not modify the original; only valid for the current run and hidden when the plugin is disabled; if it must be kept, the plugin saves it and re-attaches it in
        zulip_plugin_on_messages_shown):
        {"text": "text below the bubble, restricted Markdown supported (bold, italic, inline code, code blocks, lists, headings, http(s) links; everything else is escaped)",
-        "replace": "plain text that temporarily replaces what the bubble shows",
+        "replace": "Zulip Markdown that temporarily replaces what the bubble shows (rendered by the server like a message: quotes, code blocks, lists, @mentions, emoji; plain text until it is rendered)",
         "actions": [{"label": "button", "target": "URI or program", "args": "program arguments", "style": "primary" | "secondary"} or
                     {"label": "button", "fill": "text to put into the composer", "style": ...}],
         "tags": [{"text": "short label", "tone": "neutral" | "success" | "warning" | "danger" | "info" | "accent", "tip": "hover text"}],

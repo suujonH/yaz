@@ -208,6 +208,8 @@ pub struct Chat {
     pub source_mode: Signal<bool>,
     pub revealed: Signal<HashSet<i64>>,
     pub sources: Signal<HashMap<(i64, Option<i64>), String>>,
+    /// HTML the server rendered for a plugin's replacement Markdown, keyed by that Markdown.
+    pub plugin_html: Signal<HashMap<String, String>>,
     pub suppress_menu: CopyValue<bool>,
     pub more_open: Signal<bool>,
 }
@@ -260,6 +262,7 @@ impl Chat {
             source_mode: Signal::new(false),
             revealed: Signal::new(HashSet::new()),
             sources: Signal::new(HashMap::new()),
+            plugin_html: Signal::new(HashMap::new()),
             suppress_menu: CopyValue::new(false),
             more_open: Signal::new(false),
         }
