@@ -7,6 +7,7 @@ use crate::pages::composer::{filled_draft, is_composer_open};
 use crate::pages::data_move::{DataMovePage, DataProblem, DataProblemPage};
 use crate::pages::main_window::MainWindowPage;
 use crate::pages::notification::NotificationClick;
+use crate::pages::startup_update::StartupUpdatePage;
 use crate::platform::{self, Tray, TrayEvent, TrayItem, use_tray};
 use crate::services::{
     MAIN_BOUNDS_KEY, SettingsBounds, boot, enable_main_bounds, init_or_report, load_theme,
@@ -62,6 +63,9 @@ pub enum Stage {
     DataProblem(DataProblem),
     /// The data directory is being migrated to this location.
     Moving(PathBuf),
+    /// Checking for a new version before the database opens; a new version is downloaded and started
+    /// instead of this one.
+    Updating,
     /// The login window is open; the root window is hidden.
     Login,
     /// When `restore` is true, logs in to the accounts set to log in at startup.
@@ -80,6 +84,14 @@ fn stage_after_boot() -> Stage {
         enable_main_bounds();
         Stage::Main { restore: true }
     }
+}
+
+/// Whether to check for a new version before anything else: only a release install can update itself,
+/// and the new version the updater starts must not check again.
+pub fn update_before_start() -> bool {
+    let boot = boot();
+    !boot.args.iter().any(|a| a == PROBE_ARG)
+        && boot.update.as_ref().is_some_and(|u| u.can_self_update())
 }
 
 pub fn initial_stage(moving: Option<PathBuf>) -> Stage {
@@ -117,6 +129,12 @@ pub fn root_window_spec(stage: &Stage) -> WindowSpec {
     match stage {
         Stage::DataProblem(_) => spec(PROBLEM_SIZE, PROBLEM_SIZE, false),
         Stage::Moving(_) => spec(MOVING_SIZE, MOVING_SIZE, false),
+        // Created hidden; the page shows it only when the check takes a while or a download starts
+        Stage::Updating => {
+            let mut spec = spec(MOVING_SIZE, MOVING_SIZE, false);
+            spec.show_when_ready = true;
+            spec
+        }
         // Created hidden as the main window; shown when login is done (`enter_main_after_login`)
         Stage::Login => {
             let mut spec = main();
@@ -228,12 +246,18 @@ pub fn Root() -> Element {
             match &current {
                 Stage::DataProblem(_) => fixed_size(&window, PROBLEM_SIZE),
                 Stage::Moving(_) => fixed_size(&window, MOVING_SIZE),
+                Stage::Updating => {}
                 Stage::Login => {
                     window.set_visible(false);
                     windows::open_login();
                 }
                 // Runs after this render: the main UI is in the page before the window shows
                 Stage::Main { .. } if applied == Stage::Login => enter_main_after_login(&window),
+                // The update check left the window hidden or small: take the main UI's size, then show
+                Stage::Main { .. } if applied == Stage::Updating => {
+                    apply_main_bounds(&window);
+                    activate(&window);
+                }
                 Stage::Main { .. } => apply_main_bounds(&window),
             }
             applied = current;
@@ -279,6 +303,7 @@ pub fn Root() -> Element {
         match current {
             Stage::DataProblem(problem) => rsx! { DataProblemPage { problem } },
             Stage::Moving(target) => rsx! { DataMovePage { target } },
+            Stage::Updating => rsx! { StartupUpdatePage {} },
             Stage::Login => rsx! {},
             Stage::Main { restore } => rsx! {
                 MainWindowPage {
@@ -309,7 +334,7 @@ fn start_update_service() {
 pub fn request_close(window: &DesktopService, stage: &Stage) {
     match stage {
         Stage::Moving(_) => window.set_visible(true),
-        Stage::DataProblem(_) | Stage::Login => send_command(AppCommand::Exit),
+        Stage::DataProblem(_) | Stage::Updating | Stage::Login => send_command(AppCommand::Exit),
         Stage::Main { .. } => {
             let settings = &services().settings;
             if settings.show_tray_icon()

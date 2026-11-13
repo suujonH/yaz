@@ -50,6 +50,8 @@
   --table-row: #f8f8f8;
   --table-row-alt: #ffffff;
   --brand: #0099ff;
+  --link: rgb(45, 119, 229);
+  --link-selected: rgb(40, 107, 206);
   --brand-hover: #1aa3ff;
   --brand-disabled: #a3d7ff;
   --input-border: #dcdcdc;
@@ -66,17 +68,17 @@
   --helper-avatar: #fa9d3b;
   --resolved-avatar: #2ba471;
   --card: #ffffff;
-  --menu-bg: rgba(255, 255, 255, 0.88);
+  --menu-bg: rgba(255, 255, 255, 0.6);
   --menu-border: #e6e6e6;
   --menu-hover: #f0f0f0;
   --menu-pressed: #e6e6e6;
   --menu-separator: #ebebeb;
   --own-bubble: #cce4ff;
-  --own-bubble-selected: #b3d7ff;
+  --own-bubble-selected: rgb(184, 211, 229);
   --own-link: #0058b8;
   --code-chip: rgba(0, 0, 0, 0.08);
   --other-bubble: #ffffff;
-  --other-bubble-selected: #e5e5e5;
+  --other-bubble-selected: rgb(229, 229, 229);
   --flash: #e3e3e3;
   --scroll-thumb: #d6d6d6;
   --checked-row: #e0e0e0;
@@ -129,6 +131,8 @@
   --table-row: #2a2a2a;
   --table-row-alt: #242424;
   --brand: #0099ff;
+  --link: rgb(45, 119, 229);
+  --link-selected: rgb(40, 107, 206);
   --brand-hover: #33adff;
   --brand-disabled: #1f4f73;
   --input-border: #454545;
@@ -145,7 +149,7 @@
   --helper-avatar: #fa9d3b;
   --resolved-avatar: #2ba471;
   --card: #2b2b2b;
-  --menu-bg: rgba(43, 43, 43, 0.88);
+  --menu-bg: rgba(43, 43, 43, 0.6);
   --menu-border: #3a3a3a;
   --menu-hover: #3a3a3a;
   --menu-pressed: #454545;

@@ -144,7 +144,7 @@ pub fn NoticeRow(id: i64) -> Element {
             div { class: "msg-content",
                 for (i, segment) in rendered.segments.iter().enumerate() {
                     if let Segment::Html(html) = segment {
-                        div { key: "{i}", class: "msg-html selectable", dangerous_inner_html: "{html}" }
+                        div { key: "{i}", class: "msg-html", dangerous_inner_html: "{html}" }
                     }
                 }
             }
@@ -472,29 +472,35 @@ fn MessageBubble(message: std::sync::Arc<ChatMessage>, own: bool) -> Element {
                 MessageContent { id, html, me }
             }
             if total > 0 {
+                // Placed on the last line of the text when there is room (chat.js), else below it;
+                // no "previous" on the first version and no "next" on the last
                 div { class: "msg-versions",
-                    IconButton {
-                        icon: IconName::ChevronLeft,
-                        size: 18.0,
-                        icon_size: 10.0,
-                        disabled: current == 0,
-                        onclick: move |e: MouseEvent| {
-                            e.stop_propagation();
-                            version.set(Some(current.saturating_sub(1)));
-                        },
+                    if current > 0 {
+                        IconButton {
+                            icon: IconName::ChevronLeft,
+                            size: 18.0,
+                            icon_size: 10.0,
+                            class: "ver-prev",
+                            onclick: move |e: MouseEvent| {
+                                e.stop_propagation();
+                                version.set(Some(current.saturating_sub(1)));
+                            },
+                        }
                     }
                     span { "{current + 1}/{total}" }
-                    IconButton {
-                        icon: IconName::ChevronRight,
-                        size: 18.0,
-                        icon_size: 10.0,
-                        disabled: current + 1 >= total,
-                        onclick: move |e: MouseEvent| {
-                            e.stop_propagation();
-                            // No more recording once the latest version is reached
-                            let next = current + 1;
-                            version.set((next + 1 < total).then_some(next));
-                        },
+                    if current + 1 < total {
+                        IconButton {
+                            icon: IconName::ChevronRight,
+                            size: 18.0,
+                            icon_size: 10.0,
+                            class: "ver-next",
+                            onclick: move |e: MouseEvent| {
+                                e.stop_propagation();
+                                // No more recording once the latest version is reached
+                                let next = current + 1;
+                                version.set((next + 1 < total).then_some(next));
+                            },
+                        }
                     }
                 }
             }

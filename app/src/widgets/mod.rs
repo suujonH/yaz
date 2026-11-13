@@ -55,7 +55,7 @@ pub use plugin_ui::{
     topic_target,
 };
 pub use remote_image::RemoteImage;
-pub use window_keys::{ArrowKey, use_plugin_key_shortcuts, use_window_keys};
+pub use window_keys::{ArrowKey, use_close_shortcut, use_plugin_key_shortcuts, use_window_keys};
 
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};

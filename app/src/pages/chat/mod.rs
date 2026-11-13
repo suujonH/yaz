@@ -586,6 +586,8 @@ fn MultiBar() -> Element {
 #[component]
 pub fn ChatWindow() -> Element {
     crate::widgets::use_plugin_key_shortcuts();
+    let window = dioxus::desktop::use_window();
+    crate::widgets::use_close_shortcut(move || window.close());
     let args = use_window_args::<ChatArgs>();
     let ChatArgs { key, focus } = args();
     rsx! {

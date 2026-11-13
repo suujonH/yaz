@@ -64,15 +64,19 @@
 .bubble.own { background: var(--own-bubble); }
 .bubble.other { background: var(--other-bubble); }
 .bubble.bare { padding: 0; background: transparent; }
+.bubble ::selection, .bubble::selection { background: rgb(102, 194, 255); }
 .bubble.widget { padding: 10px; min-width: 240px; }
 /* A message with a code block takes the widest bubble (the code block fills it), whatever the code length */
 .msg-main:has(.bubble .code-block) { width: calc(100% - 84px); }
 .msg-main:has(.bubble .code-block) > .msg-line:has(.code-block) { align-self: stretch; }
 .msg-line:has(.code-block) > .bubble { flex: 1; }
+.bubble.own.picked { background: var(--own-bubble-selected); }
+.bubble.other.picked { background: var(--other-bubble-selected); }
 .msg-row.checked .bubble.own { background: var(--own-bubble-selected); }
 .msg-row.checked .bubble.other { background: var(--other-bubble-selected); }
 .msg-source { margin: 0; white-space: pre-wrap; font-family: var(--font-mono, Consolas, monospace); font-size: inherit; line-height: inherit; }
-.msg-versions { display: flex; justify-content: flex-end; align-items: center; gap: 2px; margin-top: 4px; font-size: var(--fs-caption); color: var(--text-tertiary); }
+/* Right-aligned under the text; chat.js pulls it up onto the last line (`.inline`) when it fits there */
+.msg-versions { display: flex; width: fit-content; margin: 4px 0 0 auto; align-items: center; gap: 2px; font-size: var(--fs-caption); color: var(--text-tertiary); }
 .msg-render-toggle { display: flex; align-items: center; gap: 4px; margin-top: 4px; font-size: var(--fs-caption); color: var(--brand); cursor: pointer; }
 .msg-render-toggle .msg-annotation-tool { color: var(--text-secondary); }
 .msg-attachment { width: 280px; max-width: 100%; }
@@ -80,7 +84,8 @@
 
 /* Message content */
 .msg-content { display: flex; flex-direction: column; min-width: 0; }
-.msg-html { min-width: 0; line-height: 1.5; }
+/* Clipping here (the bubble's content box) keeps the highlight of trailing hanging spaces, e.g. a run of full-width spaces, off the bubble's right padding, like the left one */
+.msg-html { min-width: 0; line-height: 1.5; overflow-x: clip; }
 .msg-html > :first-child { margin-top: 0; }
 .msg-html > :last-child { margin-bottom: 0; }
 .msg-html p { margin: 0 0 6px; }
@@ -88,9 +93,10 @@
 .msg-html ul, .msg-html ol { margin: 4px 0; padding-left: 22px; }
 .msg-html h1, .msg-html h2, .msg-html h3, .msg-html h4, .msg-html h5, .msg-html h6 { margin: 6px 0; font-size: var(--fs-body); font-weight: 600; }
 .msg-html hr { border: none; border-top: 1px solid var(--divider); margin: 8px 0; }
-.msg-html a { color: var(--brand); text-decoration: none; cursor: pointer; }
+.msg-html a { color: var(--link); text-decoration: none; cursor: pointer; }
+.msg-html a::selection, .msg-html a *::selection { color: var(--link-selected); }
 .msg-html a:hover { text-decoration: underline; }
-.bubble.own .msg-html a { color: var(--own-link); }
+.bubble.own .msg-html a { color: var(--link); }
 .msg-html code { padding: 1px 4px; border-radius: 4px; background: var(--code-chip); font-family: var(--font-mono, Consolas, monospace); font-size: 0.92em; }
 .msg-html .code-block { margin: 4px 0; padding: 8px 10px; border-radius: 6px; background: var(--fill); overflow-x: auto; white-space: pre; font-family: var(--font-mono, Consolas, monospace); font-size: var(--fs-sub); }
 .msg-html .code-block code { padding: 0; background: none; font-size: inherit; }

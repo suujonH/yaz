@@ -49,6 +49,31 @@ pub fn use_window_keys(on_arrow: impl FnMut(ArrowKey) + 'static) {
     });
 }
 
+const CLOSE_KEY_JS: &str = r#"
+window.zulipCloseKey?.abort();
+const control = new AbortController();
+window.zulipCloseKey = control;
+document.addEventListener("keydown", (e) => {
+  if (e.isComposing || e.repeat || e.altKey || e.shiftKey || e.metaKey || !e.ctrlKey) return;
+  if (e.code !== "KeyW") return;
+  e.preventDefault();
+  e.stopPropagation();
+  dioxus.send("close");
+}, { capture: true, signal: control.signal });
+await new Promise(() => {});
+"#;
+
+/// Ctrl+W: runs `on_close`, which does what the window's close button does.
+pub fn use_close_shortcut(mut on_close: impl FnMut() + 'static) {
+    let on_close = use_callback(move |(): ()| on_close());
+    use_future(move || async move {
+        let mut eval = document::eval(CLOSE_KEY_JS);
+        while eval.recv::<String>().await.is_ok() {
+            on_close.call(());
+        }
+    });
+}
+
 // Decided in the capture phase; on a hit, neither the composer nor the page receives this key
 // press. Key and Digit are named by physical key, independent of the character produced with Shift
 // held.

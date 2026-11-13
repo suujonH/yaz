@@ -47,10 +47,15 @@ fn main() {
         Some(problem) => root::Stage::DataProblem(problem),
         None => {
             let moving = services::boot().location.pending_move();
-            if moving.is_none() && !services::init_or_report() {
-                return;
+            if moving.is_none() && !gallery && root::update_before_start() {
+                // The database opens after the check (see `RootStage::data_available`)
+                root::Stage::Updating
+            } else {
+                if moving.is_none() && !services::init_or_report() {
+                    return;
+                }
+                root::initial_stage(moving)
             }
-            root::initial_stage(moving)
         }
     };
 

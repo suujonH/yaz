@@ -29,19 +29,30 @@
     const range = sel.getRangeAt(0);
     const start = range.startContainer;
     const root = (start instanceof Element ? start : start.parentElement).closest(".chat-list");
-    const rows = root
+    const touched = root
       ? [...root.querySelectorAll("[data-msg]")].filter((r) => range.intersectsNode(r))
       : [];
-    if (rows.length < 2) {
+    // System notices are not selectable: a range dragged across them must not copy their text
+    const rows = touched.filter((r) => !r.classList.contains("chat-notice"));
+    if (touched.length < 2) {
       return { text: sel.toString(), html: serialize(range.cloneContents()) };
     }
-    const texts = [];
-    const htmls = [];
-    for (const row of rows) {
+    const clip = (row) => {
       const part = range.cloneRange();
       if (row.contains(range.startContainer)) part.setEndAfter(row);
       else if (row.contains(range.endContainer)) part.setStartBefore(row);
       else part.selectNode(row);
+      return part;
+    };
+    if (rows.length === 1) {
+      const box = document.createElement("div");
+      box.appendChild(clip(rows[0]).cloneContents());
+      return { text: box.innerText, html: box.innerHTML };
+    }
+    const texts = [];
+    const htmls = [];
+    for (const row of rows) {
+      const part = clip(row);
       const box = document.createElement("div");
       box.appendChild(part.cloneContents());
       box.querySelectorAll(".msg-avatar, .msg-name, .msg-time, .msg-reactions, .table-tools").forEach((e) => e.remove());
@@ -215,7 +226,13 @@
     }
   };
   const tableMutations = new MutationObserver((records) => {
-    for (const record of records) for (const node of record.addedNodes) if (node instanceof Element) watchTables(node);
+    for (const record of records) {
+      for (const node of record.addedNodes) {
+        if (!(node instanceof Element)) continue;
+        watchTables(node);
+        watchVersions(node);
+      }
+    }
   });
 
   const onContextMenu = (e) => {
@@ -280,8 +297,99 @@
     });
   };
 
+  // The body is user-select: none, so pressing on a non-selectable spot (blank area, avatar, bubble
+  // padding) does not collapse the existing selection by itself; clear it here
+  const clearPicked = () => {
+    for (const el of document.querySelectorAll(".bubble.picked")) el.classList.remove("picked");
+  };
+  const onMouseDown = (e) => {
+    if (e.button !== 0 || !paneOf(e.target) || !(e.target instanceof Element)) return;
+    const t = e.target;
+    const list = t.closest(".chat-list");
+    if (!list) return;
+    // Single-select: the bubble under the pointer turns "picked", any other press clears it.
+    // Multi-select mode has its own checked state, so it is left alone.
+    clearPicked();
+    const bubble = t.closest(".bubble");
+    if (bubble && !bubble.classList.contains("bare") && !list.querySelector(".msg-check") && !t.closest("input, textarea, button, a, .img-preview, .reaction-chip")) {
+      bubble.classList.add("picked");
+    }
+    if (t.closest(".selectable, input, textarea, [contenteditable=true]")) return;
+    const sel = document.getSelection();
+    if (sel && !sel.isCollapsed) sel.removeAllRanges();
+  };
+
+  // Left/right arrows switch the edit history of the picked bubble (the buttons under it)
+  const onArrowKey = (e) => {
+    if (e.defaultPrevented || e.ctrlKey || e.altKey || e.shiftKey || e.metaKey || e.isComposing) return false;
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return false;
+    if (e.target instanceof Element && e.target.closest("input, textarea, [contenteditable=true]")) return false;
+    if (document.querySelector(".overlay-backdrop, .dialog-layer:not(.closing), .menu, .overlay-card")) return false;
+    const bubble = document.querySelector(".bubble.picked");
+    if (!bubble || !paneOf(bubble)) return false;
+    const button = bubble.querySelector(e.key === "ArrowLeft" ? ".ver-prev" : ".ver-next");
+    // At the first/last version the button is absent; the key is still consumed by the bubble
+    if (bubble.querySelector(".msg-versions")) {
+      e.preventDefault();
+      if (button) button.click();
+      return true;
+    }
+    return false;
+  };
+
+  // The version switch ("< 2/2 >") goes on the last line of the text when that line leaves room for
+  // it, otherwise it keeps its own line below
+  const layoutVersions = (bar) => {
+    const bubble = bar.closest(".bubble");
+    if (!bubble) return;
+    bar.classList.remove("inline");
+    bar.style.marginTop = "";
+    // Only when the switch is the last thing in the bubble and the text right above it is plain
+    if (bar.nextElementSibling) return;
+    const walker = document.createTreeWalker(bubble, NodeFilter.SHOW_TEXT);
+    let last = null;
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      if (node.textContent.trim() && !bar.contains(node)) last = node;
+    }
+    if (!last || last.parentElement.closest(".code-block, table, blockquote, .katex, .img-preview, .spoiler-head")) return;
+    const range = document.createRange();
+    range.selectNodeContents(last);
+    const rects = range.getClientRects();
+    if (!rects.length) return;
+    const line = rects[rects.length - 1];
+    const box = { right: bubble.getBoundingClientRect().right - parseFloat(getComputedStyle(bubble).paddingRight) };
+    const need = bar.getBoundingClientRect().width + 8;
+    const trailing = last.textContent.length - last.textContent.trimEnd().length;
+    if (box.right - line.right >= need && trailing < 2) {
+      bar.classList.add("inline");
+      bar.style.marginTop = `${-bar.getBoundingClientRect().height}px`;
+    }
+  };
+  const versionBars = new WeakSet();
+  const watchVersions = (root) => {
+    const bars = root.matches?.(".msg-versions") ? [root] : [];
+    if (root.querySelectorAll) bars.push(...root.querySelectorAll(".msg-versions"));
+    for (const bar of bars) {
+      if (versionBars.has(bar)) {
+        layoutVersions(bar);
+        continue;
+      }
+      versionBars.add(bar);
+      const bubble = bar.closest(".bubble");
+      if (bubble) {
+        const again = () => layoutVersions(bar);
+        new ResizeObserver(again).observe(bubble);
+        // The content is replaced when another version is shown
+        new MutationObserver(again).observe(bubble, { childList: true, subtree: true, characterData: true });
+      }
+      layoutVersions(bar);
+    }
+  };
+
   const onKeyDown = (e) => {
+    if (onArrowKey(e)) return;
     if (e.key !== "Escape" || e.defaultPrevented) return;
+    clearPicked();
     // When a popover is open, this Esc only closes the popover (onEscape in ui.js)
     if (document.querySelector(".overlay-backdrop, .dialog-layer:not(.closing)")) return;
     for (const send of panes.values()) send({ t: "esc" });
@@ -296,9 +404,11 @@
         document.addEventListener("contextmenu", onContextMenu);
         document.addEventListener("copy", onCopy);
         document.addEventListener("mouseup", onMouseUp);
+        document.addEventListener("mousedown", onMouseDown);
         document.addEventListener("keydown", onKeyDown);
         tableMutations.observe(document.body, { childList: true, subtree: true });
         watchTables(document.body);
+        watchVersions(document.body);
       }
       panes.set(id, send);
       return new Promise((resolve) => panes.set(id, Object.assign(send, { close: resolve })));
@@ -314,6 +424,7 @@
         document.removeEventListener("contextmenu", onContextMenu);
         document.removeEventListener("copy", onCopy);
         document.removeEventListener("mouseup", onMouseUp);
+        document.removeEventListener("mousedown", onMouseDown);
         document.removeEventListener("keydown", onKeyDown);
         tableMutations.disconnect();
         tableResize.disconnect();

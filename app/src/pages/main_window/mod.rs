@@ -116,6 +116,11 @@ impl MainUi {
 pub fn MainWindowPage(children: Element) -> Element {
     let window = use_window();
     let classic = use_local_setting(|s| s.classic_mode());
+    // Ctrl+W: same as the close button (to tray or exit, per settings)
+    crate::widgets::use_close_shortcut({
+        let window = window.clone();
+        move || request_close(&window, &Stage::Main { restore: false })
+    });
     rsx! {
         WindowShell {
             on_close: move |_| request_close(&window, &Stage::Main { restore: false }),

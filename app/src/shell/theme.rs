@@ -140,6 +140,17 @@ impl ThemeConfig {
     }
 }
 
+/// Removes the inline properties of `.app-root` that are not in the wanted `style` string.
+const STALE_STYLE_JS: &str = r#"((style) => {
+  const root = document.querySelector(".app-root");
+  if (!root) return;
+  const wanted = new Set(style.split(";").map((part) => part.split(":")[0].trim()).filter(Boolean));
+  for (let i = root.style.length - 1; i >= 0; i--) {
+    const name = root.style[i];
+    if (!wanted.has(name)) root.style.removeProperty(name);
+  }
+})"#;
+
 /// Variable overrides written to the inline style of `.app-root`.
 fn root_style(config: &ThemeConfig, dark: bool) -> String {
     let mut style = format!("--fs:{}px;", config.font_size);
@@ -315,6 +326,15 @@ pub fn ThemeProvider(children: Element) -> Element {
     let dark = current.is_dark(system_dark());
     let style = root_style(&current, dark);
     let has_image = style.contains("--bg-image");
+    // The renderer re-applies inline properties that a new `style` string no longer lists, so going
+    // back to the default palette would keep the old accent color; drop the stale ones afterwards
+    // (Reads the signals itself so that it runs again after every change)
+    use_effect(move || {
+        let current = config.read();
+        let style = root_style(&current, current.is_dark(system_dark()));
+        let wanted = serde_json::to_string(&style).unwrap_or_default();
+        document::eval(&format!("{STALE_STYLE_JS}({wanted});"));
+    });
     rsx! {
         div {
             class: if has_image { "app-root has-bg-image" } else { "app-root" },

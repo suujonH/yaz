@@ -18,6 +18,7 @@ pub mod notification;
 pub mod reminders;
 pub mod search;
 pub mod settings;
+pub mod startup_update;
 pub mod system_notices;
 pub mod tray_messages;
 
