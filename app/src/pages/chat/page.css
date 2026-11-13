@@ -75,6 +75,7 @@
 .msg-row.checked .bubble.own { background: var(--own-bubble-selected); }
 .msg-row.checked .bubble.other { background: var(--other-bubble-selected); }
 .msg-source { margin: 0; white-space: pre-wrap; font-family: var(--font-mono, Consolas, monospace); font-size: inherit; line-height: inherit; }
+.msg-versions .ver-hidden { visibility: hidden; }
 /* Right-aligned under the text; chat.js pulls it up onto the last line (`.inline`) when it fits there */
 .msg-versions { display: flex; width: fit-content; margin: 4px 0 0 auto; align-items: center; gap: 2px; font-size: var(--fs-caption); color: var(--text-tertiary); }
 .msg-render-toggle { display: flex; align-items: center; gap: 4px; margin-top: 4px; font-size: var(--fs-caption); color: var(--brand); cursor: pointer; }

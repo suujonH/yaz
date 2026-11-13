@@ -473,34 +473,33 @@ fn MessageBubble(message: std::sync::Arc<ChatMessage>, own: bool) -> Element {
             }
             if total > 0 {
                 // Placed on the last line of the text when there is room (chat.js), else below it;
-                // no "previous" on the first version and no "next" on the last
+                // "previous" is hidden on the first version and "next" on the last, but keeps its
+                // room so the counter does not move
                 div { class: "msg-versions",
-                    if current > 0 {
-                        IconButton {
-                            icon: IconName::ChevronLeft,
-                            size: 18.0,
-                            icon_size: 10.0,
-                            class: "ver-prev",
-                            onclick: move |e: MouseEvent| {
-                                e.stop_propagation();
-                                version.set(Some(current.saturating_sub(1)));
-                            },
-                        }
+                    IconButton {
+                        icon: IconName::ChevronLeft,
+                        size: 18.0,
+                        icon_size: 10.0,
+                        disabled: current == 0,
+                        class: if current == 0 { "ver-prev ver-hidden" } else { "ver-prev" },
+                        onclick: move |e: MouseEvent| {
+                            e.stop_propagation();
+                            version.set(Some(current.saturating_sub(1)));
+                        },
                     }
                     span { "{current + 1}/{total}" }
-                    if current + 1 < total {
-                        IconButton {
-                            icon: IconName::ChevronRight,
-                            size: 18.0,
-                            icon_size: 10.0,
-                            class: "ver-next",
-                            onclick: move |e: MouseEvent| {
-                                e.stop_propagation();
-                                // No more recording once the latest version is reached
-                                let next = current + 1;
-                                version.set((next + 1 < total).then_some(next));
-                            },
-                        }
+                    IconButton {
+                        icon: IconName::ChevronRight,
+                        size: 18.0,
+                        icon_size: 10.0,
+                        disabled: current + 1 >= total,
+                        class: if current + 1 >= total { "ver-next ver-hidden" } else { "ver-next" },
+                        onclick: move |e: MouseEvent| {
+                            e.stop_propagation();
+                            // No more recording once the latest version is reached
+                            let next = current + 1;
+                            version.set((next + 1 < total).then_some(next));
+                        },
                     }
                 }
             }
