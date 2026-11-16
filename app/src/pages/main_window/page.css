@@ -19,6 +19,20 @@
 .nav-account { position: relative; width: 36px; height: 36px; padding: 0; border: 2px solid transparent; border-radius: 50%; background: transparent; display: flex; align-items: center; justify-content: center; }
 .nav-account.active { border-color: var(--brand); }
 .nav-account.offline { filter: grayscale(1); opacity: 0.5; }
+/* Text and button side by side, centred together */
+.offline-banner { flex: none; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 6px 12px; font-size: var(--fs-small); color: var(--brand); background: var(--fill); }
+.offline-banner.failed { color: var(--danger); }
+/* Not online: the conversation and contact lists keep their colours */
+.offline .main-middle-page .avatar { filter: none; }
+.offline-banner-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* "..." appearing one dot every 0.5s, then again; hidden dots keep their room */
+.offline-banner-dot { visibility: hidden; animation: 2s steps(1) infinite; }
+.offline-banner-dot:nth-child(1) { animation-name: offline-dot-1; }
+.offline-banner-dot:nth-child(2) { animation-name: offline-dot-2; }
+.offline-banner-dot:nth-child(3) { animation-name: offline-dot-3; }
+@keyframes offline-dot-1 { 25%, 100% { visibility: visible; } }
+@keyframes offline-dot-2 { 50%, 100% { visibility: visible; } }
+@keyframes offline-dot-3 { 75%, 100% { visibility: visible; } }
 .nav-account-failed { position: absolute; right: -4px; top: -2px; width: 14px; height: 14px; border-radius: 50%; background: var(--danger); color: #fff; font-size: var(--fs-caption); line-height: 14px; text-align: center; }
 .main-middle { width: 318px; flex: none; min-height: 0; display: flex; flex-direction: column; background: var(--sidebar-bg); }
 .main-middle.classic { flex: 1; width: auto; min-width: 0; padding-right: 4px; }

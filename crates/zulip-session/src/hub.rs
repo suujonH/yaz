@@ -17,10 +17,20 @@ use crate::session::{MIN_FEATURE_LEVEL, Session};
 
 const AUTH_EXPIRED: &str = "登录已失效，请重新登录";
 const HOOK_ENDING_LIMIT: Duration = Duration::from_secs(2);
-/// Background retries of an unreachable account: the first wait, doubled each time up to the
-/// longest.
-const RETRY_FIRST: Duration = Duration::from_secs(2);
-const RETRY_LONGEST: Duration = Duration::from_secs(60);
+/// Background retries of an unreachable account: the wait grows every `RETRY_STEP` failures in a
+/// row, through `RETRY_WAITS`, and stays at the last.
+const RETRY_STEP: u32 = 3;
+const RETRY_WAITS: [Duration; 3] = [
+    Duration::from_secs(5),
+    Duration::from_secs(30),
+    Duration::from_secs(60),
+];
+
+/// The wait after `count` failed logins in a row (0: none yet, as after the user retried).
+fn retry_wait(count: u32) -> Duration {
+    let step = (count.saturating_sub(1) / RETRY_STEP) as usize;
+    RETRY_WAITS[step.min(RETRY_WAITS.len() - 1)]
+}
 
 /// Account state.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -52,6 +62,8 @@ impl AccountStatus {
 pub struct AccountEntry {
     pub account: AccountRow,
     pub status: AccountStatus,
+    /// Also present while not online (status `Connecting`, `Unreachable` or `Failed`) when the
+    /// account was opened with the data saved at its last login (see [`Session::open_offline`]).
     pub session: Option<Arc<Session>>,
 }
 
@@ -156,6 +168,16 @@ impl Hub {
     /// status is [`AccountStatus::Unreachable`], or `Connecting` during a retry).
     pub fn is_unreachable(&self, account_id: i64) -> bool {
         self.state.lock().retries.contains_key(&account_id)
+    }
+
+    /// The wait before the next background retry of unreachable account `account_id` (the one
+    /// running when it is `Connecting`); `None` when it is not unreachable.
+    pub fn retry_wait(&self, account_id: i64) -> Option<Duration> {
+        self.state
+            .lock()
+            .retries
+            .get(&account_id)
+            .map(|&count| retry_wait(count))
     }
 
     pub fn session(&self, account_id: i64) -> Option<Arc<Session>> {
@@ -276,6 +298,10 @@ impl Hub {
         let repo = self.repo();
         repo.add_to_list(account_id);
         repo.set_login_on_startup(account_id, true);
+        // A session kept for viewing uses the old key; log in with the new one
+        if self.session(account_id).is_some_and(|s| !s.is_online()) {
+            self.drop_session(account_id).await;
+        }
         self.start(account_id).await
     }
 
@@ -284,16 +310,115 @@ impl Hub {
         self.start(account_id).await
     }
 
+    /// Logs in unreachable account `account_id` now (the user asked): the background waits start
+    /// over from the shortest. It stays marked unreachable while trying.
+    pub async fn retry_now(self: &Arc<Self>, account_id: i64) -> Result<Arc<Session>> {
+        if let Some(count) = self.state.lock().retries.get_mut(&account_id) {
+            *count = 0;
+        }
+        self.start(account_id).await
+    }
+
+    /// Logs in the account. When data from its last login is saved, the account is first opened
+    /// with it ([`Session::open_offline`]) so it can be viewed at once, and stays open when logging
+    /// in fails (unreachable: retried in the background; otherwise `Failed`).
     async fn start(self: &Arc<Self>, account_id: i64) -> Result<Arc<Session>> {
-        if let Some(session) = self.session(account_id) {
-            return Ok(session);
+        let existing = self.session(account_id);
+        if let Some(session) = &existing
+            && session.is_online()
+        {
+            return Ok(session.clone());
         }
         let attempt = self.begin_attempt(account_id);
         self.set_status(account_id, AccountStatus::Connecting);
-        let result = self.connect(account_id).await;
+        // A session whose login expired has stopped and cannot log in again: opened anew
+        let existing = match existing {
+            Some(session) if session.connection() == ConnectionState::Offline => Some(session),
+            Some(_) => {
+                self.drop_session(account_id).await;
+                None
+            }
+            None => None,
+        };
+        let client = match self.client_of(account_id).await {
+            Ok(client) => client,
+            Err(error) => return self.finish(account_id, attempt, Err(error), false),
+        };
+        let offline = match existing {
+            Some(session) => Some(session),
+            None => self.open_offline(account_id, attempt, client.clone()).await,
+        };
+        let result = match &offline {
+            Some(session) => {
+                self.forward_events(account_id, attempt, session);
+                session.go_online().await.map(|()| session.clone())
+            }
+            None => {
+                let hooks = self.hooks.lock().clone();
+                Session::connect(
+                    client,
+                    account_id,
+                    self.db.clone(),
+                    self.paths.clone(),
+                    hooks,
+                )
+                .await
+            }
+        };
+        self.finish(account_id, attempt, result, offline.is_some())
+    }
+
+    /// Opens the account with the data saved at its last login and shows it (`None` when nothing
+    /// is saved or the attempt was superseded meanwhile).
+    async fn open_offline(
+        self: &Arc<Self>,
+        account_id: i64,
+        attempt: u64,
+        client: ZulipClient,
+    ) -> Option<Arc<Session>> {
+        let hooks = self.hooks.lock().clone();
+        let session = match Session::open_offline(
+            client,
+            account_id,
+            self.db.clone(),
+            self.paths.clone(),
+            hooks,
+        )
+        .await
+        {
+            Ok(session) => session?,
+            Err(error) => {
+                log::warn!("打开账号 {account_id} 的本地数据失败：{error}");
+                return None;
+            }
+        };
         if !self.is_current(account_id, attempt) {
-            if let Ok(session) = &result {
-                session.shutdown().await;
+            return None;
+        }
+        self.state
+            .lock()
+            .sessions
+            .insert(account_id, session.clone());
+        self.emit(HubEvent::AccountsChanged);
+        if self.active_account().is_none() {
+            self.set_active(Some(account_id));
+        }
+        Some(session)
+    }
+
+    /// Records the result of a login attempt. `opened`: the session was opened offline and is
+    /// already in the list (it stays there when logging in fails).
+    fn finish(
+        self: &Arc<Self>,
+        account_id: i64,
+        attempt: u64,
+        result: Result<Arc<Session>>,
+        opened: bool,
+    ) -> Result<Arc<Session>> {
+        if !self.is_current(account_id, attempt) {
+            if let (Ok(session), false) = (&result, opened) {
+                let session = session.clone();
+                tokio::spawn(async move { session.shutdown().await });
             }
             return Err(SessionError::invalid("登录已取消"));
         }
@@ -305,7 +430,9 @@ impl Hub {
                     .insert(account_id, session.clone());
                 self.state.lock().retries.remove(&account_id);
                 self.set_status(account_id, AccountStatus::Online);
-                self.forward_events(account_id, attempt, &session);
+                if !opened {
+                    self.forward_events(account_id, attempt, &session);
+                }
                 if let Some(hooks) = self.hooks.lock().clone() {
                     hooks.session_started(&session);
                 }
@@ -316,11 +443,12 @@ impl Hub {
             }
             // The server could not be reached: shown as such, and tried again later
             Err(error) if is_connection_error(&error) => {
+                // Counted first: the status shown goes with the new wait
+                self.retry_later(account_id, attempt);
                 self.set_status(
                     account_id,
                     AccountStatus::Unreachable(describe_login_error(&error)),
                 );
-                self.retry_later(account_id, attempt);
                 Err(error)
             }
             Err(error) => {
@@ -334,8 +462,8 @@ impl Hub {
         }
     }
 
-    /// Logs in unreachable account `account_id` again after a wait (2s, doubled each time, at most
-    /// 60s). Skipped when anything else happened to the account meanwhile (the user retried,
+    /// Logs in unreachable account `account_id` again after a wait (5s for the first 3 failures in
+    /// a row, then 30s for 3, then 60s). Skipped when anything else happened to the account meanwhile (the user retried,
     /// disabled or removed it: a newer attempt).
     fn retry_later(self: &Arc<Self>, account_id: i64, attempt: u64) {
         let count = {
@@ -344,9 +472,7 @@ impl Hub {
             *count += 1;
             *count
         };
-        let wait = RETRY_FIRST
-            .saturating_mul(1 << (count - 1).min(6))
-            .min(RETRY_LONGEST);
+        let wait = retry_wait(count);
         let hub = Arc::downgrade(self);
         tokio::spawn(async move {
             tokio::time::sleep(wait).await;
@@ -357,7 +483,8 @@ impl Hub {
         });
     }
 
-    async fn connect(&self, account_id: i64) -> Result<Arc<Session>> {
+    /// A client with the account's saved key (no request is made).
+    async fn client_of(&self, account_id: i64) -> Result<ZulipClient> {
         let account = self
             .db
             .call(move |db| AccountRepo::new(db).get(account_id))
@@ -367,19 +494,19 @@ impl Hub {
             return Err(SessionError::invalid("登录信息已失效，请重新输入密码"));
         };
         let api_key = unprotect_key(api_key)?;
-        let client = self
+        Ok(self
             .client_builder(&account.realm_url, account.allow_invalid_cert)
             .credentials(&account.email, &api_key)
-            .build()?;
-        let hooks = self.hooks.lock().clone();
-        Session::connect(
-            client,
-            account_id,
-            self.db.clone(),
-            self.paths.clone(),
-            hooks,
-        )
-        .await
+            .build()?)
+    }
+
+    /// Ends the account's session without changing the active account (it is replaced right
+    /// after).
+    async fn drop_session(&self, account_id: i64) {
+        let session = self.state.lock().sessions.remove(&account_id);
+        if let Some(session) = session {
+            self.stop_session(&session).await;
+        }
     }
 
     /// Closes the session after notifying the hooks.
@@ -413,13 +540,14 @@ impl Hub {
         });
     }
 
+    /// The login expired while online: the session stops but stays in the list so its data can
+    /// still be viewed.
     async fn on_auth_failed(&self, account_id: i64) {
-        let session = self.state.lock().sessions.remove(&account_id);
+        let session = self.session(account_id);
         if let Some(session) = session {
             self.stop_session(&session).await;
         }
         self.set_status(account_id, AccountStatus::Failed(AUTH_EXPIRED.to_owned()));
-        self.pick_next_active(account_id);
     }
 
     fn pick_next_active(&self, ended: i64) {

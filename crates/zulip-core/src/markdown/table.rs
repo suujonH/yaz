@@ -5,7 +5,7 @@
 //! edge, the last two columns) it returns `None` and changes nothing.
 
 use super::format::MarkdownEdit;
-use super::{Line, LineKind, MarkdownModel, table_pipes};
+use super::{Line, LineKind, MarkdownModel, PrefixKind, table_pipes};
 use crate::util::is_blank;
 
 /// A Zulip table has at least two columns (a separator row with only one column is not a table).
@@ -40,7 +40,7 @@ impl MarkdownTable {
     }
 }
 
-/// Finds the tables in the parse result. Tables inside a quote ("> " or a quote fence) do not count and are shown as the original text.
+/// Finds the tables in the parse result. Tables inside a "> " quote do not count and are shown as the original text; tables inside a quote fence count (their lines are plain table lines).
 pub fn find_tables(model: &MarkdownModel) -> Vec<MarkdownTable> {
     let lines = &model.lines;
     let mut result = Vec::new();
@@ -57,7 +57,8 @@ pub fn find_tables(model: &MarkdownModel) -> Vec<MarkdownTable> {
         {
             last += 1;
         }
-        if lines[i..=last].iter().all(|l| l.quote_depth == 0) {
+        let under_quote_mark = |l: &Line| l.prefixes.iter().any(|p| p.kind == PrefixKind::Quote);
+        if !lines[i..=last].iter().any(under_quote_mark) {
             result.push(MarkdownTable {
                 header_line: i,
                 separator_line: i + 1,
@@ -593,6 +594,22 @@ mod tests {
             }
         );
         assert_eq!(single(&model).row_count(), 3);
+    }
+
+    #[test]
+    fn finds_tables_in_quote_fences() {
+        let model = parse(
+            "```quote\n| a | b |\n| --- | --- |\n| 1 | 2 |\n```",
+            &NoResolver,
+        );
+        assert_eq!(
+            find_tables(&model),
+            vec![MarkdownTable {
+                header_line: 1,
+                separator_line: 2,
+                last_line: 3
+            }]
+        );
     }
 
     #[test]

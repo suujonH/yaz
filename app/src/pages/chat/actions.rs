@@ -271,7 +271,15 @@ pub fn table_menu_entries(overlays: Overlays, html: &str, index: usize) -> Vec<M
     ]
 }
 
+/// Puts `text` on the clipboard and remembers its Markdown for pasting into a composer. Content
+/// without plain text (an empty code block or quote) puts the Markdown itself there, so it is not
+/// lost.
 fn copy_with_markdown(chat: Chat, text: &str, markdown: &str) {
+    let text = if text.trim().is_empty() {
+        markdown
+    } else {
+        text
+    };
     crate::platform::remember_markdown(text, markdown);
     chat.overlays.copy_text(text);
 }

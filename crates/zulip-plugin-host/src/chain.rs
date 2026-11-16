@@ -494,6 +494,7 @@ fn hook_event_payload(event: HookEvent, session: &Session) -> Value {
             ConnectionState::Connected => "connected",
             ConnectionState::Reconnecting => "reconnecting",
             ConnectionState::AuthFailed => "auth_failed",
+            ConnectionState::Offline => "offline",
         }}),
         HookEvent::TypingChanged {
             key,

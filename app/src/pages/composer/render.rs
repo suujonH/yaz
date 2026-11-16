@@ -83,6 +83,10 @@ pub struct TableBlock {
     pub aligns: Vec<&'static str>,
     /// Row -> column -> rows inside a cell.
     pub rows: Vec<Vec<Vec<Block>>>,
+    /// Inside a quote fence: shown on the quote's card.
+    pub quoted: bool,
+    /// Layers of gray over the quote card for the blocks around the quote (see `nest_level`).
+    pub nest: usize,
 }
 
 pub struct RenderCtx<'a> {
@@ -164,13 +168,18 @@ impl RenderCtx<'_> {
     /// line is plain anyway.
     fn in_unclosed_fence(&self, index: usize) -> bool {
         let lines = &self.model.lines;
-        if self.source || !matches!(lines[index].kind, LineKind::FenceOpen | LineKind::FenceBody) {
+        if self.source {
             return false;
         }
-        !lines[index + 1..]
-            .iter()
-            .find(|l| l.kind != LineKind::FenceBody)
-            .is_some_and(|l| l.kind == LineKind::FenceClose)
+        match lines[index].kind {
+            LineKind::FenceOpen => !fence_closed(lines, index),
+            // A line of a code / math block: its lines run on to the closing fence
+            LineKind::FenceBody => !lines[index + 1..]
+                .iter()
+                .find(|l| l.kind != LineKind::FenceBody)
+                .is_some_and(|l| l.kind == LineKind::FenceClose),
+            _ => false,
+        }
     }
 
     /// Plain text of a line of an unclosed fence (see [`Self::in_unclosed_fence`]).
@@ -269,13 +278,13 @@ impl RenderCtx<'_> {
     /// language box below the block, at the right, instead of the fence.
     fn code_block_open(&self, index: usize) -> Option<usize> {
         let line = &self.model.lines[index];
-        if self.source || line.kind != LineKind::FenceClose || line.quote_depth > 0 {
+        if self.source || line.kind != LineKind::FenceClose || line.fence != Some(FenceKind::Code) {
             return None;
         }
-        let open = self.model.lines[..index]
+        // Its opening fence is the nearest one at the same depth (a code block may be in a quote)
+        self.model.lines[..index]
             .iter()
-            .rposition(|l| l.kind == LineKind::FenceOpen)?;
-        (self.model.lines[open].fence == Some(FenceKind::Code)).then_some(open)
+            .rposition(|l| l.kind == LineKind::FenceOpen && l.fence_depth == line.fence_depth)
     }
 
     // Below a code block at the right (on its closing fence line, takes no source text): a text box
@@ -525,9 +534,10 @@ impl RenderCtx<'_> {
         if self.source {
             return;
         }
-        // The closing line of a code block holds the language box below the block
+        // The closing line of a code block holds the language box below the block (in a quote it
+        // stays part of the quote's block)
         let kind_at = |i: usize| {
-            if self.code_block_open(i).is_some() {
+            if self.code_block_open(i).is_some() && self.model.lines[i].quote_depth == 0 {
                 None
             } else {
                 block_kind(&self.model.lines[i])
@@ -550,6 +560,44 @@ impl RenderCtx<'_> {
         }
         if !same(Some(index + 1)) {
             class.push_str(" zl-last");
+        }
+        self.nest_classes(index, kind, class);
+    }
+
+    // A block inside another (a code block in a quote, a quote in a quote): the innermost block's
+    // background, with one more layer of gray for each block around it
+    fn nest_classes(&self, index: usize, kind: BlockKind, class: &mut String) {
+        let line = &self.model.lines[index];
+        let quote_marks = line
+            .prefixes
+            .iter()
+            .filter(|p| p.kind == PrefixKind::Quote)
+            .count();
+        // A code / math / spoiler fence inside a quote, and no "> " inside it (the closing line
+        // of a code block is not: it holds the language box below the block)
+        if kind == BlockKind::Quote
+            && self.code_block_open(index).is_none()
+            && quote_marks == 0
+            && matches!(
+                line.fence,
+                Some(FenceKind::Code | FenceKind::Math | FenceKind::Spoiler)
+            )
+        {
+            class.push_str(" zl-bc-in");
+            // The last line of the code block: the same space below as the opening line above
+            if self
+                .model
+                .lines
+                .get(index + 1)
+                .is_some_and(|_| self.code_block_open(index + 1).is_some())
+                && line.kind == LineKind::FenceBody
+            {
+                class.push_str(" zl-bc-in-last");
+            }
+        }
+        let outer = nest_level(line);
+        if outer > 0 {
+            class.push_str(&format!(" zl-nest zl-n{outer}"));
         }
     }
 
@@ -586,6 +634,8 @@ impl RenderCtx<'_> {
             src: editor.source().to_owned(),
             aligns,
             rows,
+            quoted: self.model.lines[table.header_line].quote_depth > 0,
+            nest: nest_level(&self.model.lines[table.header_line]),
         };
         Block {
             key: serde_json::to_string(&block).unwrap_or_default(),
@@ -593,6 +643,22 @@ impl RenderCtx<'_> {
             table: Some(block),
         }
     }
+}
+
+/// Deeper blocks show as gray as this many levels.
+const NEST_LEVELS: usize = 4;
+
+/// Layers of gray on line `line` for the blocks around its innermost block (fences of any kind and
+/// "> " marks; the innermost one shows its own background): 0 outside blocks or in a top-level one.
+fn nest_level(line: &Line) -> usize {
+    let quote_marks = line
+        .prefixes
+        .iter()
+        .filter(|p| p.kind == PrefixKind::Quote)
+        .count();
+    (line.fence_depth + quote_marks)
+        .saturating_sub(1)
+        .min(NEST_LEVELS)
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -634,6 +700,21 @@ fn fence_label(line: &Line) -> String {
         _ if info.is_empty() => "代码".to_owned(),
         _ => format!("代码 {info}"),
     }
+}
+
+/// Whether the fence opened on line `open` is closed. A quote or spoiler holds ordinary lines (and
+/// may hold other fences), so its closing fence is found by counting the fences inside it.
+fn fence_closed(lines: &[Line], open: usize) -> bool {
+    let mut depth = 0usize;
+    for line in &lines[open + 1..] {
+        match line.kind {
+            LineKind::FenceOpen => depth += 1,
+            LineKind::FenceClose if depth == 0 => return true,
+            LineKind::FenceClose => depth -= 1,
+            _ => {}
+        }
+    }
+    false
 }
 
 /// A collapsed or expanded quote panel. The whole source is in `data-src`; while editing, `src` has
@@ -757,6 +838,33 @@ code
         );
     }
 
+    #[test]
+    fn quote_fence_with_ordinary_lines_is_closed() {
+        for text in [
+            "```quote
+文字
+```",
+            "```quote
+| a | b |
+| --- | --- |
+```",
+            "```quote
+```py
+x
+```
+```",
+        ] {
+            let lines = render(text, false);
+            assert!(lines[0].contains("zl-fence"), "{text}: {}", lines[0]);
+        }
+        let open = render(
+            "```quote
+文字",
+            false,
+        );
+        assert!(!open[0].contains("zl-fence"), "{}", open[0]);
+    }
+
     fn render(text: &str, source: bool) -> Vec<String> {
         let model = parse(text, &NoResolver);
         let lookup = Lookup::default();
@@ -816,5 +924,31 @@ code
         assert!(html[1].contains("zl-mono") && html[1].contains("zl-last"));
         // The closing line sits below the block and holds the language box
         assert!(!html[2].contains("zl-bc") && html[2].contains("zlang-input"));
+    }
+
+    #[test]
+    fn code_block_in_a_quote_is_one_layer_deeper() {
+        let html = render(
+            "```quote
+q
+````
+c
+````
+r
+```",
+            false,
+        );
+        // The code lines keep the code background, one layer of gray over it
+        assert!(
+            html[3].contains("zl-bc-in") && html[3].contains("zl-n1"),
+            "{}",
+            html[3]
+        );
+        assert!(html[3].contains("zl-bc-in-last"), "{}", html[3]);
+        // Its closing line holds the language box and the quote stays one block
+        assert!(html[4].contains("zlang-input"), "{}", html[4]);
+        // ...and is not a code line (the editor finds the box after the code lines)
+        assert!(!html[4].contains("zl-bc-in"), "{}", html[4]);
+        assert!(!html[5].contains("zl-first") && html[6].contains("zl-last"));
     }
 }

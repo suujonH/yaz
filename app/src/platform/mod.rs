@@ -7,6 +7,7 @@ mod dialogs;
 mod edge_hide;
 mod system;
 mod tray;
+mod tray_avatar;
 
 /// Resource ID of the icon embedded in the exe (the ID written by `set_icon` in build.rs).
 pub const ICON_RESOURCE_ID: u16 = 1;
@@ -17,9 +18,10 @@ pub use clipboard::{
     remember_markdown,
 };
 pub use dialogs::{FileFilter, IMAGE_FILTER, pick_file, pick_files, pick_folder, save_file};
-pub use edge_hide::{is_hidden_at_edge, use_edge_hide, work_area};
+pub use edge_hide::{is_hidden_at_edge, use_edge_hide, work_area, work_area_at};
 pub use system::{
     app_is_foreground, flash_taskbar, idle_time, is_foreground, open_path, play_notification_sound,
     system_prefers_dark,
 };
-pub use tray::{Tray, TrayEvent, TrayItem, use_tray};
+pub use tray::{IconBox, Tray, TrayEvent, TrayItem, use_tray};
+pub use tray_avatar::{image_icon, text_icon};

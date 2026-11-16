@@ -468,7 +468,10 @@ fn PopoverView(
         Some((x, y)) => format!("left:{x}px;top:{y}px;min-width:{min_width}px"),
         None => format!("left:0;top:0;min-width:{min_width}px"),
     };
+    // Each card with its backdrop in a layer of its own: one opened from a card (a dropdown in a
+    // user card) lies wholly above it, so its backdrop also covers the card below
     rsx! {
+        div { class: "popover-layer",
         div {
             class: "overlay-backdrop",
             onmousedown: move |e| {
@@ -490,6 +493,7 @@ fn PopoverView(
                 }
             },
             {(render.0)(handle)}
+        }
         }
     }
 }

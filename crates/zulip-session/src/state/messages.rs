@@ -5,7 +5,7 @@ use zulip_core::ConversationKey;
 use zulip_core::html::encode;
 use zulip_core::model::{ChatMessage, LocalEcho, MessageFlags, MessageState, Reaction, Submessage};
 use zulip_core::notice::SystemNoticeKind;
-use zulip_store::{DeletedMessage, DeletedMessageRepo};
+use zulip_store::{DeletedMessage, DeletedMessageRepo, StoredMessage, StoredMessageRepo};
 
 const MAX_TIMELINES: usize = 30;
 const MAX_INDEXED: usize = 5000;
@@ -69,6 +69,10 @@ pub struct MessageCache {
     /// Deleted messages kept on this machine, loaded into memory when the database is opened.
     deleted: HashMap<ConversationKey, Vec<DeletedMessage>>,
     deleted_repo: DeletedMessageRepo,
+    /// Local copies of the server messages for offline viewing: every change to a message (in this
+    /// cache or, for messages not cached, through [`update_stored`](Self::update_stored)) is
+    /// written there.
+    store: StoredMessageRepo,
     /// Messages intercepted by plugins (remembered only for this run; re-fetched messages are not
     /// shown either).
     hidden: HashSet<i64>,
@@ -80,6 +84,7 @@ impl MessageCache {
     pub fn new(
         deleted_repo: DeletedMessageRepo,
         stored_deleted: Vec<DeletedMessage>,
+        store: StoredMessageRepo,
         account_id: i64,
     ) -> Self {
         let mut deleted: HashMap<ConversationKey, Vec<DeletedMessage>> = HashMap::new();
@@ -95,6 +100,7 @@ impl MessageCache {
             clock: 0,
             deleted,
             deleted_repo,
+            store,
             hidden: HashSet::new(),
             account_id,
             next_local_id: 0,
@@ -114,9 +120,39 @@ impl MessageCache {
         message.is_system_notice() || self.hidden.contains(&message.id)
     }
 
-    /// A plugin intercepts this message.
+    /// A plugin intercepts this message (its local copy is removed too).
     pub fn hide(&mut self, id: i64) {
         self.hidden.insert(id);
+        self.store.remove(id);
+    }
+
+    /// The local copy of a server message; `None` for local echoes and intercepted messages.
+    fn stored(&self, message: &ChatMessage) -> Option<StoredMessage> {
+        if message.id <= 0 || self.hidden.contains(&message.id) {
+            return None;
+        }
+        let json = serde_json::to_string(message).ok()?;
+        Some(StoredMessage {
+            message_id: message.id,
+            conv_key: message.key.to_string(),
+            json,
+        })
+    }
+
+    /// Changes the local copy of a message that is not in this cache (an event about a message
+    /// whose conversation is not loaded).
+    fn update_stored(&self, id: i64, change: impl FnOnce(&mut ChatMessage) + Send + 'static) {
+        if self.hidden.contains(&id) {
+            return;
+        }
+        self.store.update(id, move |json| {
+            let mut message: ChatMessage = serde_json::from_str(json).ok()?;
+            change(&mut message);
+            Some((
+                message.key.to_string(),
+                serde_json::to_string(&message).ok()?,
+            ))
+        });
     }
 
     pub fn clear(&mut self) {
@@ -182,6 +218,8 @@ impl MessageCache {
     ) {
         self.clock += 1;
         let clock = self.clock;
+        let stored: Vec<StoredMessage> = page.iter().filter_map(|m| self.stored(m)).collect();
+        self.store.put(stored);
         let timeline = self.timelines.entry(key.clone()).or_default();
         timeline.last_access = clock;
         timeline.version += 1;
@@ -309,6 +347,9 @@ impl MessageCache {
     ) -> (bool, Option<i64>) {
         let key = message.key.clone();
         let id = message.id;
+        if let Some(stored) = self.stored(&message) {
+            self.store.put(vec![stored]);
+        }
         let Some(timeline) = self.timelines.get_mut(&key) else {
             return (false, None);
         };
@@ -344,6 +385,10 @@ impl MessageCache {
         let slot = timeline.messages.iter_mut().find(|m| m.id == id)?;
         f(Arc::make_mut(slot));
         timeline.version += 1;
+        let changed = slot.clone();
+        if let Some(stored) = self.stored(&changed) {
+            self.store.put(vec![stored]);
+        }
         Some(key)
     }
 
@@ -364,7 +409,24 @@ impl MessageCache {
             if edit.edit_timestamp.is_some() {
                 m.last_edit_timestamp = edit.edit_timestamp;
             }
-        })?;
+        });
+        let Some(key) = key else {
+            let html = edit.html.map(str::to_owned);
+            let flags = edit.flags.map(MessageFlags::from_names);
+            let edit_timestamp = edit.edit_timestamp;
+            self.update_stored(edit.id, move |m| {
+                if let Some(html) = html {
+                    m.content_html = html;
+                }
+                if let Some(flags) = flags {
+                    m.flags = flags;
+                }
+                if edit_timestamp.is_some() {
+                    m.last_edit_timestamp = edit_timestamp;
+                }
+            });
+            return None;
+        };
         Some((key, previous))
     }
 
@@ -378,6 +440,14 @@ impl MessageCache {
     ) -> HashSet<ConversationKey> {
         let mut affected = HashSet::new();
         for id in ids {
+            let target = new_key.clone();
+            self.update_stored(*id, move |m| {
+                if let ConversationKey::Topic(topic) = &target {
+                    m.stream_id = Some(topic.stream_id);
+                    m.topic.clone_from(&topic.topic);
+                }
+                m.key = target;
+            });
             let Some(old_key) = self.index.remove(id) else {
                 continue;
             };
@@ -398,9 +468,13 @@ impl MessageCache {
     /// notices and hidden messages are removed outright. Returns `(conversation, whether it was
     /// only marked)`.
     pub fn on_deleted(&mut self, id: i64) -> Option<(ConversationKey, bool)> {
-        let message = self.get(id)?.clone();
+        let Some(message) = self.get(id).cloned() else {
+            self.update_stored(id, mark_deleted);
+            return None;
+        };
         let key = message.key.clone();
         if self.hidden.contains(&id) || message.notice != SystemNoticeKind::None {
+            self.store.remove(id);
             if let Some(timeline) = self.timelines.get_mut(&key) {
                 timeline.messages.retain(|m| m.id != id);
                 timeline.version += 1;
@@ -425,12 +499,7 @@ impl MessageCache {
         if !rows.iter().any(|r| r.message_id == id) {
             rows.push(row);
         }
-        self.with_message(id, |m| {
-            m.state = MessageState::Deleted;
-            m.reactions.clear();
-            m.submessages.clear();
-            m.flags.read = true;
-        });
+        self.with_message(id, mark_deleted);
         Some((key, true))
     }
 
@@ -440,7 +509,7 @@ impl MessageCache {
         reaction: Reaction,
         add: bool,
     ) -> Option<ConversationKey> {
-        self.with_message(id, |m| {
+        let change = move |m: &mut ChatMessage| {
             if add {
                 if !m.reactions.contains(&reaction) {
                     m.reactions.push(reaction);
@@ -452,16 +521,27 @@ impl MessageCache {
                         && r.reaction_type == reaction.reaction_type)
                 });
             }
-        })
+        };
+        if self.get(id).is_none() {
+            self.update_stored(id, change);
+            return None;
+        }
+        self.with_message(id, change)
     }
 
     pub fn apply_submessage(&mut self, submessage: Submessage) -> Option<ConversationKey> {
-        self.with_message(submessage.message_id, |m| {
+        let id = submessage.message_id;
+        let change = move |m: &mut ChatMessage| {
             if !m.submessages.iter().any(|s| s.id == submessage.id) {
                 m.submessages.push(submessage);
                 m.submessages.sort_by_key(|s| s.id);
             }
-        })
+        };
+        if self.get(id).is_none() {
+            self.update_stored(id, change);
+            return None;
+        }
+        self.with_message(id, change)
     }
 
     /// Flag change on cached messages; returns the `(id, conversation)` pairs that actually
@@ -475,6 +555,10 @@ impl MessageCache {
         let mut changed = Vec::new();
         for id in ids {
             let Some(current) = self.get(*id) else {
+                let flag = flag.to_owned();
+                self.update_stored(*id, move |m| {
+                    m.flags.set_named(&flag, add);
+                });
                 continue;
             };
             let mut flags = current.flags;
@@ -562,6 +646,14 @@ impl MessageCache {
     }
 }
 
+/// A message deleted on the server, kept on this machine.
+fn mark_deleted(m: &mut ChatMessage) {
+    m.state = MessageState::Deleted;
+    m.reactions.clear();
+    m.submessages.clear();
+    m.flags.read = true;
+}
+
 fn overlaps(page: &[ChatMessage], timeline: &Timeline) -> bool {
     page.iter()
         .any(|m| timeline.messages.iter().any(|t| t.id == m.id))
@@ -587,9 +679,16 @@ fn message_from_deleted(row: &DeletedMessage, key: &ConversationKey) -> ChatMess
 mod tests {
     use super::*;
     use crate::state::test_support::test_db;
+    use zulip_store::StoredAnchor;
 
     fn cache() -> MessageCache {
-        MessageCache::new(DeletedMessageRepo::new(&test_db(), 1), Vec::new(), 1)
+        let db = test_db();
+        MessageCache::new(
+            DeletedMessageRepo::new(&db, 1),
+            Vec::new(),
+            StoredMessageRepo::new(&db, 1),
+            1,
+        )
     }
 
     fn key() -> ConversationKey {
@@ -804,5 +903,62 @@ mod tests {
         }
         assert!(c.timeline(&first).is_some());
         assert!(c.timeline(&second).is_none());
+    }
+
+    #[test]
+    fn stored_copies_follow_changes_of_uncached_messages() {
+        let db = test_db();
+        let mut c = MessageCache::new(
+            DeletedMessageRepo::new(&db, 1),
+            Vec::new(),
+            StoredMessageRepo::new(&db, 1),
+            1,
+        );
+        c.merge_page(
+            &key(),
+            vec![msg(1), msg(2), msg(3)],
+            PageKind::Newest,
+            true,
+            true,
+        );
+        c.clear();
+        let reaction = Reaction {
+            emoji_name: "smile".into(),
+            emoji_code: "1f604".into(),
+            reaction_type: "unicode_emoji".into(),
+            user_id: 7,
+        };
+        assert!(c.apply_reaction(1, reaction.clone(), true).is_none());
+        c.apply_edit(&ContentEdit {
+            id: 1,
+            html: Some("<p>改</p>"),
+            flags: None,
+            edit_timestamp: Some(9),
+        });
+        let moved = ConversationKey::topic(1, "新");
+        c.apply_move(&[2], &moved);
+        c.on_deleted(3);
+
+        let repo = StoredMessageRepo::new(&db, 1);
+        let load = |key: &ConversationKey| -> Vec<ChatMessage> {
+            repo.page(&key.to_string(), StoredAnchor::Newest, 10, 0)
+                .unwrap()
+                .0
+                .iter()
+                .map(|json| serde_json::from_str(json).unwrap())
+                .collect()
+        };
+        let old = load(&key());
+        assert_eq!(old.iter().map(|m| m.id).collect::<Vec<_>>(), [1, 3]);
+        assert_eq!(old[0].reactions, [reaction]);
+        assert_eq!(old[0].content_html, "<p>改</p>");
+        assert_eq!(old[0].last_edit_timestamp, Some(9));
+        assert!(old[1].is_deleted());
+        let new = load(&moved);
+        assert_eq!(new.len(), 1);
+        assert_eq!(
+            (new[0].id, new[0].topic.as_str(), &new[0].key),
+            (2, "新", &moved)
+        );
     }
 }

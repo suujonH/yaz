@@ -102,6 +102,8 @@ a { color: var(--brand); }
 .avatar img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background: #fff; border-radius: 50%; }
 .avatar img.loading { visibility: hidden; }
 .avatar-wrap { position: relative; display: inline-flex; flex: none; }
+/* The account is not online (showing the data saved at its last login) */
+.offline .avatar { filter: grayscale(1); }
 .online-dot {
   position: absolute; right: 0; bottom: 0; width: 10px; height: 10px; border-radius: 50%;
   background: var(--online); border: 1.5px solid var(--panel-bg);
@@ -209,6 +211,8 @@ a { color: var(--brand); }
   padding: 0 8px; border-radius: var(--radius); background: var(--card); border: 1px solid var(--input-border);
   font-size: var(--fs-small); text-align: left;
 }
+/* Never selectable, also inside selectable content (a user card) */
+.select, .menu-row { user-select: none; -webkit-user-select: none; }
 .select:hover:not(:disabled) { border-color: var(--check-border); }
 .select.open { border-color: var(--brand); }
 .select:disabled { opacity: 0.6; }
@@ -259,6 +263,8 @@ a { color: var(--brand); }
 .role-badge.owner { background: var(--owner-badge-fill); color: var(--owner-badge); }
 
 /* ---------- Popovers ---------- */
+/* One per open card: later cards (opened from an earlier one) stack wholly above it */
+.popover-layer { position: relative; z-index: 200; }
 .overlay-backdrop { position: fixed; inset: 0; z-index: 200; cursor: default; }
 .overlay-card {
   position: fixed; z-index: 201; cursor: default; background: var(--card); border: 1px solid var(--panel-border);

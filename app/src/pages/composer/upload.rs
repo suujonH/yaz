@@ -63,7 +63,12 @@ impl Ctl {
     }
 
     /// Upload a file: put a placeholder at the cursor, and replace it with a link on completion.
+    /// Not connected (pasted, dropped or chosen files alike): nothing is inserted, only a hint.
     pub fn upload(self, path: PathBuf, name: String) {
+        if !*self.connected.peek() {
+            self.overlays.toast("未连接服务器，无法上传");
+            return;
+        }
         let session = self.session();
         let total = match std::fs::metadata(&path) {
             Ok(meta) => meta.len(),

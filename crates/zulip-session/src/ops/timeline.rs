@@ -6,9 +6,10 @@ use zulip_api::{MessageDto, MessageQuery};
 use zulip_core::ConversationKey;
 use zulip_core::links;
 use zulip_core::model::{ChatMessage, MentionKind};
+use zulip_store::{StoredAnchor, StoredMessageRepo};
 
 use crate::error::Result;
-use crate::event::SessionEvent;
+use crate::event::{ConnectionState, SessionEvent};
 use crate::hooks::HookEvent;
 use crate::session::Session;
 use crate::state::ScrollPosition;
@@ -154,6 +155,11 @@ impl Session {
         include_anchor: bool,
         kind: PageKind,
     ) -> Result<()> {
+        if self.connection() != ConnectionState::Connected {
+            return self
+                .load_stored_page(key, &anchor, before, after, include_anchor, kind)
+                .await;
+        }
         let narrow = self.narrow_of(key);
         let mut query = MessageQuery::new(narrow, anchor, before, after);
         query.include_anchor = include_anchor;
@@ -169,6 +175,44 @@ impl Session {
                 .messages
                 .merge_page(key, page, kind, result.found_oldest, result.found_newest);
         }
+        self.emit(SessionEvent::TimelineChanged(key.clone()));
+        Ok(())
+    }
+
+    /// Not connected (offline, reconnecting, login expired): the page comes from the messages
+    /// stored on this machine.
+    async fn load_stored_page(
+        &self,
+        key: &ConversationKey,
+        anchor: &str,
+        before: u32,
+        after: u32,
+        include_anchor: bool,
+        kind: PageKind,
+    ) -> Result<()> {
+        let anchor = match anchor.parse() {
+            Ok(id) => StoredAnchor::Id {
+                id,
+                include: include_anchor,
+            },
+            Err(_) => StoredAnchor::Newest,
+        };
+        let account_id = self.account_id;
+        let conv_key = key.to_string();
+        let (rows, found_oldest, found_newest) = self
+            .db
+            .call(move |db| {
+                StoredMessageRepo::new(db, account_id).page(&conv_key, anchor, before, after)
+            })
+            .await?;
+        let page: Vec<ChatMessage> = rows
+            .iter()
+            .filter_map(|json| serde_json::from_str(json).ok())
+            .collect();
+        self.state
+            .write()
+            .messages
+            .merge_page(key, page, kind, found_oldest, found_newest);
         self.emit(SessionEvent::TimelineChanged(key.clone()));
         Ok(())
     }

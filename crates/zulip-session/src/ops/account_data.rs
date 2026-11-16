@@ -7,8 +7,8 @@ use std::sync::Arc;
 use serde_json::Value;
 use zulip_api::Form;
 use zulip_core::model::{
-    Channel, FriendGroup, PinItem, PinScope, PresenceState, RealmInfo, RemarkTarget, Reminder,
-    SavedSnippet, ScheduledMessage, TopicInfo, UserSettings, ZulipUser,
+    Channel, ConversationNotice, FriendGroup, PinItem, PinScope, PresenceState, RealmInfo,
+    RemarkTarget, Reminder, SavedSnippet, ScheduledMessage, TopicInfo, UserSettings, ZulipUser,
 };
 use zulip_core::permission::{PermissionEvaluator, UserGroup};
 use zulip_core::push::{DndLevel, TopicVisibility};
@@ -175,6 +175,11 @@ impl Session {
 
     pub fn unread_count(&self, key: &ConversationKey) -> usize {
         self.state.read().unread.count(key)
+    }
+
+    /// Red hint of the conversation's unread messages ([有人@我] etc.).
+    pub fn unread_notice(&self, key: &ConversationKey) -> ConversationNotice {
+        self.state.read().unread.notice(key)
     }
 
     pub fn total_unread_for_badge(&self) -> usize {

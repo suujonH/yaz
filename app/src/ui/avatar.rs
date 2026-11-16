@@ -14,7 +14,7 @@ const PALETTE: [&str; 7] = [
 ];
 
 /// Maps a name to the color palette stably.
-fn palette_color(text: &str) -> &'static str {
+pub fn palette_color(text: &str) -> &'static str {
     let hash = text
         .encode_utf16()
         .fold(0i32, |h, c| h.wrapping_mul(31).wrapping_add(i32::from(c)));
@@ -22,7 +22,7 @@ fn palette_color(text: &str) -> &'static str {
 }
 
 /// The first character (uppercase).
-fn initial(text: &str) -> String {
+pub fn initial(text: &str) -> String {
     text.chars()
         .next()
         .map(|c| c.to_uppercase().to_string())

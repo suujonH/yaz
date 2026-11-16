@@ -240,13 +240,15 @@ pub fn is_active(model: &MarkdownModel, caret: usize, kind: FormatKind) -> bool 
         return false;
     };
     let has_prefix = |prefix: PrefixKind| line.prefixes.iter().any(|p| p.kind == prefix);
+    // A line with both kinds of list markers ("- 1. a") shows neither list as pressed
+    let mixed = has_prefix(PrefixKind::Bullet) && has_prefix(PrefixKind::Ordered);
     match kind {
         FormatKind::Quote => has_prefix(PrefixKind::Quote),
         FormatKind::BulletedList => {
-            line.kind == LineKind::ListItem && has_prefix(PrefixKind::Bullet)
+            line.kind == LineKind::ListItem && has_prefix(PrefixKind::Bullet) && !mixed
         }
         FormatKind::NumberedList => {
-            line.kind == LineKind::ListItem && has_prefix(PrefixKind::Ordered)
+            line.kind == LineKind::ListItem && has_prefix(PrefixKind::Ordered) && !mixed
         }
         _ => false,
     }
@@ -972,6 +974,11 @@ mod tests {
             ("- a«", K::BulletedList, true),
             ("- a«", K::NumberedList, false),
             ("2. a«", K::NumberedList, true),
+            ("- 1. a«", K::BulletedList, false),
+            ("- 1. a«", K::NumberedList, false),
+            ("1. - a«", K::BulletedList, false),
+            ("1. - a«", K::NumberedList, false),
+            ("- - a«", K::BulletedList, true),
         ] {
             let (text, s, _) = unmark(marked);
             assert_eq!(

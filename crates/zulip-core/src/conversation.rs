@@ -5,10 +5,12 @@ use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
 
+use serde::{Deserialize, Serialize};
+
 use crate::util::parse_digits;
 
 /// Topic. Topic names are case-insensitive (same as Zulip).
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TopicKey {
     pub stream_id: i64,
     pub topic: String,
@@ -44,7 +46,7 @@ impl Hash for TopicKey {
 
 /// The other participants of a DM: sorted, deduplicated, excluding self; empty means a DM with
 /// yourself.
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Default)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct DmKey {
     other_user_ids: Vec<i64>,
 }
@@ -75,7 +77,7 @@ impl DmKey {
 /// Identifier of a conversation. [`Display`](fmt::Display) / [`FromStr`] give the form stored in
 /// SQLite: topic `t:{channel id}:{lowercase topic}`, DM `d:{id1,id2}` (with yourself it is `d:`). A
 /// parsed topic name is lowercase and may only be used for comparison, not for display or requests.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ConversationKey {
     Topic(TopicKey),
     Dm(DmKey),

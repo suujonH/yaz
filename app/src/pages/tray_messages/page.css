@@ -1,4 +1,9 @@
 /* Tray message list: no title bar */
 .window:has(.tray-list) > .caption-bar { display: none; }
-.tray-list { flex: 1; min-height: 0; padding: 4px 0; background: var(--card); }
+.tray-list { flex: 1; min-height: 0; display: flex; flex-direction: column; padding-top: 4px; background: var(--card); }
+.tray-items { flex: 1; min-height: 0; }
+/* Name of the account that received the items below it */
+.tray-head { height: 36px; display: flex; align-items: center; padding: 0 14px; font-size: var(--fs-title, 16px); color: var(--text-primary); }
+.tray-foot { flex: none; height: 40px; display: flex; align-items: center; justify-content: space-between; padding: 0 6px; }
+.tray-action { color: var(--brand); }
 .tray-notice { flex: none; color: var(--danger); font-size: var(--fs-sub); }

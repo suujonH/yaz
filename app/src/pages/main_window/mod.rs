@@ -277,12 +277,14 @@ fn MainBody(classic: bool) -> Element {
     });
 
     let has_session = state.session.read().is_some();
+    let offline_status = use_offline_status();
+    let offline = has_session && offline_status.read().is_some();
     let logging_in = use_logging_in();
     // Pressing the search box opens the panel: results, or recent searches while it is empty
     let searching = (ui.search_open)();
     rsx! {
         div {
-            class: "main-page",
+            class: if offline { "main-page offline" } else { "main-page" },
             // A press outside the search box and its results hides the results (both stop the
             // event themselves)
             onmousedown: move |_| {
@@ -295,6 +297,7 @@ fn MainBody(classic: bool) -> Element {
             div { class: if classic { "main-middle classic" } else { "main-middle" },
                 if has_session {
                     SearchBar {}
+                    OfflineBanner {}
                     div { class: "main-middle-page",
                         match (ui.page)() {
                             NavPage::Messages => rsx! { MessagesPage {} },
@@ -400,10 +403,96 @@ fn NoSession() -> Element {
     }
 }
 
+/// The current account's state when it is open but not online (showing the data saved at its last
+/// login); `None` when online or without an account. Avatars are then grey and nothing can be sent.
+pub fn use_offline_status() -> Memo<Option<AccountStatus>> {
+    let state = use_app_state();
+    use_memo(move || {
+        let account = (state.account)()?;
+        state
+            .accounts
+            .read()
+            .iter()
+            .find(|e| e.account.id == account && e.session.is_some())
+            .map(|e| e.status.clone())
+            .filter(|status| *status != AccountStatus::Online)
+    })
+}
+
+/// Notice between the search bar and the list while the current account is not online: why, with a retry
+/// (unreachable) or re-login (login failed) button.
+#[component]
+fn OfflineBanner() -> Element {
+    let state = use_app_state();
+    let status = use_offline_status();
+    let Some(status) = status() else {
+        return rsx! {};
+    };
+    let Some(id) = (state.account)() else {
+        return rsx! {};
+    };
+    let tooltip = match &status {
+        AccountStatus::Unreachable(error) => error.clone(),
+        _ => String::new(),
+    };
+    let failed = matches!(status, AccountStatus::Failed(_));
+    // Unreachable, retried in the background (the error is in the tooltip). By the wait before
+    // the next retry: 5s "reconnecting", 30s also a retry button, 1 minute "offline" with it.
+    // The button is greyed while a retry is running.
+    let connecting = status == AccountStatus::Connecting;
+    let retry = match services().hub.retry_wait(id) {
+        Some(wait) if wait.as_secs() >= 60 => Some(("你已离线", false, true)),
+        Some(wait) if wait.as_secs() >= 30 => Some(("重新连接中", true, true)),
+        Some(_) => Some(("重新连接中", true, false)),
+        None => None,
+    };
+    // `waiting`: an animated "..." follows the text (its room is kept so the button stays put)
+    let (text, waiting, button) = match (&status, retry) {
+        (
+            AccountStatus::Connecting | AccountStatus::Unreachable(_),
+            Some((text, waiting, button)),
+        ) => (text.to_owned(), waiting, button.then_some("重试")),
+        (AccountStatus::Connecting, None) => ("正在登录".to_owned(), true, None),
+        // Not counted yet (does not happen: counted before the status is set)
+        (AccountStatus::Unreachable(_), None) => ("重新连接中".to_owned(), true, None),
+        (AccountStatus::Failed(error), _) => (
+            format!("{error}，显示的是本地数据"),
+            false,
+            Some("重新登录"),
+        ),
+        (AccountStatus::Online | AccountStatus::Disabled, _) => return rsx! {},
+    };
+    rsx! {
+        div { class: if failed { "offline-banner failed" } else { "offline-banner" },
+            span { class: "offline-banner-text", title: "{tooltip}",
+                "{text}"
+                if waiting {
+                    span { class: "offline-banner-dot", "." }
+                    span { class: "offline-banner-dot", "." }
+                    span { class: "offline-banner-dot", "." }
+                }
+            }
+            if let Some(button) = button {
+                Button {
+                    disabled: connecting,
+                    onclick: move |_| match &status {
+                        AccountStatus::Failed(error) => windows::open_add_account(AddAccountArgs {
+                            account: Some(id),
+                            error: Some(error.clone()),
+                        }),
+                        _ => retry_account(id),
+                    },
+                    {button}
+                }
+            }
+        }
+    }
+}
+
 /// Logs in an unreachable account now (instead of waiting for the background retry).
 fn retry_account(id: i64) {
     spawn(async move {
-        let _ = services().hub.login_account(id).await;
+        let _ = services().hub.retry_now(id).await;
     });
 }
 
@@ -615,6 +704,11 @@ fn read_counts(session: &std::sync::Arc<Session>) -> NavCounts {
 /// error filled in; a disabled one is enabled.
 fn select_account(entry: &AccountEntry, overlays: Overlays) {
     let id = entry.account.id;
+    // Opened with its saved data while not online: switched to, logging in is from the banner
+    if entry.session.is_some() {
+        services().hub.set_active(Some(id));
+        return;
+    }
     match &entry.status {
         AccountStatus::Online => services().hub.set_active(Some(id)),
         AccountStatus::Failed(error) => windows::open_add_account(AddAccountArgs {
@@ -653,8 +747,10 @@ fn AccountButton(account_id: i64, active: bool, tick: u64) -> Element {
         .as_ref()
         .map_or(0, |s| s.total_unread_for_badge());
     let failed = matches!(entry.status, AccountStatus::Failed(_));
-    // Unreachable (also while connecting again): grey
-    let offline = entry.session.is_none() && services().hub.is_unreachable(account_id);
+    // Login failed or unreachable (also while connecting again): grey
+    let offline = failed
+        || matches!(entry.status, AccountStatus::Unreachable(_))
+        || (entry.status == AccountStatus::Connecting && services().hub.is_unreachable(account_id));
     let tip = format!("{name}（{}）", entry.status.text());
     let on_select = entry.clone();
     rsx! {

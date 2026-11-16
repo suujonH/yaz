@@ -86,6 +86,8 @@ pub struct Line {
     pub quote_depth: usize,
     /// Kind of the fence this line is in (or that this line opens / closes); `None` when not in a fence.
     pub fence: Option<FenceKind>,
+    /// Number of fences (of any kind) this line is in, counting the one it opens / closes.
+    pub fence_depth: usize,
     /// FenceOpen line: the code language or spoiler title.
     pub fence_info: Option<String>,
 }
@@ -101,6 +103,7 @@ impl Line {
             heading_level: 0,
             quote_depth: 0,
             fence: None,
+            fence_depth: 0,
             fence_info: None,
         }
     }
@@ -270,6 +273,7 @@ fn parse_lines(text: &str) -> Vec<Line> {
 
         let md = if closes || in_literal {
             let fence = top.map(|(_, kind)| kind);
+            let fence_depth = fences.len();
             let kind = if closes {
                 LineKind::FenceClose
             } else {
@@ -281,6 +285,7 @@ fn parse_lines(text: &str) -> Vec<Line> {
             state.in_table = false;
             Line {
                 fence,
+                fence_depth,
                 quote_depth: quotes,
                 ..Line::new(start, end, kind)
             }
@@ -297,6 +302,7 @@ fn parse_lines(text: &str) -> Vec<Line> {
             state.in_table = false;
             Line {
                 fence: Some(kind),
+                fence_depth: fences.len(),
                 fence_info: info,
                 quote_depth: quotes + usize::from(kind == FenceKind::Quote),
                 ..Line::new(start, end, LineKind::FenceOpen)
@@ -305,6 +311,7 @@ fn parse_lines(text: &str) -> Vec<Line> {
             let mut md = classify_line(text, &raw, i, &mut state);
             md.quote_depth += quotes;
             md.fence = fences.last().map(|f| f.1);
+            md.fence_depth = fences.len();
             md
         };
 
@@ -1197,6 +1204,19 @@ mod tests {
         // Only the **y** outside the fence is bold
         assert_eq!(model.spans.len(), 1);
         assert_eq!(model.spans[0].start, 20);
+    }
+
+    #[test]
+    fn fence_depth_counts_enclosing_fences() {
+        let model = p("a
+```quote
+b
+````
+c
+````
+```");
+        let depths: Vec<usize> = model.lines.iter().map(|l| l.fence_depth).collect();
+        assert_eq!(depths, [0, 1, 1, 2, 2, 2, 1]);
     }
 
     #[test]

@@ -18,8 +18,8 @@ pub use theme::{
 };
 pub use window::{
     ShowWhenReady, WindowBoundsStore, WindowKey, WindowSpec, activate, close_all_windows,
-    close_window, local_app_data, move_window, open_singleton, open_with_args, prepare_with_args,
-    use_save_window_bounds, use_window_args, window_config,
+    close_window, is_open, local_app_data, move_window, open_singleton, open_with_args,
+    prepare_with_args, use_save_window_bounds, use_window_args, window_config,
 };
 
 use crate::ui::OverlayHost;

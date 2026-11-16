@@ -2,3 +2,7 @@
 .window:has(.notification) > .caption-bar { display: none; }
 .notification { flex: 1; min-height: 0; display: flex; align-items: center; background: var(--card); }
 .notification .list-row { flex: 1; }
+.notification-notice { flex: none; color: var(--danger); font-size: var(--fs-sub); }
+/* Replaced by the next notification: slides out to the left (then the next one shows at once) */
+.notification.leaving { animation: notification-leave 0.2s ease-in forwards; pointer-events: none; }
+@keyframes notification-leave { to { transform: translateX(-100%); } }

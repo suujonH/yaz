@@ -16,12 +16,12 @@ mod rows;
 mod select;
 mod virtual_list;
 
-pub use avatar::{Avatar, OverlapStack};
+pub use avatar::{Avatar, OverlapStack, initial, palette_color};
 pub use controls::{
     Badge, Button, ButtonKind, Checkbox, IconButton, RoleBadge, Slider, TabItem, Tabs, Toggle,
 };
 pub use flows::{Answer, Confirm, DialogButtons, TextPrompt, UnsavedBar};
-pub use geometry::{Placement, Rect};
+pub use geometry::{Placement, Rect, client_rect, place, viewport};
 pub use icon::{Icon, IconName, icon_html};
 pub use input::{InlineEdit, InputStyle, ShortcutRecorder, TextInput};
 pub use layout::{

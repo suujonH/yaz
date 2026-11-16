@@ -233,7 +233,8 @@ impl Unread {
             .copied()
     }
 
-    /// Priority: @me > @all members > new file.
+    /// Priority: @me > @all members > new file (only in a channel topic or group DM: a file sent
+    /// in a one-to-one DM is no news).
     pub fn notice(&self, key: &ConversationKey) -> ConversationNotice {
         let Some(ids) = self.by_key.get(key) else {
             return ConversationNotice::None;
@@ -248,7 +249,7 @@ impl Unread {
         }
         if wildcard {
             ConversationNotice::AtAll
-        } else if ids.iter().any(|id| self.has_file.contains(id)) {
+        } else if files_count(key) && ids.iter().any(|id| self.has_file.contains(id)) {
             ConversationNotice::NewFile
         } else {
             ConversationNotice::None
@@ -262,6 +263,14 @@ impl Unread {
             .filter_map(|id| Some((*id, *self.mentions.get(id)?)))
             .collect();
         UnreadSnapshot { ids, mentions }
+    }
+}
+
+/// Whether new files in the conversation get a notice: not in a one-to-one DM.
+fn files_count(key: &ConversationKey) -> bool {
+    match key {
+        ConversationKey::Topic(_) => true,
+        ConversationKey::Dm(dm) => dm.is_group_dm(),
     }
 }
 
@@ -342,6 +351,21 @@ mod tests {
         u.add_message(&me);
         assert_eq!(u.notice(&key), ConversationNotice::AtMe);
         assert_eq!(u.snapshot(&key).mentions.len(), 2);
+    }
+
+    #[test]
+    fn files_in_a_dm_get_no_notice() {
+        let mut u = Unread::default();
+        let html = "<p><a href=\"/user_uploads/1/a/x.txt\">x.txt</a></p>";
+        let dm = ConversationKey::dm([2], 7);
+        let group = ConversationKey::dm([2, 3], 7);
+        for (id, key) in [(1, &dm), (2, &group)] {
+            let mut file = msg(id, key.clone());
+            file.content_html = html.into();
+            u.add_message(&file);
+        }
+        assert_eq!(u.notice(&dm), ConversationNotice::None);
+        assert_eq!(u.notice(&group), ConversationNotice::NewFile);
     }
 
     #[test]

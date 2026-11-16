@@ -15,9 +15,11 @@ use crate::error::{Result, StoreError};
 /// appended to.
 ///
 /// Each account's data hangs off `account` by foreign key and is deleted by cascade when the
-/// account is deleted. `conversation_cache` is a cache that can be discarded at any time and
-/// rebuilt from the messages on Zulip; the other tables hold data stored only on this machine.
-const MIGRATIONS: &[&str] = &[r#"
+/// account is deleted. `conversation_cache`, `register_snapshot` and `stored_message` are caches of
+/// Zulip data (for the conversation list and for viewing an account that cannot log in) that can be
+/// discarded at any time; the other tables hold data stored only on this machine.
+const MIGRATIONS: &[&str] = &[
+    r#"
 CREATE TABLE account(
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   realm_url TEXT NOT NULL,
@@ -115,7 +117,21 @@ CREATE TABLE plugin(
   enabled INTEGER NOT NULL DEFAULT 0,
   fingerprint TEXT,
   approved_at INTEGER);
-"#];
+"#,
+    r#"
+CREATE TABLE register_snapshot(
+  account_id INTEGER PRIMARY KEY REFERENCES account(id) ON DELETE CASCADE,
+  json TEXT NOT NULL,
+  saved_at INTEGER NOT NULL);
+CREATE TABLE stored_message(
+  account_id INTEGER NOT NULL REFERENCES account(id) ON DELETE CASCADE,
+  message_id INTEGER NOT NULL,
+  conv_key TEXT NOT NULL,
+  json TEXT NOT NULL,
+  PRIMARY KEY(account_id, message_id));
+CREATE INDEX stored_message_conversation ON stored_message(account_id, conv_key, message_id);
+"#,
+];
 
 /// The current database version.
 pub const SCHEMA_VERSION: i32 = MIGRATIONS.len() as i32;
@@ -148,7 +164,7 @@ impl Drop for Worker {
     }
 }
 
-/// The local SQLite database, which stores only data that Zulip does not have. Cheap to `clone`;
+/// The local SQLite database: data that Zulip does not have, and caches of Zulip data. Cheap to `clone`;
 /// clones share the same connection.
 ///
 /// All writes are queued in order on a dedicated thread ([`write`](Self::write),

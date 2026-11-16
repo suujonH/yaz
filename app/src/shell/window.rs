@@ -51,7 +51,8 @@ pub struct WindowSpec {
     pub hide_on_close: bool,
     pub remember_bounds: bool,
     /// Small notification window: always on top, not in the taskbar, and does not steal focus when
-    /// opened or updated.
+    /// opened or updated. It is created hidden: its page places it, then shows it with
+    /// `set_visible(true)` (which does not take the focus, as the window is created unfocused).
     pub popup: bool,
     /// Background color before the window content loads; by default the theme's background for the
     /// system's light/dark mode.
@@ -222,7 +223,9 @@ pub fn window_config(spec: &WindowSpec, shared: &AppShared) -> Config {
         .with_inner_size(LogicalSize::new(size.0, size.1))
         .with_min_inner_size(LogicalSize::new(spec.min_size.0, spec.min_size.1))
         .with_window_icon(app_icon())
-        .with_visible(!spec.show_when_ready)
+        // A popup places itself after its content mounts and then shows itself (see
+        // `WindowSpec::popup`), so it is never seen where the system first puts it
+        .with_visible(!spec.show_when_ready && !spec.popup)
         .with_always_on_top(spec.popup)
         .with_skip_taskbar(spec.popup)
         // A window created hidden gets the focus when it is shown (`activate`); taking it now would
@@ -233,6 +236,7 @@ pub fn window_config(spec: &WindowSpec, shared: &AppShared) -> Config {
     {
         builder = builder.with_position(at);
     }
+
     let dark_system = shared.starts_dark();
     let background = match spec.background {
         Some((r, g, b)) => (r, g, b, 255),
@@ -312,7 +316,7 @@ pub(super) fn register_window(key: String, window: WeakDesktopContext, args: Box
 }
 
 /// Whether the window `key` is open or being created.
-fn is_open(key: &str) -> bool {
+pub fn is_open(key: &str) -> bool {
     WINDOWS.with_borrow(|w| {
         w.get(key).is_some_and(|entry| match &entry.slot {
             WindowSlot::Pending => true,

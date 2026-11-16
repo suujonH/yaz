@@ -10,10 +10,11 @@ use zulip_core::ConversationKey;
 use zulip_core::file::FileKind;
 use zulip_core::html::{self, InlineImage, UploadLink};
 use zulip_core::model::{AttachmentList, Channel, ChatMessage, PinItem, PinScope};
-use zulip_core::text::time::date_label;
-use zulip_store::DownloadRecord;
+use zulip_core::text::time::{date_label, parse_datetime};
+use zulip_store::{DownloadRecord, StoredMessageRepo};
 
 use crate::error::Result;
+use crate::event::ConnectionState;
 use crate::session::{Session, narrow_for};
 use crate::state::State;
 
@@ -112,6 +113,37 @@ fn passes_client_filter(item: &MessageItem, filter: ContentFilter) -> bool {
     }
 }
 
+/// Whether a stored message matches the query, as the server's narrow ([`build_narrow`]) would;
+/// the conversation is matched when reading. `until`: Unix seconds.
+fn stored_matches(message: &ChatMessage, search: &MessageSearch, until: Option<i64>) -> bool {
+    let scope = match &search.scope {
+        QueryScope::Everywhere | QueryScope::Conversation(_) => true,
+        QueryScope::Starred => message.flags.starred,
+        QueryScope::Sender(id) => message.sender_id == *id,
+    };
+    let content_html = &message.content_html;
+    let has_attachment = !html::extract_uploads(content_html).is_empty();
+    // Links to other sites (uploads are relative)
+    let has_link = content_html.contains("href=\"http");
+    let content = match search.filter {
+        ContentFilter::All => true,
+        ContentFilter::PlainChat => {
+            !has_attachment && !has_link && html::extract_inline_images(content_html).is_empty()
+        }
+        ContentFilter::Media | ContentFilter::Files | ContentFilter::Attachments => has_attachment,
+        ContentFilter::Links => has_link && !has_attachment,
+    };
+    let text = search.text.trim().to_lowercase();
+    scope
+        && content
+        && search.sender.is_none_or(|id| message.sender_id == id)
+        && until.is_none_or(|until| message.timestamp <= until)
+        && (text.is_empty()
+            || html::to_plain_text(content_html)
+                .to_lowercase()
+                .contains(&text))
+}
+
 /// Query conditions -> narrow. Content filters that can be done on the server are done here; the
 /// rest in [`passes_client_filter`].
 pub fn build_narrow(state: &State, search: &MessageSearch) -> Vec<NarrowTerm> {
@@ -208,6 +240,9 @@ impl Session {
     /// Next page (newest first). If a whole page is filtered out by the content filter, keeps
     /// fetching until there is a result or the end is reached.
     pub async fn next_page(&self, pager: &mut MessagePager) -> Result<Vec<MessageItem>> {
+        if self.connection() != ConnectionState::Connected {
+            return self.next_stored_page(pager).await;
+        }
         let mut items = Vec::new();
         while items.is_empty() && !pager.done {
             let (narrow, feature_level) = {
@@ -260,6 +295,53 @@ impl Session {
                         html: shown,
                         message: Arc::new(m),
                     }
+                })
+                .filter(|item| passes_client_filter(item, pager.search.filter))
+                .collect();
+        }
+        Ok(items)
+    }
+
+    /// [`next_page`](Self::next_page) while not connected: from the messages stored on this
+    /// machine (no request), matched here like the server would.
+    async fn next_stored_page(&self, pager: &mut MessagePager) -> Result<Vec<MessageItem>> {
+        let conv_key = match &pager.search.scope {
+            QueryScope::Conversation(key) => Some(key.to_string()),
+            _ => None,
+        };
+        let until = pager
+            .search
+            .until
+            .as_deref()
+            .and_then(parse_datetime)
+            .map(|t| t.timestamp());
+        let mut items = Vec::new();
+        while items.is_empty() && !pager.done {
+            let (account_id, conv_key, before, limit) = (
+                self.account_id,
+                conv_key.clone(),
+                pager.anchor,
+                pager.page_size,
+            );
+            let rows = self
+                .db
+                .call(move |db| {
+                    StoredMessageRepo::new(db, account_id).older(conv_key.as_deref(), before, limit)
+                })
+                .await?;
+            pager.anchor = rows.last().map(|(id, _)| *id).or(pager.anchor);
+            pager.done = rows.len() < limit as usize;
+            let state = self.state.read();
+            items = rows
+                .iter()
+                .filter_map(|(_, json)| serde_json::from_str::<ChatMessage>(json).ok())
+                .filter(|m| !m.is_deleted() && !state.messages.is_hidden(m))
+                .filter(|m| stored_matches(m, &pager.search, until))
+                .map(|m| MessageItem {
+                    images: html::extract_inline_images(&m.content_html),
+                    uploads: html::extract_uploads(&m.content_html),
+                    html: m.content_html.clone(),
+                    message: Arc::new(m),
                 })
                 .filter(|item| passes_client_filter(item, pager.search.filter))
                 .collect();
@@ -363,8 +445,11 @@ impl Session {
         file_senders(&self.state.read())
     }
 
-    /// Reorders candidate senders by who sent files most recently.
+    /// Reorders candidate senders by who sent files most recently (not connected: unchanged).
     pub async fn rank_file_senders(&self) -> Result<Vec<i64>> {
+        if self.connection() != ConnectionState::Connected {
+            return Ok(self.file_senders());
+        }
         let query = MessageQuery::new(
             vec![NarrowTerm::has("attachment", false)],
             "newest",

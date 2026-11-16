@@ -17,7 +17,7 @@ mod remote;
 mod remote_image;
 mod window_keys;
 
-pub use cards::{ProfilePane, open_topic_card, open_user_card};
+pub use cards::{ProfilePane, UserCard, open_topic_card, open_user_card};
 pub use menus::{
     channel_section_menu, conversation_menu, level_menu_items, logout_confirm, menu_conv,
     mock_notice, plugin_context_menus, plugin_menu_entries, topic_delete_item, topic_more_submenu,

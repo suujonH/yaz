@@ -533,7 +533,7 @@ ZULIP_PLUGIN_EXPORT void ZULIP_PLUGIN_CALL zulip_plugin_on_user_changed(const ch
 ZULIP_PLUGIN_EXPORT void ZULIP_PLUGIN_CALL zulip_plugin_on_presence_changed(const char* json);
 /* {"conv": <conv>} the user switched to this conversation */
 ZULIP_PLUGIN_EXPORT void ZULIP_PLUGIN_CALL zulip_plugin_on_conversation_opened(const char* json);
-/* {"state": "connected" | "reconnecting" | "auth_failed"}; events may have been missed after recovery, re-read if needed */
+/* {"state": "connected" | "reconnecting" | "auth_failed" | "offline"}; events may have been missed after recovery, re-read if needed */
 ZULIP_PLUGIN_EXPORT void ZULIP_PLUGIN_CALL zulip_plugin_on_connection_changed(const char* json);
 /* {"conv": <conv>, "user": user id, "typing": true | false} (typing event from the server, excluding yourself and muted users);
    false is not always received when the other side leaves abnormally, so time out on your own if needed */

@@ -27,7 +27,7 @@ use zulip_core::{ConversationFolder, ConversationKey};
 use zulip_store::{
     AccountSettings, ContactRepo, ConversationCache, ConversationCacheRepo, ConversationPref,
     ConversationPrefRepo, Db, DeletedMessage, DeletedMessageRepo, LocalDraftRepo, LocalSettings,
-    MessageVersionRepo, PinRepo, RemarkRepo, Result as StoreResult,
+    MessageVersionRepo, PinRepo, RemarkRepo, Result as StoreResult, StoredMessageRepo,
 };
 
 use crate::convert::{
@@ -43,8 +43,6 @@ use messages::MessageCache;
 use misc::{Drafts, Queued, SystemNotices, Typing, reminder_from_dto, scheduled_from_dto};
 use unread::Unread;
 use users::Users;
-
-pub const SELF_DM_TITLE: &str = "我";
 
 pub fn folder_title(folder: ConversationFolder) -> &'static str {
     match folder {
@@ -227,6 +225,7 @@ impl State {
             messages: MessageCache::new(
                 DeletedMessageRepo::new(db, account_id),
                 stored.deleted,
+                StoredMessageRepo::new(db, account_id),
                 account_id,
             ),
             unread: Unread::load(&reg.unread_msgs, reg.user_id),
@@ -431,7 +430,10 @@ impl State {
                     stripped.to_owned()
                 }
             }
-            ConversationKey::Dm(d) if d.is_self_dm() => SELF_DM_TITLE.to_owned(),
+            // Chat with yourself: your nickname
+            ConversationKey::Dm(d) if d.is_self_dm() => {
+                self.users.name_of(self.users.self_id).to_owned()
+            }
             ConversationKey::Dm(d) if !d.is_group_dm() => d
                 .other_user_ids()
                 .first()

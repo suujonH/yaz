@@ -317,3 +317,70 @@ async fn logout_and_delete_remove_the_account() {
     assert!(f.hub.accounts().unwrap().is_empty());
     f.server.stop().await;
 }
+
+#[tokio::test]
+async fn unreachable_account_opens_with_saved_data_and_logs_in_on_retry() {
+    let mut server = TestServer::start(0).await.unwrap();
+    let dir = TempDir::new().unwrap();
+    let hub = new_hub(&dir);
+    let session = hub
+        .login_with_password(password_request(&server))
+        .await
+        .unwrap();
+    let id = session.account_id();
+    let key = ConversationKey::topic(GAME, "吐槽");
+    session.load_newest(&key).await.unwrap();
+    let mut rx = session.subscribe();
+    let sent = server.send_as(AJIE, Target::Stream(GAME, "吐槽".into()), "离线也能看到");
+    wait_for(
+        &mut rx,
+        "新消息",
+        |e| matches!(e, SessionEvent::MessageAdded { id: got, .. } if *got == sent),
+    )
+    .await;
+    let online: Vec<i64> = session
+        .timeline(&key)
+        .messages
+        .iter()
+        .map(|m| m.id)
+        .collect();
+    hub.shutdown().await;
+    drop((session, hub));
+    server.stop().await;
+
+    // The server cannot be reached: the account is still shown, with the saved data
+    let hub = new_hub(&dir);
+    hub.restore_startup_accounts().await.unwrap();
+    let offline = hub.active_session().expect("离线时也有会话");
+    assert_eq!(offline.account_id(), id);
+    assert_eq!(offline.connection(), ConnectionState::Offline);
+    assert!(matches!(
+        hub.accounts().unwrap()[0].status,
+        AccountStatus::Unreachable(_)
+    ));
+    assert_eq!(offline.self_id(), ME_ID);
+    offline.load_newest(&key).await.unwrap();
+    let stored: Vec<i64> = offline
+        .timeline(&key)
+        .messages
+        .iter()
+        .map(|m| m.id)
+        .collect();
+    assert_eq!(stored, online);
+    assert!(
+        offline
+            .message(sent)
+            .unwrap()
+            .content_html
+            .contains("离线也能看到")
+    );
+
+    // Back online: the same session logs in
+    server.restart().await.unwrap();
+    let again = hub.login_account(id).await.unwrap();
+    assert!(std::sync::Arc::ptr_eq(&again, &offline));
+    assert_eq!(again.connection(), ConnectionState::Connected);
+    assert_eq!(hub.accounts().unwrap()[0].status, AccountStatus::Online);
+    hub.shutdown().await;
+    server.stop().await;
+}

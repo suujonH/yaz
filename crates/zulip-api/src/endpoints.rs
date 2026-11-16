@@ -56,6 +56,12 @@ impl ZulipClient {
     /// Register an event queue and get the initial state. Without `event_types`, receives all
     /// events.
     pub async fn register(&self) -> Result<RegisterResult, ApiError> {
+        Ok(self.register_raw().await?.0)
+    }
+
+    /// [`register`](Self::register), also returning the response as received (kept for viewing
+    /// the account offline; it is decoded again with [`RegisterResult`]'s `Deserialize`).
+    pub async fn register_raw(&self) -> Result<(RegisterResult, Value), ApiError> {
         let form = Form::new()
             .add("apply_markdown", true)
             .add("client_gravatar", false)
@@ -84,7 +90,8 @@ impl ZulipClient {
                 Some(REGISTER_TIMEOUT),
             )
             .await?;
-        decode(root)
+        let result = decode(root.clone())?;
+        Ok((result, root))
     }
 
     /// Long-poll for events, returning raw event objects. `timeout` should be greater than the

@@ -15,7 +15,8 @@ use std::time::{Duration, Instant};
 use windows::Win32::Foundation::{POINT, RECT};
 use windows::Win32::Graphics::Dwm::{DWMWA_EXTENDED_FRAME_BOUNDS, DwmGetWindowAttribute};
 use windows::Win32::Graphics::Gdi::{
-    GetMonitorInfoW, MONITOR_DEFAULTTONEAREST, MONITORINFO, MonitorFromWindow,
+    GetMonitorInfoW, HMONITOR, MONITOR_DEFAULTTONEAREST, MONITORINFO, MonitorFromPoint,
+    MonitorFromWindow,
 };
 use windows::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, VK_LBUTTON};
 use windows::Win32::UI::WindowsAndMessaging::GetCursorPos;
@@ -104,6 +105,18 @@ fn visible_box(window: &DesktopService) -> Option<(PixelBox, (i32, i32))> {
 fn monitor_boxes(window: &DesktopService) -> Option<(PixelBox, PixelBox)> {
     // SAFETY: hwnd belongs to a live window.
     let monitor = unsafe { MonitorFromWindow(hwnd_of(window), MONITOR_DEFAULTTONEAREST) };
+    boxes_of(monitor)
+}
+
+/// Work area (physical pixels) of the screen holding the point (the nearest screen when none
+/// does).
+pub fn work_area_at(x: i32, y: i32) -> Option<PixelBox> {
+    // SAFETY: there are no pointer arguments.
+    let monitor = unsafe { MonitorFromPoint(POINT { x, y }, MONITOR_DEFAULTTONEAREST) };
+    boxes_of(monitor).map(|(work, _)| work)
+}
+
+fn boxes_of(monitor: HMONITOR) -> Option<(PixelBox, PixelBox)> {
     let mut info = MONITORINFO {
         cbSize: size_of::<MONITORINFO>() as u32,
         ..Default::default()

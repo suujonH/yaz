@@ -7,6 +7,9 @@ pub enum ConnectionState {
     Reconnecting,
     /// Login is no longer valid and the event loop has exited.
     AuthFailed,
+    /// Not logged in during this run: showing the data saved at the last login (see
+    /// [`Session::open_offline`](crate::Session::open_offline)).
+    Offline,
 }
 
 /// Avatar on a notification popup.

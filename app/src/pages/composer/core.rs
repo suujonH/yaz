@@ -199,12 +199,12 @@ impl EditorCore {
                 model.lines[t.last_line].end,
             )
         };
-        let at_start = self.tables.iter().any(|t| ends(&self.model, t).0 == caret)
+        let at_start = self.shown_tables().any(|t| ends(&self.model, t).0 == caret)
             || self
                 .quotes
                 .iter()
                 .any(|q| q.start == caret && Some(q.start) != self.edit_quote);
-        let at_end = self.tables.iter().any(|t| ends(&self.model, t).1 == caret)
+        let at_end = self.shown_tables().any(|t| ends(&self.model, t).1 == caret)
             || self.model.line_index_at(caret).is_some_and(|i| {
                 self.code_fence_role(i) == Some(false)
                     && self.model.lines[i].end == caret
@@ -294,7 +294,12 @@ impl EditorCore {
             return;
         }
         let caret = self.sel.start;
-        for (index, t) in self.tables.iter().enumerate() {
+        for (index, t) in self
+            .tables
+            .iter()
+            .enumerate()
+            .filter(|(_, t)| self.table_shown(t))
+        {
             let (start, end) = (
                 self.model.lines[t.header_line].start,
                 self.model.lines[t.last_line].end,
@@ -423,11 +428,19 @@ impl EditorCore {
         if self.skip_code_fences(Some(from)) {
             return true;
         }
+        // In a cell the offsets are the cell's own: its table's place in the text counts
+        let (from_doc, to_doc) = match sel.cell.and_then(|p| self.tables.get(p.table)) {
+            Some(t) => (
+                self.model.lines[t.header_line].start,
+                self.model.lines[t.last_line].end,
+            ),
+            None => (sel.start, sel.end),
+        };
         if let Some(anchor) = self.edit_quote
             && !self
                 .quotes
                 .iter()
-                .any(|q| q.start == anchor && q.start < sel.start && sel.end < q.end)
+                .any(|q| q.start == anchor && q.start < from_doc && to_doc < q.end)
         {
             self.edit_quote = None;
             return true;
@@ -544,6 +557,20 @@ impl EditorCore {
         format::is_active(&model, self.sel.start, kind)
     }
 
+    /// Whether table `t` is shown as a table: not when it is inside a quoted message other than
+    /// the one being edited (that one shows as its panel, and the cursor never goes into it).
+    fn table_shown(&self, t: &MarkdownTable) -> bool {
+        !self.quotes.iter().any(|q| {
+            q.header_line < t.header_line
+                && t.last_line < q.close_line
+                && Some(q.start) != self.edit_quote
+        })
+    }
+
+    fn shown_tables(&self) -> impl Iterator<Item = &MarkdownTable> {
+        self.tables.iter().filter(|t| self.table_shown(t))
+    }
+
     /// Role of line `index` in a closed code block whose fence lines show nothing (rendered
     /// mode): `Some(true)` for the opening fence, `Some(false)` for the closing fence (it holds the
     /// language box).
@@ -557,12 +584,11 @@ impl EditorCore {
                 .find(|l| l.kind != LineKind::FenceBody)
                 .is_some_and(|l| l.kind == LineKind::FenceClose)
                 .then_some(true),
-            LineKind::FenceClose if line.quote_depth == 0 => {
-                let open = lines[..index]
-                    .iter()
-                    .rposition(|l| l.kind == LineKind::FenceOpen)?;
-                (lines[open].fence == Some(FenceKind::Code)).then_some(false)
-            }
+            // Its opening fence is the nearest one at the same depth (a code block may be in a quote)
+            LineKind::FenceClose if line.fence == Some(FenceKind::Code) => lines[..index]
+                .iter()
+                .any(|l| l.kind == LineKind::FenceOpen && l.fence_depth == line.fence_depth)
+                .then_some(false),
             _ => None,
         }
     }
@@ -570,7 +596,7 @@ impl EditorCore {
     /// Line `index` starts a block shown whole (table, collapsed quote, code block opening fence):
     /// an empty slot is shown before it when the previous block is shown whole too.
     fn starts_atomic_block(&self, index: usize) -> bool {
-        self.tables.iter().any(|t| t.header_line == index)
+        self.shown_tables().any(|t| t.header_line == index)
             || self
                 .quotes
                 .iter()
@@ -1122,6 +1148,7 @@ impl EditorCore {
             self.edit_quote = Some(q.start);
             self.sel = Sel::caret(q.body_start);
             self.rev += 1;
+            self.settle();
         }
     }
 
@@ -1250,8 +1277,25 @@ impl EditorCore {
                         let header = &self.text[line.start..line.end];
                         let html = quote_panel(q, quote, header, &preview, None, true);
                         blocks.push((Block::line(html), true));
-                        for k in i + 1..=quote.close_line {
-                            blocks.push((Block::line(ctx.line_html(k, "zl-qcard")), false));
+                        let mut k = i + 1;
+                        while k <= quote.close_line {
+                            if let Some((index, t)) = self
+                                .tables
+                                .iter()
+                                .enumerate()
+                                .find(|(_, t)| t.header_line == k)
+                            {
+                                let block = ctx.table_block(*t, index, |r, c, value| {
+                                    self.cell_blocks(index, r, c, value)
+                                });
+                                blocks.push((block, true));
+                                k = t.last_line + 1;
+                                continue;
+                            }
+                            // Fence lines of a code block are whole blocks (as outside quotes)
+                            let atomic = !self.source && self.code_fence_role(k).is_some();
+                            blocks.push((Block::line(ctx.line_html(k, "zl-qcard")), atomic));
+                            k += 1;
                         }
                     } else {
                         let src = self.quote_src(quote);
@@ -1309,13 +1353,32 @@ impl EditorCore {
         .to_owned()
     }
 
+    /// Title text of a quote panel: the first line of text of the quoted message; with no text
+    /// (only an empty code block, a quote, ...), what it holds, such as "[代码]" or "[引用]".
     fn quote_preview(&self, q: &QuoteBlock) -> String {
-        self.quote_body(q)
+        let first = self
+            .quote_body(q)
             .lines()
             .map(str::trim)
             .find(|l| !l.is_empty())
             .unwrap_or_default()
-            .to_owned()
+            .to_owned();
+        if !first.is_empty() {
+            return first;
+        }
+        let body = &self.text[q.body_start..q.body_end];
+        if body.trim().is_empty() {
+            return String::new();
+        }
+        let kinds = markdown::to_preview(body, &self.lookup, &|name| {
+            self.lookup.emoji.get(name).and_then(|e| e.text.clone())
+        });
+        // The preview leaves out quotes: a message that is only a quote
+        if kinds.is_empty() {
+            "[引用]".to_owned()
+        } else {
+            kinds
+        }
     }
 
     /// Displayed text (for copying to other programs); in source mode what is displayed is the
@@ -1962,6 +2025,76 @@ ab
         assert!(c.blocks().len() > 3);
         assert!(c.set_sel(Sel::caret(0)));
         assert_eq!(c.blocks().len(), 3);
+    }
+
+    #[test]
+    fn quote_without_text_shows_what_it_holds() {
+        let head = "@_**张三|5** [发言道](https://z.test/#narrow/near/9)：
+````quote
+";
+        for (body, expected) in [
+            (
+                "```
+
+```",
+                "张三：[代码]",
+            ),
+            (
+                "```math
+
+```",
+                "张三：[公式]",
+            ),
+            // A quote with text shows the text
+            (
+                "```quote
+你好
+```",
+                "张三：&gt; 你好",
+            ),
+        ] {
+            let c = core(&format!(
+                "{head}{body}
+````"
+            ));
+            let html = c.blocks()[1].html.clone().unwrap();
+            assert!(html.contains(expected), "{body}: {html}");
+        }
+    }
+
+    #[test]
+    fn table_in_quote_shows_while_the_quote_is_edited() {
+        let text = "@_**张三|5** [发言道](https://z.test/#narrow/near/9)：
+```quote
+| a | b |
+| --- | --- |
+| 1 | 2 |
+```";
+        let mut c = core(text);
+        assert!(c.blocks().iter().all(|b| b.table.is_none()));
+        // Collapsed: the cursor never goes into its table
+        c.apply(&MarkdownEdit::new(0, 0, String::new(), 70, 70));
+        assert_eq!(c.sel.cell, None);
+        c.edit_quote(0);
+        let tables: Vec<_> = c.blocks().into_iter().filter_map(|b| b.table).collect();
+        assert_eq!(tables.len(), 1);
+        assert!(tables[0].quoted);
+        // The quote starts with the table: the cursor is in its first cell, still editing
+        assert_eq!(c.sel.cell.map(|p| (p.row, p.col)), Some((0, 0)));
+        let cell = Sel {
+            start: 0,
+            end: 0,
+            cell: Some(CellPos {
+                table: 0,
+                row: 1,
+                col: 1,
+            }),
+        };
+        assert!(!c.set_sel(cell));
+        assert!(c.blocks().iter().any(|b| b.table.is_some()));
+        // Leaving the quote ends editing and hides the table again
+        assert!(c.set_sel(Sel::caret(0)));
+        assert!(c.blocks().iter().all(|b| b.table.is_none()));
     }
 
     #[test]

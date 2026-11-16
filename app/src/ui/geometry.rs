@@ -49,6 +49,8 @@ pub enum Placement {
     Top,
     /// To the right of the anchor, top-aligned.
     RightStart,
+    /// To the left of the anchor, top-aligned (to the right when it does not fit).
+    LeftStart,
 }
 
 /// Computes the top-left corner of an overlay. `gap` is the distance between the overlay and the
@@ -85,6 +87,15 @@ pub fn place(
                 right
             } else {
                 anchor.x - gap - w
+            };
+            (x, anchor.y)
+        }
+        Placement::LeftStart => {
+            let left = anchor.x - gap - w;
+            let x = if left >= SCREEN_MARGIN {
+                left
+            } else {
+                anchor.right() + gap
             };
             (x, anchor.y)
         }
@@ -239,6 +250,25 @@ mod tests {
         );
         assert_eq!(menu.0, 700.0);
         assert_eq!(bar.0, 492.0);
+    }
+
+    #[test]
+    fn left_start_flips_right_when_it_does_not_fit() {
+        let row = Rect {
+            x: 600.0,
+            y: 100.0,
+            w: 200.0,
+            h: 30.0,
+        };
+        assert_eq!(
+            place(row, (300.0, 100.0), VIEW, Placement::LeftStart, 8.0),
+            (292.0, 100.0)
+        );
+        let near_left = Rect { x: 100.0, ..row };
+        assert_eq!(
+            place(near_left, (300.0, 100.0), VIEW, Placement::LeftStart, 8.0).0,
+            308.0
+        );
     }
 
     #[test]

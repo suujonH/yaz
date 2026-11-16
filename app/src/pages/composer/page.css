@@ -42,7 +42,7 @@
 }
 .composer-table-bar > div { display: flex; gap: 2px; pointer-events: auto; background: var(--panel-bg); border-radius: var(--radius-sm); }
 .composer-table-bar .icon-btn.active { color: var(--brand); }
-.composer-grid { display: grid; gap: 2px; padding: 8px; }
+.composer-grid { display: grid; gap: 2px; padding: 8px; cursor: pointer; }
 .composer-grid-cell { width: 13px; height: 13px; border-radius: 2px; background: var(--fill); cursor: pointer; }
 .composer-grid-cell.on { background: var(--brand); opacity: 0.4; }
 .composer-grid-cell.on.head { opacity: 0.8; }
@@ -117,6 +117,12 @@
 .zl-first { border-top-left-radius: var(--radius); border-top-right-radius: var(--radius); }
 .zl-last { border-bottom-left-radius: var(--radius); border-bottom-right-radius: var(--radius); }
 .zl-qcard { background: var(--quote-card); }
+/* A code block inside a quote keeps the code background */
+.zl-bq.zl-bc-in { background-color: var(--fill); }
+.zl-mono.zl-bc-in-last { padding-bottom: 4px; }
+/* Inside other blocks: one layer of gray per enclosing block, over the block's own background */
+.zl-n1 { --zx: 1; } .zl-n2 { --zx: 2; } .zl-n3 { --zx: 3; } .zl-n4 { --zx: 4; }
+.zl-nest { background-image: linear-gradient(rgb(var(--nest-rgb) / calc(var(--nest-a) * var(--zx))), rgb(var(--nest-rgb) / calc(var(--nest-a) * var(--zx)))); }
 .zm { display: none; }
 .zr.open > .zm, .zl.open > .zm { display: inline; color: var(--text-tertiary); font-weight: 400; font-style: normal; }
 .zl.open > .zf, .zr.open > .zf { display: none; }
@@ -151,6 +157,8 @@
 .zphantom { color: transparent; caret-color: var(--text-primary); }
 
 .zt { padding-top: 30px; margin: 2px 0; cursor: default; }
+/* A table inside a quote: on the quote's card, joined to the lines above and below */
+.zt.zt-quote { margin: 0; padding-left: 8px; padding-right: 8px; background-color: var(--quote-card); }
 .zt-scroll { overflow-x: auto; overflow-y: hidden; padding-bottom: 10px; }
 .zt-scroll.scroll { cursor: default; --thumb-color: var(--scroll-thumb); }
 .zt table { border-collapse: collapse; table-layout: fixed; }
@@ -183,4 +191,10 @@
 .zq-plain { white-space: pre-wrap; }
 .zq-body p { margin: 0; }
 .zq-body .img-preview { cursor: default; }
+/* The quote panel is one more block around the quoted message: its blocks show the panel's color
+   with one more layer of gray, like blocks inside quotes in the chat */
+.zq-body.msg-html > :is(.quote, .code-block, .spoiler) {
+  background-color: var(--quote-card);
+  background-image: linear-gradient(rgb(var(--nest-rgb) / var(--nest-a)), rgb(var(--nest-rgb) / var(--nest-a)));
+}
 @keyframes zq-open { from { opacity: 0; transform: translateY(-6px); } }

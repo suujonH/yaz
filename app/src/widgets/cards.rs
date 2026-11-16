@@ -183,8 +183,10 @@ fn close_card(handle: Option<PopoverHandle>) {
     }
 }
 
+/// A user's card. `handle`: the popup it is shown in (closed by its actions); `None` when shown
+/// elsewhere (the profile pane, the member card of a chat).
 #[component]
-fn UserCard(user_id: i64, handle: Option<PopoverHandle>) -> Element {
+pub fn UserCard(user_id: i64, handle: Option<PopoverHandle>) -> Element {
     let state = use_app_state();
     let overlays = use_overlays();
     let data = use_session_data(user_changed, move |s| read_user(s, user_id));

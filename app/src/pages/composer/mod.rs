@@ -423,6 +423,8 @@ fn Toolbar() -> Element {
     let rich = !(ctl.source)();
     let in_code = ctl.view.read().in_code;
     let in_cell = ctl.view.read().table.is_some();
+    // Files cannot be uploaded while not connected
+    let connected = *ctl.connected.read();
     rsx! {
         div {
             class: "composer-toolbar",
@@ -445,10 +447,10 @@ fn Toolbar() -> Element {
                     }
                 }
                 Tooltip { text: "发送文件",
-                    IconButton { icon: IconName::Folder, onclick: move |_| ctl.pick_and_upload(false) }
+                    IconButton { icon: IconName::Folder, disabled: !connected, onclick: move |_| ctl.pick_and_upload(false) }
                 }
                 Tooltip { text: "发送图片",
-                    IconButton { icon: IconName::Image, onclick: move |_| ctl.pick_and_upload(true) }
+                    IconButton { icon: IconName::Image, disabled: !connected, onclick: move |_| ctl.pick_and_upload(true) }
                 }
                 plugin_tools::PluginTools {}
             }
@@ -676,9 +678,16 @@ fn SizeGrid(handle: PopoverHandle, ctl: Ctl) -> Element {
     let shown_columns = GRID_COLUMNS.max(current_columns).min(MAX_COLUMNS);
     let shown_rows = GRID_ROWS.max(current_rows).min(MAX_ROWS);
     rsx! {
+        // The click is on the whole grid (also the gaps between cells and its edge): the range
+        // highlighted by the last cell the pointer entered is applied
         div {
             class: "composer-grid",
             style: "grid-template-columns:repeat({shown_columns},13px)",
+            onclick: move |_| {
+                let (columns, rows) = hover();
+                handle.close();
+                ctl.edit(|core| core.table_op(|t, at| Some(t.resize(at, columns, rows))));
+            },
             for r in 1..=shown_rows {
                 for c in 1..=shown_columns {
                     div {
@@ -689,10 +698,6 @@ fn SizeGrid(handle: PopoverHandle, ctl: Ctl) -> Element {
                             _ => "composer-grid-cell",
                         },
                         onmouseenter: move |_| hover.set((c.max(2), r)),
-                        onclick: move |_| {
-                            handle.close();
-                            ctl.edit(|core| core.table_op(|t, at| Some(t.resize(at, c.max(2), r))));
-                        },
                     }
                 }
             }
@@ -747,14 +752,15 @@ fn Footer(permitted: bool) -> Element {
                 if editing { "保存" } else { "发送" }
             }
             span { class: "composer-send-split" }
-            // The send-mode setting does not need posting permission and is always available; menu
-            // items that cannot be used disable themselves
+            // The send-mode setting does not need posting permission (menu items that cannot be used
+            // disable themselves); not online, nothing can be sent at all
             Tooltip { text: "发送设置",
                 IconButton {
                     icon: IconName::ChevronDown,
                     class: "composer-send-more",
                     size: 32.0,
                     icon_size: 14.0,
+                    disabled: !connected,
                     onclick: move |e: MouseEvent| {
                         let at = e.client_coordinates();
                         ctl.overlays.show_menu(at.x, at.y, send_menu(ctl));

@@ -207,6 +207,7 @@ fn FriendManagerBody() -> Element {
                 }
                 div { class: "friend-nav-add",
                     Button {
+                        class: "friend-add-group",
                         icon: IconName::Add,
                         onclick: move |_| {
                             let Some(session) = state.session.peek().clone() else { return };
@@ -230,6 +231,8 @@ fn FriendManagerBody() -> Element {
                     }
                 }
             }
+            // Laid out like a row (checkbox, avatar, nickname, note, group) so the columns line up;
+            // the group column holds a hidden copy of the dropdown, which sets its width
             div { class: "friend-head",
                 Checkbox {
                     checked: all_selected,
@@ -239,10 +242,16 @@ fn FriendManagerBody() -> Element {
                             selection.replace(if checked { list.iter().map(|f| f.id).collect() } else { Vec::new() });
                         }
                     },
-                    "昵称"
                 }
-                span { class: "friend-cell", "备注" }
-                span { class: "friend-cell", "分组" }
+                span { class: "friend-head-avatar" }
+                span { class: "friend-name", "昵称" }
+                span { class: "friend-remark", "备注" }
+                div { class: "friend-group",
+                    span { "分组" }
+                    div { class: "friend-group-ghost",
+                        Select { options: group_options(&snapshot.groups), value: NO_GROUP, disabled: true }
+                    }
+                }
             }
             ResultList {
                 keys: keys(),
@@ -279,6 +288,17 @@ fn FriendManagerBody() -> Element {
     }
 }
 
+/// Options of the group dropdown: "My friends" (no group), then the groups.
+fn group_options(groups: &[FriendGroup]) -> Vec<SelectOption> {
+    std::iter::once(SelectOption::new(NO_GROUP, "我的好友"))
+        .chain(
+            groups
+                .iter()
+                .map(|g| SelectOption::new(g.id.to_string(), g.name.clone())),
+        )
+        .collect()
+}
+
 #[component]
 fn FriendRow(friend: Friend, groups: Rc<Vec<FriendGroup>>, selection: Selection) -> Element {
     let state = use_app_state();
@@ -287,13 +307,7 @@ fn FriendRow(friend: Friend, groups: Rc<Vec<FriendGroup>>, selection: Selection)
     let group_value = friend
         .group
         .map_or_else(|| NO_GROUP.to_owned(), |g| g.to_string());
-    let options: Vec<SelectOption> = std::iter::once(SelectOption::new(NO_GROUP, "我的好友"))
-        .chain(
-            groups
-                .iter()
-                .map(|g| SelectOption::new(g.id.to_string(), g.name.clone())),
-        )
-        .collect();
+    let options = group_options(&groups);
     let move_to = move |group: Option<i64>| {
         if let Some(session) = state.session.peek().as_ref()
             && let Err(error) = session.move_friends(&[id], group)
@@ -333,7 +347,7 @@ fn FriendRow(friend: Friend, groups: Rc<Vec<FriendGroup>>, selection: Selection)
             title: friend.nickname.clone(),
             trailing: rsx! {
                 span {
-                    class: if friend.remark.is_empty() && !editing() { "friend-cell friend-remark empty" } else { "friend-cell friend-remark" },
+                    class: if friend.remark.is_empty() && !editing() { "friend-remark empty" } else { "friend-remark" },
                     // Clicks on the note (and inside its edit box) do not toggle the row
                     onclick: move |e| {
                         e.stop_propagation();
@@ -353,7 +367,7 @@ fn FriendRow(friend: Friend, groups: Rc<Vec<FriendGroup>>, selection: Selection)
                         "{friend.remark}"
                     }
                 }
-                div { class: "friend-cell",
+                div { class: "friend-group",
                     Select {
                         options,
                         value: group_value,

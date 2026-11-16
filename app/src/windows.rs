@@ -11,7 +11,6 @@ use crate::pages::settings::SettingsTarget;
 use crate::services::services;
 use crate::shell::{WindowSpec, close_window, open_with_args, prepare_with_args};
 use crate::state::{AppCommand, FocusRequest, send_command};
-use dioxus::desktop::tao::dpi::PhysicalPosition;
 use dioxus::dioxus_core::spawn_forever;
 use dioxus::prelude::*;
 use std::cell::Cell;
@@ -162,6 +161,16 @@ pub fn show_chat_in_main(account: i64, key: ConversationKey, focus: Option<i64>)
             focus,
         });
         send_command(AppCommand::ShowMain);
+    }
+}
+
+/// Open a conversation in a standalone window whatever the window setting is (a DM with the
+/// notification bot opens the system notifications).
+pub fn open_chat_standalone(account: i64, key: ConversationKey) {
+    if is_notification_bot(account, &key) {
+        open_system_notices(account);
+    } else {
+        open_chat_window_at(account, key, None);
     }
 }
 
@@ -419,15 +428,21 @@ pub fn show_notification(
     );
 }
 
-/// Tray message list (hovering the tray icon while it blinks); `anchor` is the icon's screen
-/// position.
-pub fn open_tray_messages(anchor: PhysicalPosition<f64>) {
+/// Window key of the tray message list.
+pub const TRAY_MESSAGES: &str = "tray-messages";
+
+/// Tray message list (hovering the tray icon while it blinks); `icon` is where the icon is.
+pub fn open_tray_messages(icon: crate::platform::IconBox) {
+    // Hovering sends this on every mouse move over the icon; an open list stays where it is
+    if crate::shell::is_open(TRAY_MESSAGES) {
+        return;
+    }
     open_with_args(
-        WindowSpec::new("tray-messages", "YaZ", (300.0, 200.0))
+        WindowSpec::new(TRAY_MESSAGES, "YaZ", (300.0, 200.0))
             .fixed()
             .popup(),
         pages::tray_messages::TrayMessagesWindow,
-        (anchor.x, anchor.y),
+        icon,
         None,
     );
 }

@@ -13,10 +13,12 @@
   const isBlock = (n) => n.nodeType === 1 && BLOCK.test(n.tagName);
   const isPhantom = (n) => n.classList.contains("zphantom") && !n.textContent;
   const isAtomic = (n) => n.dataset.src !== undefined;
-  // A line of a code block: its block ends at the closing line holding the language box
+  // A line of a code block (in a quote too): its block ends at the closing line holding the
+  // language box
+  const CODE_LINE = ".zl-bc, .zl-bc-in";
   const inCodeBlock = (line) => {
     let n = line;
-    while (n && n.matches(".zl-bc")) n = n.nextElementSibling;
+    while (n && n.matches(CODE_LINE)) n = n.nextElementSibling;
     return n !== line && !!n && !!n.querySelector(".zlang-input");
   };
   // Quote and list markers at the line start (same as markdown::markup in zulip-core): for a line
@@ -458,6 +460,9 @@
       if (!fresh && dims(current) !== dims(t.rows)) return false;
       node.dataset.src = t.src;
       node.dataset.t = t.index;
+      node.classList.toggle("zt-quote", !!t.quoted);
+      node.classList.toggle("zl-nest", t.nest > 0);
+      node.style.setProperty("--zx", t.nest);
       node._key = b.key;
       const cols = table.querySelector("colgroup");
       if (cols.children.length !== t.rows[0].length) {
@@ -745,7 +750,7 @@
         const at = node && (node.nodeType === 1 ? node : node.parentElement);
         let line = at && at.closest(".zl");
         if (line && inCodeBlock(line)) {
-          while (line.matches(".zl-bc")) line = line.nextElementSibling;
+          while (line.matches(CODE_LINE)) line = line.nextElementSibling;
           close = line;
         }
       }

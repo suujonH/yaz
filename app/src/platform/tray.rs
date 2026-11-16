@@ -1,7 +1,6 @@
 //! System tray: icon, menu, left click, flashing.
 
 use super::ICON_RESOURCE_ID;
-use dioxus::desktop::tao::dpi::PhysicalPosition;
 use dioxus::desktop::trayicon::menu::{Menu, MenuItem, PredefinedMenuItem};
 use dioxus::desktop::trayicon::{
     Icon, MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent,
@@ -22,13 +21,21 @@ pub enum TrayItem {
     Separator,
 }
 
+/// Where the tray icon is on the screen (physical pixels).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct IconBox {
+    pub x: f64,
+    pub y: f64,
+    pub width: f64,
+    pub height: f64,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum TrayEvent {
-    /// Left click (also stops flashing).
+    /// Left click.
     LeftClick,
-    /// Mouse hover while flashing; the argument is the top-left corner of the icon on screen
-    /// (physical pixels).
-    Hover(PhysicalPosition<f64>),
+    /// Mouse hover while flashing; the argument is where the icon is.
+    Hover(IconBox),
     /// Flashing stopped.
     FlashingStopped,
     Menu(String),
@@ -38,6 +45,11 @@ struct TrayInner {
     icon: TrayIcon,
     app_icon: Option<Icon>,
     blank_icon: Option<Icon>,
+    /// Shown in turn with the blank icon while flashing: the avatar of the latest notification
+    /// (the app icon until it is ready).
+    avatar_icon: RefCell<Option<Icon>>,
+    /// Counts [`Tray::begin_avatar`]: an avatar finished for an older notification is dropped.
+    avatar_seq: Cell<u64>,
     tooltip: RefCell<String>,
     flashing: Cell<bool>,
     showing_blank: Cell<bool>,
@@ -83,9 +95,27 @@ impl Tray {
         }
     }
 
+    /// A new notification: until [`Tray::set_avatar`] is called with the returned number, the
+    /// flashing shows the app icon. Returns the number of this notification's avatar.
+    pub fn begin_avatar(&self) -> u64 {
+        let seq = self.inner.avatar_seq.get() + 1;
+        self.inner.avatar_seq.set(seq);
+        self.inner.avatar_icon.replace(None);
+        seq
+    }
+
+    /// The avatar of notification `seq` (from [`Tray::begin_avatar`]) is ready: the flashing shows
+    /// it from the next tick. Dropped when a newer notification came since, or flashing stopped.
+    pub fn set_avatar(&self, seq: u64, icon: Option<Icon>) {
+        if seq == self.inner.avatar_seq.get() && self.inner.flashing.get() {
+            self.inner.avatar_icon.replace(icon);
+        }
+    }
+
     pub fn stop_flashing(&self) {
         if self.inner.flashing.replace(false) {
             self.inner.showing_blank.set(false);
+            self.inner.avatar_icon.replace(None);
             let _ = self.inner.icon.set_icon(self.inner.app_icon.clone());
             let _ = self
                 .inner
@@ -100,11 +130,15 @@ impl Tray {
             let blank = !self.inner.showing_blank.get();
             self.inner.showing_blank.set(blank);
             let icon = if blank {
-                &self.inner.blank_icon
+                self.inner.blank_icon.clone()
             } else {
-                &self.inner.app_icon
+                self.inner
+                    .avatar_icon
+                    .borrow()
+                    .clone()
+                    .or_else(|| self.inner.app_icon.clone())
             };
-            let _ = self.inner.icon.set_icon(icon.clone());
+            let _ = self.inner.icon.set_icon(icon);
         }
     }
 }
@@ -148,7 +182,9 @@ pub fn use_tray(
                 inner: Rc::new(TrayInner {
                     icon,
                     app_icon,
-                    blank_icon: Icon::from_rgba(vec![0; 32 * 32 * 4], 32, 32).ok(),
+                    blank_icon: super::tray_avatar::blank_icon(),
+                    avatar_icon: RefCell::new(None),
+                    avatar_seq: Cell::new(0),
                     tooltip: RefCell::new(tooltip.to_string()),
                     flashing: Cell::new(false),
                     showing_blank: Cell::new(false),
@@ -169,13 +205,20 @@ pub fn use_tray(
             button_state: MouseButtonState::Up,
             ..
         } => {
-            if let Some(tray) = &for_events {
-                tray.stop_flashing();
-            }
             on_event.call(TrayEvent::LeftClick);
         }
-        TrayIconEvent::Enter { rect, .. } if for_events.as_ref().is_some_and(Tray::is_flashing) => {
-            on_event.call(TrayEvent::Hover(rect.position));
+        // Move too: tray-icon sends Enter only once until it sees the mouse leave, and it misses
+        // a leave when the mouse crossed the icon's edge with a single move, so a later visit
+        // only brings Move events
+        TrayIconEvent::Enter { rect, .. } | TrayIconEvent::Move { rect, .. }
+            if for_events.as_ref().is_some_and(Tray::is_flashing) =>
+        {
+            on_event.call(TrayEvent::Hover(IconBox {
+                x: rect.position.x,
+                y: rect.position.y,
+                width: f64::from(rect.size.width),
+                height: f64::from(rect.size.height),
+            }));
         }
         _ => {}
     });

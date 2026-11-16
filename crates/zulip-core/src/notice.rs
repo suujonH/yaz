@@ -5,6 +5,7 @@ use std::sync::LazyLock;
 
 use regex::{Captures, Regex};
 use scraper::{ElementRef, Node};
+use serde::{Deserialize, Serialize};
 
 use crate::html::{self, element_with_text, node_html};
 use crate::util::{ends_with_ignore_case, eq_ignore_case, static_regex};
@@ -21,7 +22,7 @@ const MODERATION_SUFFIXES: [&str; 2] = [" moderation", " 提到了您："];
 const NOTE_PREFIX: &str = " Note:";
 
 /// How a Notification Bot message is displayed.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub enum SystemNoticeKind {
     /// Not a Notification Bot message; shown as a normal message.
     #[default]

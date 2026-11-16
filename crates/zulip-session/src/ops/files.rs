@@ -244,6 +244,11 @@ impl Session {
     }
 
     pub async fn file_size(&self, upload_path: &str) -> Result<Option<u64>> {
+        // Not connected: no request; known only when the file is in the cache
+        if self.connection() != crate::event::ConnectionState::Connected {
+            let target = self.files_root().join(cache_relative(upload_path));
+            return Ok(std::fs::metadata(target).ok().map(|m| m.len()));
+        }
         Ok(self
             .client
             .head_size(upload_path.trim_start_matches('/'))

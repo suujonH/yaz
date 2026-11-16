@@ -300,7 +300,7 @@
   // The body is user-select: none, so pressing on a non-selectable spot (blank area, avatar, bubble
   // padding) does not collapse the existing selection by itself; clear it here
   const clearPicked = () => {
-    for (const el of document.querySelectorAll(".bubble.picked")) el.classList.remove("picked");
+    for (const el of document.querySelectorAll(".bubble.picked, .img-preview.picked")) el.classList.remove("picked");
   };
   const onMouseDown = (e) => {
     if (e.button !== 0 || !paneOf(e.target) || !(e.target instanceof Element)) return;
@@ -311,9 +311,13 @@
     // Multi-select mode has its own checked state, so it is left alone.
     clearPicked();
     const bubble = t.closest(".bubble");
-    if (bubble && !bubble.classList.contains("bare") && !list.querySelector(".msg-check") && !t.closest("input, textarea, button, a, .img-preview, .reaction-chip")) {
+    const multi = list.querySelector(".msg-check");
+    if (bubble && !bubble.classList.contains("bare") && !multi && !t.closest("input, textarea, button, a, .img-preview, .reaction-chip")) {
       bubble.classList.add("picked");
     }
+    // An image is picked on its own (a grey layer, like a picked bubble)
+    const image = t.closest(".img-preview");
+    if (image && !multi) image.classList.add("picked");
     if (t.closest(".selectable, input, textarea, [contenteditable=true]")) return;
     const sel = document.getSelection();
     if (sel && !sel.isCollapsed) sel.removeAllRanges();

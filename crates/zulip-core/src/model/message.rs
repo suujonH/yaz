@@ -27,7 +27,8 @@ pub struct Submessage {
 }
 
 /// The part of the server flags used by this client. `starred` is the only source of starring.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
 pub struct MessageFlags {
     pub read: bool,
     pub starred: bool,
@@ -75,7 +76,7 @@ impl MessageFlags {
 }
 
 /// Local echo: send information of a message not yet confirmed by the server.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LocalEcho {
     /// The `local_id` at send time, used by `retry_send` and `discard_failed`.
     pub local_id: String,
@@ -84,7 +85,7 @@ pub struct LocalEcho {
 }
 
 /// Lifecycle state of a message.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum MessageState {
     /// A message on the server.
     #[default]
@@ -99,7 +100,8 @@ pub enum MessageState {
 
 /// A message. The `id` of a server message is positive; the `id` of a local echo message is negative,
 /// and it is replaced by the real message after the server's message event arrives.
-#[derive(Clone, Debug, PartialEq)]
+/// Serializable for the local copy kept for offline viewing.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ChatMessage {
     pub id: i64,
     pub key: ConversationKey,

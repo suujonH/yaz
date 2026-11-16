@@ -18,7 +18,7 @@ use crate::shell::{
 };
 use crate::startup::WAIT_PID_ARG;
 use crate::state::{AppCommand, send_command, use_app_command, use_plugin_events_resync};
-use crate::ui::{Overlays, use_overlays};
+use crate::ui::{Overlays, initial, palette_color, use_overlays};
 use crate::widgets::{ask_plugin_dialog, open_notification_target, plugin_text};
 use crate::windows;
 use dioxus::desktop::tao::dpi::{LogicalSize, PhysicalPosition};
@@ -373,6 +373,85 @@ thread_local! {
     // Components are not dropped when the process exits, so the tray icon must be hidden first or
     // it lingers in the notification area
     static TRAY: RefCell<Option<Tray>> = const { RefCell::new(None) };
+    /// The notifications the tray flashes for, oldest first (one per conversation): it flashes
+    /// while any is left, with the avatar of the newest.
+    static FLASHING: RefCell<Vec<Flashing>> = const { RefCell::new(Vec::new()) };
+}
+
+/// A conversation waiting to be seen: its latest notification. `key` is `None` for a message
+/// reminder (all reminders of an account are one entry).
+struct Flashing {
+    account: i64,
+    key: Option<ConversationKey>,
+    request: NotificationRequest,
+}
+
+/// A notification makes the tray flash for its conversation (an earlier one of the same
+/// conversation is replaced), with its avatar.
+fn flash_for(tray: &Tray, account: i64, request: NotificationRequest) {
+    let key = (!request.is_reminder).then(|| request.key.clone());
+    FLASHING.with_borrow_mut(|list| {
+        list.retain(|f| !(f.account == account && f.key == key));
+        list.push(Flashing {
+            account,
+            key,
+            request: request.clone(),
+        });
+    });
+    tray.start_flashing();
+    flash_avatar(tray, account, &request);
+}
+
+/// Clears the conversations for which `seen` holds. With none left the tray stops flashing;
+/// otherwise when the newest was cleared it flashes the avatar of the newest left.
+fn clear_flashing(tray: &Tray, seen: impl Fn(&Flashing) -> bool) {
+    let (changed, newest) = FLASHING.with_borrow_mut(|list| {
+        let before = list.last().map(|f| (f.account, f.key.clone()));
+        let len = list.len();
+        list.retain(|f| !seen(f));
+        let after = list.last().map(|f| (f.account, f.key.clone()));
+        let newest = (after != before)
+            .then(|| list.last().map(|f| (f.account, f.request.clone())))
+            .flatten();
+        (list.len() != len, newest)
+    });
+    if !changed {
+        return;
+    }
+    if FLASHING.with_borrow(Vec::is_empty) {
+        tray.stop_flashing();
+    } else if let Some((account, request)) = newest {
+        flash_avatar(tray, account, &request);
+    }
+}
+
+/// Clicking the flashing tray icon: opens the conversation of the newest notification (in the main
+/// window or a standalone one, as set) and stops flashing for it; it keeps flashing for the others,
+/// with the avatar of the newest left. With nothing flashing it shows the main window.
+fn open_newest_flashing(tray: &Tray) {
+    let Some((account, key, message_id)) = FLASHING.with_borrow(|list| {
+        list.last()
+            .map(|f| (f.account, f.key.clone(), f.request.message_id))
+    }) else {
+        send_command(AppCommand::ShowMain);
+        return;
+    };
+    open_notification_target(account, key.clone(), message_id);
+    clear_flashing(tray, |f| f.account == account && f.key == key);
+}
+
+/// Clears the conversations that no longer need a reminder: read (here or elsewhere), and the
+/// reminders of an account with no unread delivered reminder left.
+fn clear_read_flashing(tray: &Tray) {
+    clear_flashing(tray, |f| {
+        let Some(session) = services().hub.session(f.account) else {
+            return true;
+        };
+        match &f.key {
+            Some(key) => session.unread_count(key) == 0,
+            None => session.delivered_reminders().iter().all(|n| n.is_read),
+        }
+    });
 }
 
 /// Quit flow: stop update checks -> close child windows (each window finishes up in `use_drop`) ->
@@ -444,14 +523,6 @@ fn tray_tooltip() -> String {
 }
 
 /// All accounts have no unread messages and no reminders for muted conversations.
-fn nothing_unread() -> bool {
-    services()
-        .hub
-        .online_sessions()
-        .iter()
-        .all(|s| s.total_unread_for_badge() == 0 && s.unread_muted_alert_keys().is_empty())
-}
-
 fn plugin_name(plugin_id: &str) -> String {
     crate::services::plugins()
         .plugin(plugin_id)
@@ -637,9 +708,17 @@ fn AppRuntime(restore: bool) -> Element {
     let tray = use_tray(&tray_tooltip(), TRAY_ITEMS, {
         let window = window.clone();
         move |event| match event {
+            // Through a command: stopping the flashing reports FlashingStopped through this same
+            // handler, which must not run again inside itself
+            TrayEvent::LeftClick if FLASHING.with_borrow(|list| !list.is_empty()) => {
+                send_command(AppCommand::OpenNewestFlashing);
+            }
             TrayEvent::LeftClick => activate(&window),
             TrayEvent::Hover(position) => windows::open_tray_messages(position),
-            TrayEvent::FlashingStopped => send_command(AppCommand::TrayFlashingStopped),
+            TrayEvent::FlashingStopped => {
+                FLASHING.with_borrow_mut(Vec::clear);
+                send_command(AppCommand::TrayFlashingStopped);
+            }
             TrayEvent::Menu(id) => match id.as_str() {
                 "show" => activate(&window),
                 "logout" => {
@@ -680,6 +759,22 @@ fn AppRuntime(restore: bool) -> Element {
             create_spare();
         })
     });
+    use_app_command({
+        let tray = tray.clone();
+        move |command| {
+            let Some(tray) = tray.as_ref() else { return };
+            match command {
+                AppCommand::StopTrayFlashing => clear_flashing(tray, |_| true),
+                AppCommand::OpenNewestFlashing => open_newest_flashing(tray),
+                AppCommand::ChatViewed { account, key } => {
+                    clear_flashing(tray, |f| {
+                        f.account == account && f.key.as_ref() == Some(&key)
+                    });
+                }
+                _ => {}
+            }
+        }
+    });
     use_app_command(|command| {
         if command == AppCommand::RefillSpareWindow {
             spawn(async {
@@ -709,23 +804,6 @@ fn AppRuntime(restore: bool) -> Element {
             }
         }
     });
-
-    {
-        let tray = tray.clone();
-        let window = window.clone();
-        use_wry_event_handler(move |event, _| {
-            if let Event::WindowEvent {
-                event: WindowEvent::Focused(true),
-                window_id,
-                ..
-            } = event
-                && *window_id == window.id()
-                && let Some(tray) = tray.as_ref()
-            {
-                tray.stop_flashing();
-            }
-        });
-    }
 
     // Online presence "active/idle": keyboard and mouse input while this program's window is in the
     // foreground counts as input for all logged-in accounts
@@ -764,11 +842,12 @@ fn AppRuntime(restore: bool) -> Element {
                         {
                             apply_theme();
                         }
-                        SessionEvent::UnreadChanged(_) | SessionEvent::ConversationsChanged => {
-                            if nothing_unread()
-                                && let Some(tray) = tray.as_ref()
-                            {
-                                tray.stop_flashing();
+                        SessionEvent::UnreadChanged(_)
+                        | SessionEvent::ConversationsChanged
+                        | SessionEvent::RemindersChanged
+                        | SessionEvent::SystemNoticesChanged => {
+                            if let Some(tray) = tray.as_ref() {
+                                clear_read_flashing(tray);
                             }
                         }
                         SessionEvent::Notification(request) => {
@@ -806,10 +885,43 @@ fn on_notification(
     }
     platform::flash_taskbar(window);
     if let Some(tray) = tray {
-        tray.start_flashing();
+        flash_for(tray, account, request.clone());
     }
     if request.show_popup {
         windows::show_notification(account, request, NotificationClick::OpenTarget);
+    }
+}
+
+/// The tray flashes the avatar of the notification (the same avatar as its popup): a text avatar
+/// right away, an image avatar once downloaded (its text avatar when it cannot be read).
+fn flash_avatar(tray: &Tray, account: i64, request: &NotificationRequest) {
+    let seq = tray.begin_avatar();
+    let text_icon = |text: &str, color: Option<&str>| {
+        platform::text_icon(&initial(text), color.unwrap_or_else(|| palette_color(text)))
+    };
+    match &request.avatar {
+        NotificationAvatar::Text { text, color } => {
+            tray.set_avatar(
+                seq,
+                text_icon(
+                    text,
+                    Some(color).filter(|c| !c.is_empty()).map(|c| c.as_str()),
+                ),
+            );
+        }
+        NotificationAvatar::Image(url) => {
+            let (tray, url, title) = (tray.clone(), url.clone(), request.title.clone());
+            spawn(async move {
+                let path = match services().hub.session(account) {
+                    Some(session) => session.image_file(&url).await.ok(),
+                    None => None,
+                };
+                let icon = path
+                    .and_then(|p| platform::image_icon(&p))
+                    .or_else(|| text_icon(&title, None));
+                tray.set_avatar(seq, icon);
+            });
+        }
     }
 }
 

@@ -14,7 +14,7 @@ use zulip_api::{ApiError, MessageQuery, NarrowTerm, RegisterResult, ZulipClient}
 use zulip_core::ConversationKey;
 use zulip_core::model::ChatMessage;
 use zulip_core::notice::SystemNoticeKind;
-use zulip_store::{AccountRepo, AppPaths, Db};
+use zulip_store::{AccountRepo, AppPaths, Db, RegisterSnapshotRepo};
 
 use crate::convert::message_from_dto;
 use crate::error::{Result, SessionError};
@@ -95,18 +95,128 @@ impl Session {
     ) -> Result<Arc<Self>> {
         let cancel = CancellationToken::new();
         let client = client.with_cancel(cancel.clone());
-        let reg = client.register().await?;
+        let (reg, raw) = client.register_raw().await?;
         check_server(&reg)?;
-        let realm = client.realm_url().clone();
-        let stored = db.call(move |db| Stored::load(db, account_id)).await?;
-        let state = State::new(&reg, realm.as_str(), stored, &db, account_id);
-        AccountRepo::new(&db).update_profile(
+        let session = Self::build(
+            client,
+            cancel,
             account_id,
+            db,
+            paths,
+            hooks,
+            &reg,
+            ConnectionState::Connected,
+        )
+        .await?;
+        session.registered(&reg, &raw);
+        session.bootstrap(&reg).await?;
+        session.start_background();
+        Ok(session)
+    }
+
+    /// Opens the account with the data saved at its last login (the server's `register` response
+    /// and the stored messages) without contacting the server: the connection is
+    /// [`ConnectionState::Offline`] and timelines are read from the stored messages. `Ok(None)`
+    /// when nothing is saved. [`go_online`](Self::go_online) logs it in.
+    pub async fn open_offline(
+        client: ZulipClient,
+        account_id: i64,
+        db: Db,
+        paths: AppPaths,
+        hooks: Option<Arc<dyn SessionHooks>>,
+    ) -> Result<Option<Arc<Self>>> {
+        let json = db
+            .call(move |db| RegisterSnapshotRepo::new(db, account_id).load())
+            .await?;
+        let Some(json) = json else {
+            return Ok(None);
+        };
+        let reg: RegisterResult = match serde_json::from_str(&json) {
+            Ok(reg) => reg,
+            Err(error) => {
+                log::warn!("读取账号 {account_id} 保存的登录数据失败：{error}");
+                return Ok(None);
+            }
+        };
+        let cancel = CancellationToken::new();
+        let client = client.with_cancel(cancel.clone());
+        let session = Self::build(
+            client,
+            cancel,
+            account_id,
+            db,
+            paths,
+            hooks,
+            &reg,
+            ConnectionState::Offline,
+        )
+        .await?;
+        Ok(Some(session))
+    }
+
+    /// Logs in a session opened by [`open_offline`](Self::open_offline): registers, replaces the
+    /// saved state with the server's (like a resync) and starts the event loop. Does nothing when
+    /// already online; concurrent calls register only once.
+    pub async fn go_online(self: &Arc<Self>) -> Result<()> {
+        let gate = self.gate("online".to_owned());
+        let _guard = gate.lock().await;
+        if self.is_online() {
+            return Ok(());
+        }
+        self.resync().await?;
+        self.set_connection(ConnectionState::Connected);
+        self.emit(SessionEvent::Resynced);
+        self.start_background();
+        Ok(())
+    }
+
+    /// Logged in during this run and the event loop is running (connected, or reconnecting after a
+    /// network problem).
+    pub fn is_online(&self) -> bool {
+        matches!(
+            self.connection(),
+            ConnectionState::Connected | ConnectionState::Reconnecting
+        )
+    }
+
+    /// After a successful registration: saves the response for offline viewing and the profile.
+    fn registered(&self, reg: &RegisterResult, raw: &Value) {
+        let now = chrono::Utc::now().timestamp();
+        RegisterSnapshotRepo::new(&self.db, self.account_id).save(raw.to_string(), now);
+        AccountRepo::new(&self.db).update_profile(
+            self.account_id,
             reg.user_id,
             &reg.full_name,
             reg.avatar_url.as_deref(),
-            chrono::Utc::now().timestamp(),
+            now,
         );
+    }
+
+    fn start_background(self: &Arc<Self>) {
+        tokio::spawn(self.clone().run_events());
+        tokio::spawn(self.clone().run_presence());
+        let this = self.clone();
+        tokio::spawn(async move {
+            if let Err(error) = this.ensure_unicode_emoji().await {
+                log::warn!("加载表情数据失败：{error}");
+            }
+        });
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    async fn build(
+        client: ZulipClient,
+        cancel: CancellationToken,
+        account_id: i64,
+        db: Db,
+        paths: AppPaths,
+        hooks: Option<Arc<dyn SessionHooks>>,
+        reg: &RegisterResult,
+        connection: ConnectionState,
+    ) -> Result<Arc<Self>> {
+        let realm = client.realm_url().clone();
+        let stored = db.call(move |db| Stored::load(db, account_id)).await?;
+        let state = State::new(reg, realm.as_str(), stored, &db, account_id);
         let images = ImageCache::new(
             paths.image_cache_dir(),
             realm,
@@ -124,8 +234,8 @@ impl Session {
             state: RwLock::new(state),
             tx,
             cancel,
-            queue: Mutex::new(position_of(&reg)),
-            connection: Mutex::new(ConnectionState::Connected),
+            queue: Mutex::new(position_of(reg)),
+            connection: Mutex::new(connection),
             images,
             gates: Mutex::new(HashMap::new()),
             typing_sender: Mutex::new(TypingSender::default()),
@@ -135,15 +245,6 @@ impl Session {
             hooks,
             weak: weak.clone(),
             current: Mutex::new(None),
-        });
-        session.bootstrap(&reg).await?;
-        tokio::spawn(session.clone().run_events());
-        tokio::spawn(session.clone().run_presence());
-        let this = session.clone();
-        tokio::spawn(async move {
-            if let Err(error) = this.ensure_unicode_emoji().await {
-                log::warn!("加载表情数据失败：{error}");
-            }
         });
         Ok(session)
     }
@@ -178,7 +279,11 @@ impl Session {
 
     /// Stops background tasks and deregisters the event queue (waits at most 3 seconds).
     pub async fn shutdown(&self) {
+        let registered = self.connection() != ConnectionState::Offline;
         self.cancel.cancel();
+        if !registered {
+            return;
+        }
         let queue_id = self.queue.lock().queue_id.clone();
         // The cancellation token only affects this session's client; deregistering the queue uses a
         // clone without cancellation
@@ -542,8 +647,9 @@ impl Session {
     /// The event queue became invalid: re-register and replace all server state. UI state, open
     /// windows and intercepted messages are kept, see [`State::inherit`].
     async fn resync(self: &Arc<Self>) -> Result<()> {
-        let reg = self.client.register().await?;
+        let (reg, raw) = self.client.register_raw().await?;
         check_server(&reg)?;
+        self.registered(&reg, &raw);
         let realm = self.client.realm_url().to_string();
         let account_id = self.account_id;
         // Keep the old state when reading fails

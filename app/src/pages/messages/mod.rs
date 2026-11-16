@@ -73,13 +73,13 @@ fn banner_text(
     plugin: Option<&PluginStatusText>,
 ) -> Option<(BannerKind, String)> {
     match connection {
-        ConnectionState::Connected => {
+        // Not logged in or login expired: the main window's offline banner says so
+        ConnectionState::Connected | ConnectionState::Offline | ConnectionState::AuthFailed => {
             plugin.map(|p| (BannerKind::Info, plugin_text(&p.plugin_name, &p.text)))
         }
         ConnectionState::Reconnecting => {
             Some((BannerKind::Error, "连接已断开，正在重连…".to_owned()))
         }
-        ConnectionState::AuthFailed => Some((BannerKind::Error, "登录已失效".to_owned())),
     }
 }
 
@@ -343,9 +343,11 @@ mod tests {
             banner_text(ConnectionState::Reconnecting, Some(&status)),
             Some((BannerKind::Error, "连接已断开，正在重连…".to_owned()))
         );
+        // Shown by the main window's offline banner instead
         assert_eq!(
             banner_text(ConnectionState::AuthFailed, Some(&status)),
-            Some((BannerKind::Error, "登录已失效".to_owned()))
+            Some((BannerKind::Info, "回声：运行中".to_owned()))
         );
+        assert_eq!(banner_text(ConnectionState::Offline, None), None);
     }
 }

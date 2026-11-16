@@ -15,6 +15,7 @@ fn connection_text(state: ConnectionState) -> &'static str {
         ConnectionState::Connected => "已连接",
         ConnectionState::Reconnecting => "正在重新连接…",
         ConnectionState::AuthFailed => "登录已失效",
+        ConnectionState::Offline => "未登录（显示本地数据）",
     }
 }
 

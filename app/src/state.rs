@@ -78,6 +78,17 @@ pub enum AppCommand {
     UpdateStatusChanged,
     /// The tray stops flashing; collapse the tray message list.
     TrayFlashingStopped,
+    /// Stop the tray flashing for every conversation ("忽略全部" / "查看全部" of the tray message
+    /// list); unread messages stay unread.
+    StopTrayFlashing,
+    /// The flashing tray icon was clicked: open the conversation of the newest notification.
+    OpenNewestFlashing,
+    /// A conversation is shown in the foreground window (its window was activated, or it was
+    /// switched to there): the tray no longer flashes for it.
+    ChatViewed {
+        account: i64,
+        key: ConversationKey,
+    },
     /// The spare window was shown and became an ordinary window: create a new one.
     RefillSpareWindow,
     /// The login window is done (logged in, or "log in later"): the hidden root window enters the

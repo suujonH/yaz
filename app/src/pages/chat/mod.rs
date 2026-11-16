@@ -15,7 +15,8 @@ use crate::pages::composer::{Composer, ComposerHandle};
 use crate::platform;
 use crate::shell::{WindowShell, use_presented, use_window_args};
 use crate::state::{
-    FocusRequest, use_app_state, use_plugin_events, use_session_data, use_session_event,
+    AppCommand, FocusRequest, send_command, use_app_state, use_plugin_events, use_session_data,
+    use_session_event,
 };
 use crate::ui::{
     Button, ButtonKind, IconButton, IconName, ListViewport, MenuEntry, ScrollAlign, SlideBar,
@@ -200,10 +201,23 @@ fn on_message_added(mut chat: Chat, id: i64) {
 /// it does not count as viewing; the next round catches up after it moves back.
 async fn read_loop(chat: Chat, window: dioxus::desktop::DesktopContext) {
     let mut ticks = 0u32;
+    // The conversation last reported as seen while its window is in the foreground
+    let mut seen: Option<ConversationKey> = None;
     loop {
         let session = chat.session();
         let key = chat.current_key();
         let foreground = platform::is_foreground(&window) && !platform::is_hidden_at_edge(&window);
+        // Shown in the foreground window (activated, or switched to there): the tray stops
+        // flashing for it
+        if !foreground {
+            seen = None;
+        } else if seen.as_ref() != Some(&key) {
+            seen = Some(key.clone());
+            send_command(AppCommand::ChatViewed {
+                account: chat.account,
+                key: key.clone(),
+            });
+        }
         let suspended = *chat.auto_read_suspended.peek();
         let latest = *chat.at_bottom.peek() && *chat.found_newest.peek();
         let loaded = *chat.loaded.peek();
@@ -313,9 +327,20 @@ fn ChatRoot(
     let root_id = events::use_chat_events(chat);
 
     let key = chat.key.read().clone();
-    let is_topic = matches!(key, ConversationKey::Topic(_));
+    // Topics and group chats show their members on the right
+    let show_sidebar = match &key {
+        ConversationKey::Topic(_) => true,
+        ConversationKey::Dm(dm) => dm.is_group_dm(),
+    };
     let multi = (chat.multi)();
     let more_open = (chat.more_open)();
+    // The more panel stays shown while it slides out after closing
+    let mut more_shown = use_signal(|| false);
+    use_effect(move || {
+        if (chat.more_open)() {
+            more_shown.set(true);
+        }
+    });
     rsx! {
         div { id: "{root_id}", class: if multi { "chat-pane multi" } else { "chat-pane" },
             ChatHead {}
@@ -346,12 +371,21 @@ fn ChatRoot(
                     div { class: if multi { "chat-composer hidden" } else { "chat-composer" },
                         Composer { key: "{key}", conversation: key.clone() }
                     }
-                    if more_open {
+                }
+                if show_sidebar {
+                    TopicSidebar {}
+                }
+                // Over the whole width, the members sidebar included: slides in from the right edge
+                if more_open || more_shown() {
+                    div {
+                        class: if more_open { "more-layer" } else { "more-layer closing" },
+                        onanimationend: move |e: AnimationEvent| {
+                            if !*chat.more_open.peek() && e.data().animation_name() == "more-out" {
+                                more_shown.set(false);
+                            }
+                        },
                         ChatMorePanel {}
                     }
-                }
-                if is_topic {
-                    TopicSidebar {}
                 }
             }
         }
@@ -590,8 +624,11 @@ pub fn ChatWindow() -> Element {
     crate::widgets::use_close_shortcut(move || window.close());
     let args = use_window_args::<ChatArgs>();
     let ChatArgs { key, focus } = args();
+    let offline = crate::pages::main_window::use_offline_status();
+    let class: &'static str = if offline().is_some() { "offline" } else { "" };
     rsx! {
         WindowShell {
+            class,
             ChatPane { key: "{key}", conversation: key.clone(), focus }
         }
     }

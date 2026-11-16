@@ -79,12 +79,17 @@
   --code-chip: rgba(0, 0, 0, 0.08);
   --other-bubble: #ffffff;
   --other-bubble-selected: rgb(229, 229, 229);
+  /* Over a picked image: the same change as a picked bubble (about 10% darker) */
+  --picked-overlay: rgba(0, 0, 0, 0.1);
   --flash: #e3e3e3;
   --scroll-thumb: #d6d6d6;
   --checked-row: #e0e0e0;
   /* Lighter than the table and code block backgrounds, so the tables and code inside stay readable */
   --quote-card: rgba(0, 0, 0, 0.025);
   --quote-card-hover: rgba(0, 0, 0, 0.06);
+  /* A block inside another block: one layer of this gray per enclosing block (rgb triple and alpha) */
+  --nest-rgb: 0 0 0;
+  --nest-a: 0.04;
   --quote-bar: rgba(0, 0, 0, 0.18);
   --owner-badge: #f5a623;
   --owner-badge-fill: #fff4e0;
@@ -160,11 +165,14 @@
   --code-chip: rgba(255, 255, 255, 0.14);
   --other-bubble: #2e2e2e;
   --other-bubble-selected: #3a3a3a;
+  --picked-overlay: rgba(255, 255, 255, 0.06);
   --flash: #3a3a3a;
   --scroll-thumb: #4a4a4a;
   --checked-row: #333333;
   --quote-card: rgba(255, 255, 255, 0.04);
   --quote-card-hover: rgba(255, 255, 255, 0.09);
+  --nest-rgb: 255 255 255;
+  --nest-a: 0.05;
   --quote-bar: rgba(255, 255, 255, 0.2);
   --owner-badge: #f5a623;
   --owner-badge-fill: #4a3a1a;

@@ -3,9 +3,11 @@
 .chat-head { flex: none; height: 48px; display: flex; align-items: center; gap: 10px; padding: 0 12px 0 20px; border-bottom: 1px solid var(--divider); }
 .chat-title { min-width: 0; cursor: pointer; font-size: var(--fs-title, 16px); font-weight: 600; display: flex; }
 .chat-title-text { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+/* Hovering the name: a background just as wide as the text */
+.chat-title-text:hover { background: var(--hover); border-radius: 4px; }
 .chat-typing { flex: none; font-size: var(--fs-caption); color: var(--text-tertiary); }
 .chat-head-actions { margin-left: auto; flex: none; display: flex; gap: 4px; }
-.chat-body { flex: 1; min-height: 0; display: flex; }
+.chat-body { position: relative; flex: 1; min-height: 0; display: flex; }
 .chat-main { position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
 .chat-list-wrap { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .chat-list { flex: 1; min-height: 0; padding-bottom: 8px; }
@@ -37,7 +39,11 @@
 .msg-row.flash { animation: msg-flash 1.5s ease-out; }
 @keyframes msg-flash { 0%, 60% { background: var(--flash); } 100% { background: transparent; } }
 .msg-row.checked { background: var(--checked-row); }
-.msg-check { flex: none; align-self: center; }
+/* The checkbox is centered on the bubble's line (not the whole row, which also holds the nickname, reactions and read state) */
+.chat-pane.multi .msg-row { position: relative; anchor-scope: --msg-line; }
+.chat-pane.multi .msg-line { anchor-name: --msg-line; }
+.msg-check { flex: none; width: 16px; align-self: stretch; }
+.msg-check > .check { position: absolute; top: anchor(--msg-line center); translate: 0 -50%; }
 .msg-row.own .msg-check { order: 1; margin-left: auto; }
 .msg-avatar { flex: none; cursor: pointer; }
 /* At most the chat area width, leaving room on the other side for an avatar (32px) and the gap (10px) */
@@ -74,7 +80,8 @@
 .bubble.other.picked { background: var(--other-bubble-selected); }
 .msg-row.checked .bubble.own { background: var(--own-bubble-selected); }
 .msg-row.checked .bubble.other { background: var(--other-bubble-selected); }
-.msg-source { margin: 0; white-space: pre-wrap; font-family: var(--font-mono, Consolas, monospace); font-size: inherit; line-height: inherit; }
+/* Source mode: Latin text monospaced, Chinese in the normal font, same line height as the rendered message */
+.msg-source { margin: 0; white-space: pre-wrap; font-family: var(--font-mono, Consolas), var(--font); font-size: inherit; line-height: 1.5; }
 .msg-versions .ver-hidden { visibility: hidden; }
 /* Right-aligned under the text; chat.js pulls it up onto the last line (`.inline`) when it fits there */
 .msg-versions { display: flex; width: fit-content; margin: 4px 0 0 auto; align-items: center; gap: 2px; font-size: var(--fs-caption); color: var(--text-tertiary); }
@@ -99,7 +106,8 @@
 .msg-html a:hover { text-decoration: underline; }
 .bubble.own .msg-html a { color: var(--link); }
 .msg-html code { padding: 1px 4px; border-radius: 4px; background: var(--code-chip); font-family: var(--font-mono, Consolas, monospace); font-size: 0.92em; }
-.msg-html .code-block { margin: 4px 0; padding: 8px 10px; border-radius: 6px; background: var(--fill); overflow-x: auto; white-space: pre; font-family: var(--font-mono, Consolas, monospace); font-size: var(--fs-sub); }
+/* min-height: an empty block is as tall as one line of text (line height + vertical padding) */
+.msg-html .code-block { margin: 4px 0; padding: 8px 10px; min-height: calc(1.5em + 16px); border-radius: 6px; background: var(--fill); overflow-x: auto; white-space: pre; font-family: var(--font-mono, Consolas, monospace); font-size: var(--fs-sub); }
 .msg-html .code-block code { padding: 0; background: none; font-size: inherit; }
 .msg-html .tex-block { margin: 4px 0; overflow-x: auto; }
 .msg-html .katex { font-size: 1.1em; }
@@ -114,10 +122,16 @@
 .highlight_text_inserted { background: rgba(38, 166, 91, 0.25); }
 .highlight_text_deleted { background: rgba(232, 72, 85, 0.25); text-decoration: line-through; }
 /* The vertical bar sits inside the card padding, not against the rounded edge */
-.msg-html .quote { position: relative; margin: 4px 0; padding: 6px 8px 6px 18px; border-radius: 6px; background: var(--quote-card); }
+.msg-html .quote { position: relative; margin: 4px 0; padding: 6px 8px 6px 18px; min-height: calc(1.5em + 12px); border-radius: 6px; background: var(--quote-card); }
 .msg-html .quote::before { content: ""; position: absolute; left: 8px; top: 6px; bottom: 6px; width: 2px; background: var(--quote-bar); }
 .msg-html .quote[data-href] { cursor: pointer; }
-.msg-html .quote[data-href]:hover { background: var(--quote-card-hover); }
+.msg-html .quote[data-href]:hover { background-color: var(--quote-card-hover); }
+/* Blocks inside quotes / spoilers (quotes, code blocks, spoilers): see-through, so each shows its
+   parent's color with one more layer of gray: the deeper, the grayer */
+.msg-html :is(.quote, .spoiler) :is(.quote, .code-block, .spoiler) {
+  background-color: var(--quote-card);
+  background-image: linear-gradient(rgb(var(--nest-rgb) / var(--nest-a)), rgb(var(--nest-rgb) / var(--nest-a)));
+}
 .quote-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 2px; color: var(--text-secondary); font-size: var(--fs-sub); }
 .quote-jump { flex: none; color: var(--text-tertiary); }
 .spoiler { margin: 4px 0; border-radius: 6px; background: var(--fill); }
@@ -135,13 +149,15 @@
 .img-preview.quoted { min-width: 40px; min-height: 40px; }
 .img-preview.quoted img { width: auto; height: auto; max-width: 240px; max-height: 240px; }
 .img-preview.quoted.failed { width: 120px; height: 60px; }
+/* Picked (pressed) like a bubble: a grey layer over the image */
+.img-preview.picked::before { content: ""; position: absolute; inset: 0; z-index: 1; background: var(--picked-overlay); pointer-events: none; }
 .img-preview.failed::after { content: "图片加载失败"; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--text-tertiary); font-size: var(--fs-caption); }
 
 /* Table: a row above is always reserved (so the message height does not change when hovering shows the menu button), with the button at the table's right edge;
    the width follows the table and, when it overflows, is the available width; the button is outside the horizontal scroll area and does not move with the scrollbar */
 .table-host { position: relative; margin: 4px 0; width: fit-content; max-width: 100%; }
 .table-tools { height: 30px; display: flex; align-items: center; justify-content: flex-end; }
-.table-more { opacity: 0; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius); cursor: pointer; user-select: none; color: var(--text-secondary); transition: opacity 0.15s; }
+.table-more { opacity: 0; width: 24px; height: 24px; background: rgb(255, 255, 255); display: flex; align-items: center; justify-content: center; border-radius: var(--radius); cursor: pointer; user-select: none; color: var(--text-secondary); transition: opacity 0.15s; }
 .table-host:hover .table-more { opacity: 1; }
 .table-more:hover { background: var(--hover); }
 .table-scroll { overflow-x: auto; }
@@ -225,6 +241,11 @@
 .more-backdrop { position: absolute; inset: 0; z-index: 20; }
 .more-panel { position: absolute; top: 0; right: 0; bottom: 0; width: 320px; max-width: 100%; z-index: 21; display: flex; flex-direction: column; gap: 12px; padding: 12px; background: var(--panel-bg); border-left: 1px solid var(--divider); box-shadow: -4px 0 12px rgba(0, 0, 0, 0.08); animation: more-in 0.16s ease-out; }
 @keyframes more-in { from { transform: translateX(100%); } to { transform: none; } }
+.more-layer { display: contents; }
+/* Closing: slides back out the same way, without catching clicks */
+.more-layer.closing .more-backdrop, .more-layer.closing .more-panel { pointer-events: none; }
+.more-layer.closing .more-panel { animation: more-out 0.16s ease-in forwards; }
+@keyframes more-out { from { transform: none; } to { transform: translateX(100%); } }
 .more-panel > .card { flex: none; overflow: hidden; }
 .more-panel .setting-row { padding: 0 14px; }
 .more-panel .setting-text { flex: 1 0 auto; }
@@ -273,6 +294,13 @@
 .sidebar-members > .sidebar-title { padding: 8px 12px 4px; }
 .sidebar-search { padding: 0 8px 6px; }
 .sidebar-list { flex: 1; min-height: 0; }
+/* Member card left of the member list: like a popup card, but below the dropdowns and menus
+   opened from it (their layers are at 200) */
+.member-card {
+  position: fixed; z-index: 199; cursor: default; background: var(--card); border: 1px solid var(--panel-border);
+  border-radius: var(--radius-lg); box-shadow: var(--shadow-menu); max-width: calc(100vw - 16px); max-height: calc(100vh - 16px);
+  overflow: auto;
+}
 
 /* Dialogs */
 .history-list { max-height: 420px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; padding: 0 16px 12px; }
