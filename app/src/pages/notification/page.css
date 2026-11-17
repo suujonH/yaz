@@ -1,7 +1,11 @@
-/* Notification popup: no title bar */
+/* Notification popup: no title bar. A long title or body (a URL) must stay inside the card. */
 .window:has(.notification) > .caption-bar { display: none; }
-.notification { flex: 1; min-height: 0; display: flex; align-items: center; background: var(--card); }
-.notification .list-row { flex: 1; }
+.window:has(.notification) > .window-body { min-width: 0; overflow: hidden; }
+.notification {
+  flex: 1; min-width: 0; min-height: 0; overflow: hidden;
+  display: flex; align-items: center; background: var(--card);
+}
+.notification .list-row { flex: 1; min-width: 0; overflow: hidden; }
 .notification-notice { flex: none; color: var(--danger); font-size: var(--fs-sub); }
 /* Replaced by the next notification: slides out to the left (then the next one shows at once) */
 .notification.leaving { animation: notification-leave 0.2s ease-in forwards; pointer-events: none; }
