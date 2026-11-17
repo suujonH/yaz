@@ -197,6 +197,17 @@ impl MessageCache {
         self.timelines.get(key)
     }
 
+    /// Newest stored messages of one conversation, newest first. Used to rebuild a blank list
+    /// preview from history already kept on this machine.
+    pub fn newest_stored(&self, key: &ConversationKey, limit: u32) -> Vec<ChatMessage> {
+        self.store
+            .older(Some(&key.to_string()), None, limit)
+            .unwrap_or_default()
+            .into_iter()
+            .filter_map(|(_, json)| serde_json::from_str(&json).ok())
+            .collect()
+    }
+
     pub fn get(&self, id: i64) -> Option<&Arc<ChatMessage>> {
         let key = self.index.get(&id)?;
         self.timelines

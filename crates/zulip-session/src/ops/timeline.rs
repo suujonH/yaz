@@ -11,6 +11,7 @@ use zulip_store::{StoredAnchor, StoredMessageRepo};
 use crate::error::Result;
 use crate::event::{ConnectionState, SessionEvent};
 use crate::hooks::HookEvent;
+use crate::router;
 use crate::session::Session;
 use crate::state::ScrollPosition;
 use crate::state::messages::{ENOUGH_CACHED, PageKind};
@@ -76,6 +77,11 @@ impl Session {
                 version: t.version,
             })
             .unwrap_or_default()
+    }
+
+    fn emit_preview(&self, key: &ConversationKey) {
+        self.emit(SessionEvent::ConversationChanged(key.clone()));
+        self.emit(SessionEvent::ConversationsChanged);
     }
 
     pub fn message(&self, id: i64) -> Option<Arc<ChatMessage>> {
@@ -164,7 +170,7 @@ impl Session {
         let mut query = MessageQuery::new(narrow, anchor, before, after);
         query.include_anchor = include_anchor;
         let result = self.client.get_messages(&query).await?;
-        {
+        let preview_changed = {
             let mut state = self.state.write();
             let page: Vec<ChatMessage> = result
                 .messages
@@ -174,8 +180,12 @@ impl Session {
             state
                 .messages
                 .merge_page(key, page, kind, result.found_oldest, result.found_newest);
-        }
+            router::sync_list_preview(&mut state, key)
+        };
         self.emit(SessionEvent::TimelineChanged(key.clone()));
+        if preview_changed {
+            self.emit_preview(key);
+        }
         Ok(())
     }
 
@@ -209,11 +219,17 @@ impl Session {
             .iter()
             .filter_map(|json| serde_json::from_str(json).ok())
             .collect();
-        self.state
-            .write()
-            .messages
-            .merge_page(key, page, kind, found_oldest, found_newest);
+        let preview_changed = {
+            let mut state = self.state.write();
+            state
+                .messages
+                .merge_page(key, page, kind, found_oldest, found_newest);
+            router::sync_list_preview(&mut state, key)
+        };
         self.emit(SessionEvent::TimelineChanged(key.clone()));
+        if preview_changed {
+            self.emit_preview(key);
+        }
         Ok(())
     }
 
@@ -229,6 +245,10 @@ impl Session {
             .timeline(key)
             .is_some_and(|t| t.has_enough_cached());
         if enough {
+            let changed = router::sync_list_preview(&mut self.state.write(), key);
+            if changed {
+                self.emit_preview(key);
+            }
             return Ok(());
         }
         self.load_page(

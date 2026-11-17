@@ -11,6 +11,7 @@ use zulip_core::html;
 use zulip_core::model::{ChatMessage, MentionKind, MessageFlags, Reaction, Submessage};
 use zulip_core::notice::SystemNoticeKind;
 use zulip_core::permission::GroupSettingValue;
+use zulip_core::widget::{self, Widget};
 
 use crate::convert::user_from_dto;
 use crate::event::SessionEvent;
@@ -273,13 +274,89 @@ pub fn accept_message(
 }
 
 pub fn latest_of(m: &ChatMessage) -> Latest {
+    let mut preview = html::to_preview(&m.content_html);
+    if preview.is_empty() {
+        preview = widget_preview(m);
+    }
     Latest {
         id: m.id,
         time: m.timestamp,
         sender_id: m.sender_id,
-        preview: html::to_preview(&m.content_html),
+        preview,
         title: m.topic.clone(),
     }
+}
+
+fn widget_preview(m: &ChatMessage) -> String {
+    let (kind, title) = match widget::parse(&m.submessages, m.sender_id) {
+        Some(Widget::Poll(poll)) => ("投票", poll.question),
+        Some(Widget::Todo(todo)) => ("待办", todo.title),
+        None => return String::new(),
+    };
+    let title = title.trim();
+    if title.is_empty() {
+        format!("[{kind}]")
+    } else {
+        format!("[{kind}] {title}")
+    }
+}
+
+/// Newest-first messages. The list preview is the newest message shown in the chat that has text.
+/// Hidden, deleted and local-echo messages are skipped. A notification-bot hint is used only when
+/// no other message has text. A blank newest message falls through to the previous one that has text.
+pub fn preview_latest<'a>(
+    state: &State,
+    key: &ConversationKey,
+    newest_first: impl Iterator<Item = &'a ChatMessage>,
+) -> Option<Latest> {
+    let mut bot = None;
+    let mut blank = None;
+    for message in newest_first {
+        if message.id <= 0 || state.messages.is_hidden(message) || message.is_deleted() {
+            continue;
+        }
+        let latest = latest_of(message);
+        if state.is_bot_notice(message.sender_id, key) {
+            if bot.is_none() && !latest.preview.is_empty() {
+                bot = Some(latest);
+            }
+            continue;
+        }
+        if !latest.preview.is_empty() {
+            return Some(latest);
+        }
+        if blank.is_none() {
+            blank = Some(latest);
+        }
+    }
+    blank.or(bot)
+}
+
+/// Refreshes the list row from the loaded window, when that window includes the newest message.
+pub fn sync_list_preview(state: &mut State, key: &ConversationKey) -> bool {
+    let latest = {
+        let Some(timeline) = state.messages.timeline(key) else {
+            return false;
+        };
+        if !timeline.found_newest {
+            return false;
+        }
+        let messages: Vec<_> = timeline.messages.iter().rev().cloned().collect();
+        preview_latest(state, key, messages.iter().map(|m| m.as_ref()))
+    };
+    latest.is_some_and(|latest| state.conversations.adopt_preview(key, &latest))
+}
+
+/// Same as [`sync_list_preview`], from stored history (newest first) rather than the open window.
+pub fn sync_stored_preview(
+    state: &mut State,
+    key: &ConversationKey,
+    newest_first: &[ChatMessage],
+) -> bool {
+    let Some(latest) = preview_latest(state, key, newest_first.iter()) else {
+        return false;
+    };
+    state.conversations.adopt_preview(key, &latest)
 }
 
 fn on_message(state: &mut State, event: &Value, out: &mut Applied) {
@@ -793,10 +870,12 @@ fn on_typing(state: &mut State, event: &Value, out: &mut Applied) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::state::conversations::Latest;
     use crate::state::messages::PageKind;
     use crate::state::test_support::*;
     use serde_json::json;
     use zulip_core::model::PresenceState;
+    use zulip_core::model::{ChatMessage, Submessage};
     use zulip_core::model::{ConversationNotice, PinItem, PinScope, RemarkTarget};
     use zulip_core::{ConversationFolder, ListEntry};
 
@@ -995,6 +1074,50 @@ mod tests {
         assert!(n.is_reminder);
         assert_eq!(n.title, "消息提醒");
         assert_eq!(s.notices.delivered_reminders().len(), 1);
+    }
+
+    #[test]
+    fn loaded_history_fills_a_blank_list_preview() {
+        let mut s = state();
+        let key = ConversationKey::topic(10, "t");
+        s.conversations.apply_latest(
+            &key,
+            &Latest {
+                id: 8,
+                time: 1_759_000_000,
+                sender_id: 2,
+                preview: String::new(),
+                title: "t".into(),
+            },
+        );
+        let mut older = ChatMessage::new(5, key.clone(), 3, 1_700_000_000);
+        older.content_html = "<p>更早</p>".into();
+        older.topic = "t".into();
+        let mut latest = ChatMessage::new(8, key.clone(), 2, 1_759_000_000);
+        latest.content_html = "<blockquote><p>原文</p></blockquote>".into();
+        latest.topic = "t".into();
+        s.messages
+            .merge_page(&key, vec![older, latest], PageKind::Newest, true, true);
+        assert!(sync_list_preview(&mut s, &key));
+        let entry = s.conversations.get(&key).unwrap();
+        assert_eq!(entry.last_message_id, 8);
+        assert_eq!(entry.last_preview, "原文");
+    }
+
+    #[test]
+    fn widget_without_rendered_text_previews_its_title() {
+        let key = ConversationKey::topic(10, "t");
+        let mut message = ChatMessage::new(3, key, 2, 30);
+        message.submessages.push(Submessage {
+            id: 1,
+            message_id: 3,
+            sender_id: 2,
+            msg_type: "widget".into(),
+            content:
+                r#"{"widget_type":"poll","extra_data":{"question":"午饭","options":["面条"]}}"#
+                    .into(),
+        });
+        assert_eq!(latest_of(&message).preview, "[投票] 午饭");
     }
 
     #[test]

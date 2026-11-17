@@ -162,6 +162,31 @@ impl Conversations {
         is_resolved_name(name)
     }
 
+    /// Uses `latest` as the list preview. A newer or equal message replaces the row. An older
+    /// message only fills a blank preview; the row keeps the newer message's time.
+    pub fn adopt_preview(&mut self, key: &ConversationKey, latest: &Latest) -> bool {
+        let (older, blank) = match self.entries.get(key) {
+            None => return self.apply_latest(key, latest),
+            Some(entry) => (
+                latest.id < entry.last_message_id,
+                entry.last_preview.is_empty(),
+            ),
+        };
+        if older {
+            if latest.preview.is_empty() || !blank {
+                return false;
+            }
+            {
+                let entry = self.entries.get_mut(key).unwrap();
+                entry.last_preview.clone_from(&latest.preview);
+                entry.last_sender_id = latest.sender_id;
+            }
+            self.save_cache(key);
+            return true;
+        }
+        self.apply_latest(key, latest)
+    }
+
     /// Writes the last message. Ignored if older than the existing one; for the same message only
     /// the preview and title are refreshed, and whether it is in the list is unchanged.
     pub fn apply_latest(&mut self, key: &ConversationKey, latest: &Latest) -> bool {
@@ -498,6 +523,22 @@ mod tests {
         // Max id decreased: the last message was deleted
         c.bootstrap_known(&key(), 3, "T", true);
         assert_eq!(c.next_backfill(), Some(key()));
+    }
+
+    #[test]
+    fn older_message_fills_a_blank_preview_without_moving_the_time() {
+        let mut c = store();
+        let mut blank = latest(8, "");
+        blank.time = 800;
+        assert!(c.apply_latest(&key(), &blank));
+        assert!(c.adopt_preview(&key(), &latest(5, "五")));
+        let e = c.get(&key()).unwrap();
+        assert_eq!(e.last_message_id, 8);
+        assert_eq!(e.last_message_time, 800);
+        assert_eq!(e.last_preview, "五");
+        assert_eq!(e.last_sender_id, 2);
+        assert!(!c.adopt_preview(&key(), &latest(4, "四")));
+        assert_eq!(c.get(&key()).unwrap().last_preview, "五");
     }
 
     #[test]

@@ -113,8 +113,10 @@ fn image_previews(root: ElementRef) -> impl Iterator<Item = (ElementRef, Option<
         .map(|e| (e, first_href(e).and_then(normalize_upload_path)))
 }
 
-/// Single-line preview: quote blocks are dropped; images, files, code, formulas and tables are replaced by the [image], [file]name, [code], [formula], [table] labels (Chinese UI text),
-/// and runs of whitespace are merged into one space.
+/// Single-line preview: quote blocks are dropped when the message also has its own text; images,
+/// files, code, formulas and tables are replaced by the [image], [file]name, [code], [formula],
+/// [table] labels (Chinese UI text), and runs of whitespace are merged into one space. A message
+/// that is only a quote previews the quoted text, so the conversation list is not blank.
 pub fn to_preview(html: &str) -> String {
     let doc = parse_fragment(html);
     let root = doc.root_element();
@@ -123,7 +125,15 @@ pub fn to_preview(html: &str) -> String {
     for child in root.children() {
         append_preview(child, &mut out, &images);
     }
-    WHITESPACE.replace_all(&out, " ").trim().to_owned()
+    let text = WHITESPACE.replace_all(&out, " ").trim().to_owned();
+    if !text.is_empty() {
+        return text;
+    }
+    let mut quoted = String::new();
+    for child in root.children() {
+        append_quoted_preview(child, &mut quoted, &images);
+    }
+    WHITESPACE.replace_all(&quoted, " ").trim().to_owned()
 }
 
 /// Multi-line plain text: paragraphs, line breaks and list items are separated by newlines; each line of a quote block is prefixed with "> "; code blocks keep their original text.
@@ -633,6 +643,22 @@ fn list_marker(e: ElementRef) -> Option<String> {
     Some(format!("{}.", start + index as i64))
 }
 
+/// Quote text used only when the message has nothing outside the quote.
+fn append_quoted_preview(node: NodeRef<'_, Node>, out: &mut String, images: &HashSet<String>) {
+    let Some(e) = ElementRef::wrap(node) else {
+        return;
+    };
+    if is_tag(e, "blockquote") {
+        for child in e.children() {
+            append_preview(child, out, images);
+        }
+        return;
+    }
+    for child in e.children() {
+        append_quoted_preview(child, out, images);
+    }
+}
+
 fn append_preview(node: NodeRef<'_, Node>, out: &mut String, images: &HashSet<String>) {
     if let Node::Text(text) = node.value() {
         out.push_str(text);
@@ -900,6 +926,14 @@ mod tests {
     #[test]
     fn preview_quote_shows_only_new_content() {
         assert_eq!(to_preview(&sample("quote")), "阿杰 说: 回复内容");
+    }
+
+    #[test]
+    fn preview_quote_only_message_keeps_quoted_text() {
+        assert_eq!(
+            to_preview("<blockquote>\n<p>原文内容</p>\n</blockquote>"),
+            "原文内容"
+        );
     }
 
     #[test]

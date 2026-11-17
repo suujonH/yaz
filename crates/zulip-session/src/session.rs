@@ -546,6 +546,25 @@ impl Session {
             state.conversations.remove_from_list(&key);
             state.conversations.next_backfill();
         }
+        // Listed rows whose preview was never stored (or was blank) are rebuilt from history
+        // already on this machine, then from the server.
+        let missing: Vec<ConversationKey> = state
+            .conversations
+            .iter()
+            .filter(|(_, entry)| entry.in_list && entry.last_preview.is_empty())
+            .map(|(key, _)| key.clone())
+            .collect();
+        for key in missing {
+            let stored = state.messages.newest_stored(&key, 40);
+            router::sync_stored_preview(&mut state, &key, &stored);
+            if state
+                .conversations
+                .get(&key)
+                .is_some_and(|entry| entry.last_preview.is_empty())
+            {
+                state.conversations.queue_backfill(&key);
+            }
+        }
         drop(state);
         self.start_backfill();
         Ok(())
