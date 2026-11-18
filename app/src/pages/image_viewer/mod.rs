@@ -9,7 +9,8 @@ use crate::state::use_app_state;
 use crate::ui::*;
 use crate::widgets::*;
 use dioxus::desktop::tao::event::{Event, WindowEvent};
-use dioxus::desktop::{use_window, use_wry_event_handler};
+use dioxus::desktop::tao::dpi::PhysicalPosition;
+use dioxus::desktop::{LogicalSize, use_window, use_wry_event_handler};
 use dioxus::html::geometry::WheelDelta;
 use dioxus::html::input_data::MouseButton;
 use dioxus::prelude::*;
@@ -33,6 +34,23 @@ const WHEEL_NOTCH: f64 = 100.0;
 /// Duration of the double-click zoom animation, consistent with the transition of
 /// `.viewer-image.animating`.
 const ZOOM_ANIMATION: Duration = Duration::from_millis(250);
+/// Smallest size of the viewer window.
+pub const MIN_SIZE: (f64, f64) = (480.0, 360.0);
+/// The window sized to an image takes at most this share of the screen's work area.
+const MAX_SCREEN_SHARE: f64 = 0.9;
+
+/// Window size (logical pixels) that shows an image of `natural` size at its original size:
+/// `chrome` is what the title bar and toolbar take around the display area, `work` the screen's
+/// work area. Larger images get the largest window allowed and are fitted into it.
+fn window_size_for(natural: (f64, f64), chrome: (f64, f64), work: (f64, f64)) -> (f64, f64) {
+    let side = |image: f64, chrome: f64, work: f64, min: f64| {
+        (image + chrome).min(work * MAX_SCREEN_SHARE).max(min).round()
+    };
+    (
+        side(natural.0, chrome.0, work.0, MIN_SIZE.0),
+        side(natural.1, chrome.1, work.1, MIN_SIZE.1),
+    )
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ImageViewerArgs {
@@ -184,12 +202,16 @@ fn ViewerBody() -> Element {
     let overlays = use_overlays();
     let window = use_window();
     let mut index = use_signal(|| 0usize);
+    // The window has been sized to the first image of this opening; switching images in the album
+    // keeps the size
+    let mut auto_sized = use_signal(|| false);
     use_effect(move || {
         let ImageViewerArgs {
             images,
             index: start,
         } = args();
         index.set(start.min(images.len().saturating_sub(1)));
+        auto_sized.set(false);
     });
     let count = args.read().images.len();
     use_window_keys(move |key| match key {
@@ -226,6 +248,43 @@ fn ViewerBody() -> Element {
     use_effect(move || {
         if let Some(Some(image)) = &*loaded.read() {
             zoom.write().set_image(image.size);
+        }
+    });
+
+    // Once the first image is laid out, size the window to show it at its original size (within
+    // the screen) and center it; the fit mode then re-fits on the resize
+    use_effect({
+        let window = window.clone();
+        move || {
+            let Some(Some(image)) = &*loaded.read() else {
+                return;
+            };
+            let current = *zoom.read();
+            if *auto_sized.peek() || !current.placed(image.size) {
+                return;
+            }
+            auto_sized.set(true);
+            if window.is_maximized() || window.fullscreen().is_some() {
+                return;
+            }
+            let Some(area) = platform::work_area(&window) else {
+                return;
+            };
+            let scale = window.scale_factor();
+            let inner: LogicalSize<f64> = window.inner_size().to_logical(scale);
+            let stage = current.stage();
+            let chrome = (inner.width - stage.0, inner.height - stage.1);
+            let work = (f64::from(area.width) / scale, f64::from(area.height) / scale);
+            let size = window_size_for(image.size, chrome, work);
+            if (size.0 - inner.width).abs() < 1.0 && (size.1 - inner.height).abs() < 1.0 {
+                return;
+            }
+            // Move first: on a screen with another scale the logical size is applied with that scale
+            window.set_outer_position(PhysicalPosition::new(
+                area.x + ((f64::from(area.width) - size.0 * scale) / 2.0).round() as i32,
+                area.y + ((f64::from(area.height) - size.1 * scale) / 2.0).round() as i32,
+            ));
+            window.set_inner_size(LogicalSize::new(size.0, size.1));
         }
     });
 
@@ -355,7 +414,8 @@ fn ViewerBody() -> Element {
                         show_tip();
                     },
                     onmousedown: move |e| {
-                        if e.trigger_button() == Some(MouseButton::Primary) {
+                        // When the whole image is already shown there is nothing to drag into view
+                        if e.trigger_button() == Some(MouseButton::Primary) && !zoom.peek().fully_visible() {
                             let at = e.client_coordinates();
                             drag.set(Some(((at.x, at.y), zoom.peek().offset())));
                         }
@@ -530,6 +590,19 @@ mod tests {
             "photo.jpg"
         );
         assert_eq!(file_name_of("https://x.test/", local), "图片.png");
+    }
+
+    #[test]
+    fn window_fits_the_image_within_the_screen() {
+        let chrome = (0.0, 90.0);
+        let work = (1920.0, 1040.0);
+        // Fits: original size plus title bar and toolbar
+        assert_eq!(window_size_for((1200.0, 700.0), chrome, work), (1200.0, 790.0));
+        // Too large: 90% of the work area
+        assert_eq!(window_size_for((1653.0, 2000.0), chrome, work), (1653.0, 936.0));
+        assert_eq!(window_size_for((4000.0, 3000.0), chrome, work), (1728.0, 936.0));
+        // Small images do not shrink the window below its minimum size
+        assert_eq!(window_size_for((100.0, 80.0), chrome, work), MIN_SIZE);
     }
 
     #[test]

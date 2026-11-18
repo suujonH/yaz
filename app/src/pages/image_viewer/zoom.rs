@@ -53,6 +53,11 @@ impl Zoom {
         }
     }
 
+    /// Size of the display area last measured.
+    pub fn stage(&self) -> (f64, f64) {
+        self.stage
+    }
+
     pub fn percent(&self) -> u32 {
         (self.scale * 100.0).round() as u32
     }
@@ -155,6 +160,18 @@ impl Zoom {
 
     pub fn offset(&self) -> (f64, f64) {
         self.offset
+    }
+
+    /// The whole image lies inside the display area, so there is nothing to drag into view.
+    pub fn fully_visible(&self) -> bool {
+        // Half a pixel of slack absorbs rounding from fitting and zooming
+        const SLACK: f64 = 0.5;
+        let (w, h) = self.display();
+        let (x, y) = self.offset;
+        x >= -SLACK
+            && y >= -SLACK
+            && x + w * self.scale <= self.stage.0 + SLACK
+            && y + h * self.scale <= self.stage.1 + SLACK
     }
 
     pub fn set_offset(&mut self, offset: (f64, f64)) {
@@ -287,6 +304,22 @@ mod tests {
         z.toggle_fit_at((300.0, 400.0));
         assert_eq!(z.percent(), 50);
         assert_eq!(z.offset(), (0.0, 150.0));
+    }
+
+    #[test]
+    fn fully_visible_only_when_the_image_fits_inside() {
+        let mut z = zoom((2000.0, 1000.0), (1000.0, 800.0));
+        assert!(z.fully_visible());
+        z.actual_size();
+        assert!(!z.fully_visible());
+        let mut small = zoom((100.0, 100.0), (1000.0, 800.0));
+        assert!(small.fully_visible());
+        // Zoomed in but still smaller than the window
+        small.zoom_in();
+        assert!(small.fully_visible());
+        // Moved partly out of the window
+        small.set_offset((-50.0, 0.0));
+        assert!(!small.fully_visible());
     }
 
     #[test]
