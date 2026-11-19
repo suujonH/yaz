@@ -61,6 +61,10 @@ pub struct WindowSpec {
     /// opening does not flash. Small notification windows and the main window decide by themselves
     /// when to show; false for them.
     pub show_when_ready: bool,
+    /// Created hidden like `show_when_ready`, but the page shows it (with [`activate`]) once it
+    /// is ready, e.g. after sizing the window to its content, so the window is never seen at its
+    /// first size. The page should still show it after a short while if getting ready stalls.
+    pub shown_by_page: bool,
     /// When created, it is centered on the work area of the screen of the window that opened it. On
     /// by default; off for the main window and popups, which place themselves.
     pub centered: bool,
@@ -84,9 +88,16 @@ impl WindowSpec {
             popup: false,
             background: None,
             show_when_ready: true,
+            shown_by_page: false,
             centered: true,
             restore_position: false,
         }
+    }
+
+    /// See [`WindowSpec::shown_by_page`].
+    pub fn shown_by_page(mut self) -> Self {
+        self.shown_by_page = true;
+        self
     }
 
     pub fn min_size(mut self, size: (f64, f64)) -> Self {
@@ -372,7 +383,7 @@ fn create_window(
                 bounds_key: spec.bounds_key.clone(),
                 remember: spec.remember_bounds,
             })
-            .with_root_context(ShowWhenReady(spec.show_when_ready)),
+            .with_root_context(ShowWhenReady(spec.show_when_ready && !spec.shown_by_page)),
     );
     let pending = window().new_window(dom, window_config(&spec, &shared));
     let key = spec.key;

@@ -224,7 +224,9 @@ pub fn open_image_viewer(account: i64, images: Vec<String>, index: usize) {
     open_with_args(
         WindowSpec::new("image-viewer", "图片查看", (900.0, 680.0))
             .min_size(pages::image_viewer::MIN_SIZE)
-            .fixed_background(pages::image_viewer::BACKGROUND),
+            .fixed_background(pages::image_viewer::BACKGROUND)
+            // Shown once sized to the image, not first at the default size
+            .shown_by_page(),
         pages::image_viewer::ImageViewerWindow,
         pages::image_viewer::ImageViewerArgs { images, index },
         Some(account),

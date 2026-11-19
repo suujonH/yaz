@@ -183,10 +183,13 @@ pub fn show<T: Clone + PartialEq + 'static>(
     };
     register_window(spec.key.clone(), Rc::downgrade(&window), prepared.args_tx);
     prepared.state.presented.send_replace(true);
-    if prepared.state.mounted.get() {
-        activate(&window);
-    } else {
-        prepared.state.show_on_mount.set(true);
+    // Otherwise the page shows the window itself once it is presented and ready
+    if !spec.shown_by_page {
+        if prepared.state.mounted.get() {
+            activate(&window);
+        } else {
+            prepared.state.show_on_mount.set(true);
+        }
     }
     send_command(AppCommand::RefillSpareWindow);
     true

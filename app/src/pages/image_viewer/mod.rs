@@ -5,7 +5,7 @@ mod text_layer;
 mod zoom;
 
 use crate::platform::{self, ClipboardImage};
-use crate::shell::{WindowShell, url_for, use_window_args};
+use crate::shell::{WindowShell, activate, url_for, use_presented, use_window_args};
 use crate::state::use_app_state;
 use crate::ui::*;
 use crate::widgets::*;
@@ -36,6 +36,8 @@ const WHEEL_NOTCH: f64 = 100.0;
 /// Duration of the double-click zoom animation, consistent with the transition of
 /// `.viewer-image.animating`.
 const ZOOM_ANIMATION: Duration = Duration::from_millis(250);
+/// The window shows itself after this long even if the image is not ready (still downloading).
+const SHOW_FALLBACK: Duration = Duration::from_millis(800);
 /// Smallest size of the viewer window.
 pub const MIN_SIZE: (f64, f64) = (480.0, 360.0);
 /// The window sized to an image takes at most this share of the screen's work area.
@@ -217,6 +219,10 @@ fn ViewerBody() -> Element {
     // The window has been sized to the first image of this opening; switching images in the album
     // keeps the size
     let mut auto_sized = use_signal(|| false);
+    // Showing the window: ready, waiting for the measurement after the resize, already shown
+    let mut ready_to_show = use_signal(|| false);
+    let mut show_after_measure = use_signal(|| false);
+    let mut shown = use_signal(|| false);
     use_effect(move || {
         let ImageViewerArgs {
             images,
@@ -292,7 +298,12 @@ fn ViewerBody() -> Element {
     use_effect({
         let window = window.clone();
         move || {
-            let Some(Some(image)) = &*loaded.read() else {
+            let Some(result) = &*loaded.read() else {
+                return;
+            };
+            // Failed to load: show the window with its message
+            let Some(image) = result else {
+                ready_to_show.set(true);
                 return;
             };
             let current = *zoom.read();
@@ -301,9 +312,11 @@ fn ViewerBody() -> Element {
             }
             auto_sized.set(true);
             if window.is_maximized() || window.fullscreen().is_some() {
+                ready_to_show.set(true);
                 return;
             }
             let Some(area) = platform::work_area(&window) else {
+                ready_to_show.set(true);
                 return;
             };
             let scale = window.scale_factor();
@@ -316,8 +329,11 @@ fn ViewerBody() -> Element {
             );
             let size = window_size_for(image.size, chrome, work);
             if (size.0 - inner.width).abs() < 1.0 && (size.1 - inner.height).abs() < 1.0 {
+                ready_to_show.set(true);
                 return;
             }
+            // Shown once the display area is measured at the new size and the image re-fitted
+            show_after_measure.set(true);
             // Move first: on a screen with another scale the logical size is applied with that scale
             window.set_outer_position(PhysicalPosition::new(
                 area.x + ((f64::from(area.width) - size.0 * scale) / 2.0).round() as i32,
@@ -350,6 +366,35 @@ fn ViewerBody() -> Element {
             && let Ok(rect) = element.get_client_rect().await
         {
             zoom.write().set_stage((rect.size.width, rect.size.height));
+            if *show_after_measure.peek() {
+                show_after_measure.set(false);
+                ready_to_show.set(true);
+            }
+        }
+    });
+
+    // The window is created hidden and shows itself (`WindowSpec::shown_by_page`) once it has its
+    // final size and the image is placed, so it is not first seen at the default size and then
+    // jumping. Opened from the spare window, it may get ready before it is presented.
+    let presented = use_presented();
+    use_effect({
+        let window = window.clone();
+        move || {
+            if presented() && ready_to_show() && !*shown.peek() {
+                shown.set(true);
+                activate(&window);
+                // Measure again now that it is on screen
+                resized += 1;
+            }
+        }
+    });
+    // A slow download (or a measurement that never settles) still opens the window
+    use_effect(move || {
+        if presented() {
+            spawn(async move {
+                tokio::time::sleep(SHOW_FALLBACK).await;
+                ready_to_show.set(true);
+            });
         }
     });
 
