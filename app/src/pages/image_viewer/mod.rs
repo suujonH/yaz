@@ -89,7 +89,16 @@ fn fallback_url(url: &str) -> Option<String> {
 }
 
 async fn load_image(session: &Arc<Session>, url: &str) -> Result<Loaded, SessionError> {
-    let (used, path) = match session.image_file(url).await {
+    // An image in the composer (or a message being sent) not uploaded yet: its local file
+    let pending = zulip_core::markdown::is_pending_upload(url)
+        .then(|| crate::pages::composer::resolve_pending(url))
+        .flatten();
+    let found = match pending {
+        Some(path) if path.is_file() => Ok(path),
+        Some(_) => Err(SessionError::invalid("图片文件已不存在")),
+        None => session.image_file(url).await,
+    };
+    let (used, path) = match found {
         Ok(path) => (url.to_owned(), path),
         Err(error) => match fallback_url(url) {
             Some(original) => {
@@ -465,6 +474,11 @@ fn ViewerBody() -> Element {
         let Some(session) = state.session.peek().clone() else {
             return;
         };
+        // An image from the composer not uploaded yet has no address others can open
+        if zulip_core::markdown::is_pending_upload(&image.url) {
+            overlays.toast("图片还未发送，不能转发");
+            return;
+        }
         spawn(async move {
             forward_text(overlays, &session, forward_markdown(&image.url)).await;
         });

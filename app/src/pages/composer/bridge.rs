@@ -103,6 +103,10 @@ enum Incoming {
     OpenLink {
         href: String,
     },
+    /// Double click on an image.
+    OpenImage {
+        url: String,
+    },
     Widths {
         table: usize,
         required: Vec<f64>,
@@ -398,6 +402,7 @@ impl Ctl {
                 let (overlays, session) = (self.overlays, self.session());
                 spawn(async move { open_link(overlays, &session, &href).await });
             }
+            Incoming::OpenImage { url } => self.open_image(&url),
             Incoming::Widths {
                 table: index,
                 required,

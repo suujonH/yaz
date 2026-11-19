@@ -328,6 +328,13 @@
         if (e.target.closest("[data-act]")) e.preventDefault();
       });
       on(el, "click", (e) => this.onClick(e));
+      // Double-clicking an image opens it in the image viewer, as in the chat
+      on(el, "dblclick", (e) => {
+        const image = e.target.closest("img.zthumb[data-image]");
+        if (!image || !el.contains(image)) return;
+        e.preventDefault();
+        this.send({ t: "open-image", url: image.dataset.image });
+      });
       on(document, "mouseup", () => {
         if (this.pressed) {
           this.pressed = false;

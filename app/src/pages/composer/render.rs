@@ -510,9 +510,11 @@ impl RenderCtx<'_> {
                 encode_into(out, &label);
             }
             SpanKind::UploadImage => match self.lookup.images.get(data) {
+                // `data-image`: the address it opens in the image viewer on double click
                 Some(local) => out.push_str(&format!(
-                    r#"<img class="zthumb" src="{}" alt="">"#,
-                    encode(local)
+                    r#"<img class="zthumb" src="{}" data-image="{}" alt="">"#,
+                    encode(local),
+                    encode(data)
                 )),
                 None => out.push_str(r#"<span class="zthumb zthumb-empty"></span>"#),
             },

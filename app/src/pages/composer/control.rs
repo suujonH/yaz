@@ -418,6 +418,28 @@ impl Ctl {
         }
     }
 
+    /// Double click on an image: the image viewer, with the other images in the text as its album.
+    pub(super) fn open_image(self, url: &str) {
+        let album: Vec<String> = {
+            let core = self.core.peek();
+            let mut album: Vec<String> = Vec::new();
+            for span in &core.model().spans {
+                if span.kind == SpanKind::UploadImage
+                    && let Some(data) = span.data.as_deref()
+                    && !album.iter().any(|a| a == data)
+                {
+                    album.push(data.to_owned());
+                }
+            }
+            album
+        };
+        let index = album.iter().position(|a| a == url);
+        match index {
+            Some(index) => crate::windows::open_image_viewer(self.account(), album, index),
+            None => crate::windows::open_image_viewer(self.account(), vec![url.to_owned()], 0),
+        }
+    }
+
     // Images to show in the editor: re-render after downloading locally
     fn fetch_assets(self) {
         let core = self.core.peek();
