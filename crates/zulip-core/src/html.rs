@@ -460,6 +460,10 @@ pub fn is_allowed_image_url(url: &str) -> bool {
     if starts_with_ignore_case(url, "http://") || starts_with_ignore_case(url, "https://") {
         return true;
     }
+    // An attachment of a message still being sent: the client shows its local file
+    if crate::markdown::is_pending_upload(url) {
+        return true;
+    }
     if url.contains(|c: char| c == '\\' || c.is_ascii_control()) {
         return false;
     }

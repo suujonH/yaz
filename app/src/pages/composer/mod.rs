@@ -15,6 +15,7 @@ mod upload;
 pub use emoji::open_emoji_picker;
 pub(crate) use plugin_tools::builtin_icon;
 pub use registry::{filled_draft, is_composer_open};
+pub(crate) use upload::resolve_pending;
 
 use crate::state::{use_plugin_events, use_session, use_session_data, use_session_event};
 use crate::ui::*;

@@ -13,7 +13,9 @@ mod user;
 pub use channel::{Channel, Subscription, TopicInfo};
 pub use contact::FriendGroup;
 pub use local::{PinItem, PinScope, RemarkTarget};
-pub use message::{ChatMessage, LocalEcho, MessageFlags, MessageState, Reaction, Submessage};
+pub use message::{
+    ChatMessage, LocalEcho, MessageFlags, MessageState, PendingAttachment, Reaction, Submessage,
+};
 pub use queued::{
     Attachment, AttachmentList, MessageRevision, Reminder, SavedSnippet, ScheduledMessage,
     UploadedFile,

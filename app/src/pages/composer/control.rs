@@ -9,7 +9,10 @@ use super::core::{EditorCore, strip_stale_uploads};
 use super::dialogs;
 use super::language::LangSearch;
 use super::render::Lookup;
-use super::upload::{PastedFile, UploadRow, resolve_pending, screenshot_name, write_paste_file};
+use super::upload::{
+    PastedFile, UploadRow, echo_html, pending_attachments, resolve_pending, screenshot_name,
+    write_paste_file,
+};
 use crate::pages::chat::quote_preview_html;
 use crate::services::{plugins, services, write_account_setting};
 use crate::ui::{Overlays, PopoverHandle, TextPrompt};
@@ -113,6 +116,20 @@ impl PartialEq for Ctl {
     fn eq(&self, other: &Self) -> bool {
         self.core == other.core
     }
+}
+
+/// Sends the message: its echo appears at once (images shown from their local files) and its
+/// pending attachments are uploaded by the session as part of sending.
+async fn send_with_attachments(
+    session: &Arc<Session>,
+    key: &ConversationKey,
+    text: &str,
+) -> Result<i64, zulip_session::SessionError> {
+    let attachments = pending_attachments(text).unwrap_or_default();
+    let html = (!attachments.is_empty()).then(|| echo_html(text, &attachments));
+    session
+        .send_with_attachments(key, text, attachments, html)
+        .await
 }
 
 fn next_dom_id() -> String {
@@ -502,8 +519,10 @@ impl Ctl {
             self.save_edit();
             return;
         }
-        self.dispatch(move |session, key, text| async move {
-            session.send_message(&key, &text).await.map(|_| ())
+        self.dispatch(false, move |session, key, text| async move {
+            send_with_attachments(&session, &key, &text)
+                .await
+                .map(|_| ())
         });
     }
 
@@ -517,7 +536,8 @@ impl Ctl {
                 self.refocus();
                 return;
             };
-            self.dispatch(move |session, key, text| async move {
+            // A scheduled message has no echo to carry the uploads: they happen first
+            self.dispatch(true, move |session, key, text| async move {
                 session.schedule_message(&key, &text, at).await.map(|_| ())
             });
             self.overlays
@@ -535,8 +555,8 @@ impl Ctl {
                 self.refocus();
                 return;
             };
-            self.dispatch(move |session, key, text| async move {
-                let id = session.send_message(&key, &text).await?;
+            self.dispatch(false, move |session, key, text| async move {
+                let id = send_with_attachments(&session, &key, &text).await?;
                 session.create_reminder(id, at).await.map(|_| ())
             });
         });
@@ -559,8 +579,12 @@ impl Ctl {
         });
     }
 
+    /// `upload_first`: upload the attachments before anything else (the text stays in the editor
+    /// if that fails). Otherwise they are uploaded by the session as part of sending the message,
+    /// after the editor is cleared.
     fn dispatch<F, E>(
         self,
+        upload_first: bool,
         action: impl FnOnce(Arc<Session>, ConversationKey, String) -> F + 'static,
     ) where
         F: Future<Output = Result<(), E>> + 'static,
@@ -570,18 +594,26 @@ impl Ctl {
         if !self.max_length_ok(&text) {
             return;
         }
+        if !upload_first && pending_attachments(&text).is_none() {
+            self.overlays.toast("附件已不存在，请重新添加");
+            return;
+        }
         let mut sending = self.sending;
         sending.set(true);
         self.close_popup();
         self.spawn(async move {
             let session = self.session();
             let key = self.key();
-            // Attachments are uploaded now; on failure or cancel the text stays in the editor
-            let Some(uploaded) = self.upload_pending(text.clone()).await else {
-                sending.set(false);
-                return;
+            let outgoing = if upload_first {
+                let Some(uploaded) = self.upload_pending(text.clone()).await else {
+                    sending.set(false);
+                    return;
+                };
+                uploaded
+            } else {
+                text.clone()
             };
-            let filtered = plugins().filter_outgoing(&session, &key, &uploaded).await;
+            let filtered = plugins().filter_outgoing(&session, &key, &outgoing).await;
             sending.set(false);
             let snapshot = text;
             let text = match filtered {
@@ -592,7 +624,7 @@ impl Ctl {
                 }
             };
             self.when_idle(move |ctl| {
-                // Text typed after the message while its attachments were uploading is kept
+                // Text typed after the message while it was being prepared is kept
                 let rest = {
                     let core = ctl.core.peek();
                     core.text()

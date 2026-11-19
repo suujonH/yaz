@@ -3,7 +3,9 @@ use std::sync::Arc;
 
 use zulip_core::ConversationKey;
 use zulip_core::html::encode;
-use zulip_core::model::{ChatMessage, LocalEcho, MessageFlags, MessageState, Reaction, Submessage};
+use zulip_core::model::{
+    ChatMessage, LocalEcho, MessageFlags, MessageState, PendingAttachment, Reaction, Submessage,
+};
 use zulip_core::notice::SystemNoticeKind;
 use zulip_store::{DeletedMessage, DeletedMessageRepo, StoredMessage, StoredMessageRepo};
 
@@ -591,7 +593,19 @@ impl MessageCache {
 
     /// Local echo. `text` is the Markdown source. Returns the negative id and the `local_id` used
     /// when sending.
-    pub fn add_pending(&mut self, mut message: ChatMessage, text: &str) -> (i64, String) {
+    pub fn add_pending(&mut self, message: ChatMessage, text: &str) -> (i64, String) {
+        self.add_pending_with(message, text, Vec::new(), None)
+    }
+
+    /// [`add_pending`](Self::add_pending) with attachments to upload first, and the echo's HTML
+    /// when the caller renders it (to show local images); otherwise the text as is.
+    pub fn add_pending_with(
+        &mut self,
+        mut message: ChatMessage,
+        text: &str,
+        attachments: Vec<PendingAttachment>,
+        html: Option<String>,
+    ) -> (i64, String) {
         self.next_local_id -= 1;
         let id = self.next_local_id;
         let local_id = format!("{}.{}", self.account_id, -id);
@@ -599,9 +613,11 @@ impl MessageCache {
         message.state = MessageState::Sending(LocalEcho {
             local_id: local_id.clone(),
             raw_content: text.to_owned(),
+            attachments,
         });
         message.flags.read = true;
-        message.content_html = format!("<p>{}</p>", encode(text).replace('\n', "<br>"));
+        message.content_html =
+            html.unwrap_or_else(|| format!("<p>{}</p>", encode(text).replace('\n', "<br>")));
         let key = message.key.clone();
         let timeline = self.timelines.entry(key.clone()).or_default();
         timeline.messages.push(Arc::new(message));
@@ -634,6 +650,47 @@ impl MessageCache {
             };
         })?;
         Some((key, id))
+    }
+
+    /// An attachment of a pending message finished uploading: its address in the text becomes
+    /// `url` and it is no longer to be uploaded.
+    pub fn attachment_uploaded(&mut self, local_id: &str, address: &str, url: &str) {
+        let Some(pending) = self.find_pending(local_id) else {
+            return;
+        };
+        let id = pending.id;
+        self.with_message(id, |m| {
+            if let MessageState::Sending(echo) | MessageState::Failed(echo) = &mut m.state {
+                echo.raw_content = echo.raw_content.replace(address, url);
+                echo.attachments.retain(|a| a.address != address);
+            }
+        });
+    }
+
+    /// A failed message being sent again goes to the end of its conversation with the current
+    /// time, where the server will put it: it gets a new (later) local id and is sending again.
+    /// Its `local_id` stays, so a server event for the earlier attempt still finds it. Returns
+    /// `(conversation, old id, new id)`.
+    pub fn requeue_pending(
+        &mut self,
+        local_id: &str,
+        timestamp: i64,
+    ) -> Option<(ConversationKey, i64, i64)> {
+        let old = self.find_pending(local_id)?.clone();
+        let echo = old.local_echo()?.clone();
+        let timeline = self.timelines.get_mut(&old.key)?;
+        timeline.messages.retain(|m| m.id != old.id);
+        self.index.remove(&old.id);
+        self.next_local_id -= 1;
+        let mut message = (*old).clone();
+        message.id = self.next_local_id;
+        message.timestamp = timestamp;
+        message.state = MessageState::Sending(echo);
+        let timeline = self.timelines.entry(old.key.clone()).or_default();
+        timeline.messages.push(Arc::new(message));
+        timeline.version += 1;
+        self.index.insert(self.next_local_id, old.key.clone());
+        Some((old.key.clone(), old.id, self.next_local_id))
     }
 
     pub fn remove_pending(&mut self, local_id: &str) -> Option<(ConversationKey, i64)> {
@@ -784,6 +841,54 @@ mod tests {
         assert!(matches!(&failed.state, MessageState::Failed(e) if e.raw_content == "x"));
         assert!(c.remove_pending(&local_id).is_some());
         assert!(ids(&c).is_empty());
+    }
+
+    #[test]
+    fn requeued_pending_moves_after_newer_messages() {
+        let mut c = cache();
+        c.merge_page(&key(), vec![msg(5)], PageKind::Newest, true, true);
+        let (first, first_id) = c.add_pending(msg(0), "a");
+        let (second, _) = c.add_pending(msg(0), "b");
+        c.set_pending_failed(&first_id, true);
+        c.on_new_message(msg(6), None);
+        assert_eq!(ids(&c), [5, 6, first, second]);
+
+        let (_, old, new) = c.requeue_pending(&first_id, 99).unwrap();
+        assert_eq!(old, first);
+        assert_eq!(ids(&c), [5, 6, second, new]);
+        let moved = c.find_pending(&first_id).unwrap();
+        assert_eq!(moved.timestamp, 99);
+        assert!(matches!(moved.state, MessageState::Sending(_)));
+        assert!(c.get(first).is_none());
+    }
+
+    #[test]
+    fn uploaded_attachment_is_replaced_in_the_text() {
+        let mut c = cache();
+        c.merge_page(&key(), vec![], PageKind::Newest, true, true);
+        let attachment = PendingAttachment {
+            address: "yaz-upload:1-0/a.png".into(),
+            path: "a.png".into(),
+        };
+        let (_, local_id) = c.add_pending_with(
+            msg(0),
+            "看 [a.png](yaz-upload:1-0/a.png)",
+            vec![attachment],
+            Some("<p>echo</p>".into()),
+        );
+        assert_eq!(
+            c.find_pending(&local_id).unwrap().content_html,
+            "<p>echo</p>"
+        );
+        c.attachment_uploaded(&local_id, "yaz-upload:1-0/a.png", "/user_uploads/1/a.png");
+        let echo = c
+            .find_pending(&local_id)
+            .unwrap()
+            .local_echo()
+            .unwrap()
+            .clone();
+        assert_eq!(echo.raw_content, "看 [a.png](/user_uploads/1/a.png)");
+        assert!(echo.attachments.is_empty());
     }
 
     #[test]

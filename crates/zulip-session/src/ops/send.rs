@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use zulip_api::{ApiError, OutgoingMessage};
 use zulip_core::ConversationKey;
-use zulip_core::model::{ChatMessage, MessageState};
+use zulip_core::model::{ChatMessage, MessageState, PendingAttachment};
 use zulip_core::text::mention;
 
 use crate::error::{Result, SessionError};
@@ -73,6 +73,31 @@ impl Session {
         content: &str,
         kind: OutgoingKind,
     ) -> Result<i64> {
+        self.send_full(key, content, kind, Vec::new(), None).await
+    }
+
+    /// Sends a message that links to files on this computer by pending addresses: the echo
+    /// (with `echo_html` when given) appears at once, the files are uploaded as part of sending,
+    /// and an upload failure marks the message failed like a failed send.
+    pub async fn send_with_attachments(
+        self: &Arc<Self>,
+        key: &ConversationKey,
+        content: &str,
+        attachments: Vec<PendingAttachment>,
+        echo_html: Option<String>,
+    ) -> Result<i64> {
+        self.send_full(key, content, OutgoingKind::Text, attachments, echo_html)
+            .await
+    }
+
+    async fn send_full(
+        self: &Arc<Self>,
+        key: &ConversationKey,
+        content: &str,
+        kind: OutgoingKind,
+        attachments: Vec<PendingAttachment>,
+        echo_html: Option<String>,
+    ) -> Result<i64> {
         let filtered = match &self.hooks {
             Some(hooks) => Some(
                 hooks
@@ -104,7 +129,9 @@ impl Session {
                 message.stream_id = Some(t.stream_id);
                 message.topic = state.topic_name(key);
             }
-            state.messages.add_pending(message, content)
+            state
+                .messages
+                .add_pending_with(message, content, attachments, echo_html)
         };
         self.emit(SessionEvent::MessageAdded {
             key: key.clone(),
@@ -113,9 +140,11 @@ impl Session {
         self.post_pending(&local_id).await
     }
 
-    /// Resends a failed message.
+    /// Resends a failed message. The server orders messages by id, assigned when it receives
+    /// them, so the resent message will come after anything sent meanwhile: it moves to the end
+    /// of the conversation with the current time now, instead of jumping there later.
     pub async fn retry_send(self: &Arc<Self>, local_id: &str) -> Result<i64> {
-        let changed = {
+        let moved = {
             let mut state = self.state.write();
             let failed = state
                 .messages
@@ -124,10 +153,16 @@ impl Session {
             if !failed {
                 return Err(SessionError::invalid("这条消息已不能重发"));
             }
-            state.messages.set_pending_failed(local_id, false)
+            state
+                .messages
+                .requeue_pending(local_id, chrono::Utc::now().timestamp())
         };
-        if let Some((key, id)) = changed {
-            self.emit(SessionEvent::MessageUpdated { key, id });
+        if let Some((key, old, new)) = moved {
+            self.emit(SessionEvent::MessageRemoved {
+                key: key.clone(),
+                id: old,
+            });
+            self.emit(SessionEvent::MessageAdded { key, id: new });
         }
         self.post_pending(local_id).await
     }
@@ -151,7 +186,65 @@ impl Session {
         }
     }
 
+    /// Uploads the message's remaining attachments, then posts it. Messages of one conversation
+    /// go one at a time in the order they were sent, so a quick message does not overtake one
+    /// still uploading; a failed message releases its turn.
     async fn post_pending(self: &Arc<Self>, local_id: &str) -> Result<i64> {
+        let Some(key) = self
+            .state
+            .read()
+            .messages
+            .find_pending(local_id)
+            .map(|m| m.key.clone())
+        else {
+            return Err(SessionError::invalid("这条消息已不能重发"));
+        };
+        let gate = self.gate(format!("send:{key}"));
+        let _turn = gate.lock().await;
+        let result = match self.upload_attachments(local_id).await {
+            Ok(()) => self.post_now(local_id).await,
+            Err(error) => Err(error),
+        };
+        if result.is_err() {
+            let changed = self
+                .state
+                .write()
+                .messages
+                .set_pending_failed(local_id, true);
+            if let Some((key, id)) = changed {
+                self.emit(SessionEvent::MessageUpdated { key, id });
+            }
+        }
+        result
+    }
+
+    async fn upload_attachments(self: &Arc<Self>, local_id: &str) -> Result<()> {
+        loop {
+            let next = {
+                let state = self.state.read();
+                let Some(echo) = state
+                    .messages
+                    .find_pending(local_id)
+                    .and_then(|m| m.local_echo())
+                else {
+                    // Discarded meanwhile
+                    return Err(SessionError::invalid("这条消息已不能重发"));
+                };
+                echo.attachments.first().cloned()
+            };
+            let Some(attachment) = next else {
+                return Ok(());
+            };
+            let uploaded = self.upload_file(&attachment.path, |_| {}).await?;
+            self.state.write().messages.attachment_uploaded(
+                local_id,
+                &attachment.address,
+                &uploaded.url,
+            );
+        }
+    }
+
+    async fn post_now(self: &Arc<Self>, local_id: &str) -> Result<i64> {
         let (key, content, mut message) = {
             let state = self.state.read();
             let Some(pending) = state.messages.find_pending(local_id) else {
@@ -191,17 +284,7 @@ impl Session {
                 }
                 Ok(sent.id)
             }
-            Err(error) => {
-                let changed = self
-                    .state
-                    .write()
-                    .messages
-                    .set_pending_failed(local_id, true);
-                if let Some((key, id)) = changed {
-                    self.emit(SessionEvent::MessageUpdated { key, id });
-                }
-                Err(error.into())
-            }
+            Err(error) => Err(error.into()),
         }
     }
 

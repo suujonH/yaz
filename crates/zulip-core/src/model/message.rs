@@ -80,8 +80,20 @@ impl MessageFlags {
 pub struct LocalEcho {
     /// The `local_id` at send time, used by `retry_send` and `discard_failed`.
     pub local_id: String,
-    /// Original Markdown: used when resending.
+    /// Original Markdown: used when resending. Pending attachment addresses in it are replaced
+    /// with the uploaded ones as each upload finishes.
     pub raw_content: String,
+    /// Attachments still to upload before the message can be posted.
+    #[serde(default)]
+    pub attachments: Vec<PendingAttachment>,
+}
+
+/// A file on this computer that a message links to by a pending address
+/// ([`crate::markdown::PENDING_UPLOAD_SCHEME`]); uploaded as part of sending.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PendingAttachment {
+    pub address: String,
+    pub path: std::path::PathBuf,
 }
 
 /// Lifecycle state of a message.
@@ -217,6 +229,7 @@ mod tests {
         let echo = LocalEcho {
             local_id: "1.1".into(),
             raw_content: "x".into(),
+            attachments: Vec::new(),
         };
         m.state = MessageState::Sending(echo.clone());
         assert_eq!(m.local_echo(), Some(&echo));

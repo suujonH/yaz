@@ -12,7 +12,9 @@ use percent_encoding::{AsciiSet, NON_ALPHANUMERIC, percent_decode_str, utf8_perc
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
+use zulip_core::html::{encode, is_image_path};
 use zulip_core::markdown::{PENDING_UPLOAD_SCHEME, link_markdown};
+use zulip_core::model::PendingAttachment;
 
 /// Characters kept as they are in the file name of a pending address.
 const NAME_SET: &AsciiSet = &NON_ALPHANUMERIC.remove(b'.').remove(b'-').remove(b'_');
@@ -288,7 +290,7 @@ fn pending_address_of(dir: &str, name: &str) -> String {
 
 /// Where a pending address points in the paste folder; `None` for a malformed address (the
 /// folder must be one made by [`unique_paste_path`] and the name a single segment).
-pub(super) fn resolve_pending(address: &str) -> Option<PathBuf> {
+pub(crate) fn resolve_pending(address: &str) -> Option<PathBuf> {
     let (dir, name) = split_pending(address)?;
     Some(paste_root().join(dir).join(name))
 }
@@ -302,6 +304,75 @@ fn split_pending(address: &str) -> Option<(String, String)> {
         .file_name()
         .is_some_and(|n| n == name.as_str());
     (valid_dir && single).then(|| (dir.to_owned(), name))
+}
+
+/// The pending attachments of a message about to be sent; `None` when one of their files is gone
+/// (a draft from before the cache was cleared).
+pub(super) fn pending_attachments(text: &str) -> Option<Vec<PendingAttachment>> {
+    pending_addresses(text)
+        .into_iter()
+        .map(|address| {
+            let path = resolve_pending(&address).filter(|p| p.is_file())?;
+            Some(PendingAttachment { address, path })
+        })
+        .collect()
+}
+
+/// HTML of the local echo of a message with pending attachments: the text as typed, with each
+/// image shown from its local file (as the server will show it) and each other file by its name.
+pub(super) fn echo_html(text: &str, attachments: &[PendingAttachment]) -> String {
+    let mut out = String::new();
+    let mut paragraph = String::new();
+    let flush = |out: &mut String, paragraph: &mut String| {
+        let trimmed = paragraph.trim_matches('\n');
+        if !trimmed.trim().is_empty() {
+            out.push_str("<p>");
+            out.push_str(&encode(trimmed).replace('\n', "<br>"));
+            out.push_str("</p>");
+        }
+        paragraph.clear();
+    };
+    let mut rest = text;
+    while let Some((start, end, attachment, label)) = next_attachment_link(rest, attachments) {
+        paragraph.push_str(&rest[..start]);
+        if is_image_path(&attachment.address) {
+            flush(&mut out, &mut paragraph);
+            let address = encode(&attachment.address);
+            let size = image::image_dimensions(&attachment.path)
+                .map(|(w, h)| format!(" data-original-dimensions=\"{w}x{h}\""))
+                .unwrap_or_default();
+            out.push_str(&format!(
+                "<div class=\"message_inline_image\"><a href=\"{address}\"><img src=\"{address}\"{size}></a></div>"
+            ));
+        } else {
+            paragraph.push_str(label);
+        }
+        rest = &rest[end..];
+    }
+    paragraph.push_str(rest);
+    flush(&mut out, &mut paragraph);
+    out
+}
+
+/// The first `[label](address)` of an attachment in `text`: (start, end, attachment, label).
+fn next_attachment_link<'t, 'a>(
+    text: &'t str,
+    attachments: &'a [PendingAttachment],
+) -> Option<(usize, usize, &'a PendingAttachment, &'t str)> {
+    attachments
+        .iter()
+        .filter_map(|attachment| {
+            let close = format!("]({})", attachment.address);
+            let at = text.find(&close)?;
+            let open = text[..at].rfind('[')?;
+            let start = if text[..open].ends_with('!') {
+                open - 1
+            } else {
+                open
+            };
+            Some((start, at + close.len(), attachment, &text[open + 1..at]))
+        })
+        .min_by_key(|(start, ..)| *start)
 }
 
 /// Distinct pending addresses in the text, in order.
@@ -367,6 +438,27 @@ mod tests {
         ] {
             assert_eq!(split_pending(address), None, "{address}");
         }
+    }
+
+    #[test]
+    fn echo_shows_images_as_blocks_and_files_by_name() {
+        let attachment = |address: &str| PendingAttachment {
+            address: address.into(),
+            path: "missing".into(),
+        };
+        let attachments = [
+            attachment("yaz-upload:1-0/a.png"),
+            attachment("yaz-upload:2-0/b.zip"),
+        ];
+        let text = "看<这个>\n[a.png](yaz-upload:1-0/a.png)\n和 [b.zip](yaz-upload:2-0/b.zip)";
+        assert_eq!(
+            echo_html(text, &attachments),
+            concat!(
+                "<p>看&lt;这个&gt;</p>",
+                r#"<div class="message_inline_image"><a href="yaz-upload:1-0/a.png"><img src="yaz-upload:1-0/a.png"></a></div>"#,
+                "<p>和 b.zip</p>",
+            )
+        );
     }
 
     #[test]

@@ -812,21 +812,24 @@ fn set_starred(chat: Chat, ids: Vec<i64>, starred: bool) {
     });
 }
 
+/// Send a failed message again: it moves to the end of the conversation (see
+/// `Session::retry_send`). A new failure shows the red mark again; nothing retries by itself.
+pub fn retry_send(chat: Chat, local_id: String) {
+    chat.spawn(async move {
+        chat.overlays
+            .attempt("发送失败", chat.session().retry_send(&local_id))
+            .await;
+    });
+}
+
 pub fn failed_menu(chat: Chat, local_id: String, x: f64, y: f64) {
     let retry = local_id.clone();
     chat.overlays.show_menu(
         x,
         y,
         vec![
-            MenuEntry::item("重新发送", move || {
-                let retry = retry.clone();
-                chat.spawn(async move {
-                    chat.overlays
-                        .attempt("发送失败", chat.session().retry_send(&retry))
-                        .await;
-                });
-            })
-            .icon(IconName::Refresh),
+            MenuEntry::item("重新发送", move || retry_send(chat, retry.clone()))
+                .icon(IconName::Refresh),
             MenuEntry::item("放弃发送", move || {
                 chat.session().discard_failed(&local_id)
             })

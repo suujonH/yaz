@@ -35,13 +35,25 @@ async fn local_url(session: Arc<Session>, url: String) -> Option<String> {
     Some(local)
 }
 
-/// Local address of an image already downloaded to this machine.
+/// Local address of an image already downloaded to this machine, or of an attachment of a message
+/// still being sent (its file has not been uploaded yet).
 pub fn downloaded_image(session: &Session, url: &str) -> Option<String> {
+    if zulip_core::markdown::is_pending_upload(url) {
+        return pending_image(url);
+    }
     LOCAL_URLS.with_borrow(|c| c.get(&cache_key(session, url)).cloned())
+}
+
+fn pending_image(url: &str) -> Option<String> {
+    let path = crate::pages::composer::resolve_pending(url)?;
+    url_for(&path)
 }
 
 /// Download an image and return the local address.
 pub async fn local_image(session: Arc<Session>, url: String) -> Option<String> {
+    if zulip_core::markdown::is_pending_upload(&url) {
+        return pending_image(&url);
+    }
     local_url(session, url).await
 }
 

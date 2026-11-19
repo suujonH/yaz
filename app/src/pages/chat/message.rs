@@ -351,13 +351,19 @@ fn SendState(message: std::sync::Arc<ChatMessage>) -> Element {
         },
         MessageState::Failed(echo) => {
             let local_id = echo.local_id.clone();
+            let for_menu = local_id.clone();
             rsx! {
                 span { class: "msg-state failed",
-                    title: "发送失败",
+                    title: "发送失败，点击重新发送（右键可放弃发送）",
                     onclick: move |e: MouseEvent| {
                         e.stop_propagation();
+                        actions::retry_send(chat, local_id.clone());
+                    },
+                    oncontextmenu: move |e: MouseEvent| {
+                        e.prevent_default();
+                        e.stop_propagation();
                         let at = e.client_coordinates();
-                        actions::failed_menu(chat, local_id.clone(), at.x, at.y);
+                        actions::failed_menu(chat, for_menu.clone(), at.x, at.y);
                     },
                     Icon { name: IconName::ErrorCircle, size: 16.0 }
                 }
