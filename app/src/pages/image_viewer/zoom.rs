@@ -79,6 +79,7 @@ impl Zoom {
         } else {
             self.offset.0 += (stage.0 - old.0) / 2.0;
             self.offset.1 += (stage.1 - old.1) / 2.0;
+            self.settle();
         }
     }
 
@@ -126,14 +127,13 @@ impl Zoom {
             center.0 - (center.0 - self.offset.0) * ratio,
             center.1 - (center.1 - self.offset.1) * ratio,
         );
-        if ratio < 1.0 {
-            self.settle();
-        }
+        self.settle();
     }
 
-    /// After zooming out, the image does not stay where it was dragged: on each axis where it
-    /// now fits it is centered again (so zooming back to the original size puts it back where it
-    /// was), and where it is still larger than the window no gap is left at the edge.
+    /// Keeps the image in view after it moves or changes size: on each axis where it is larger
+    /// than the display area its edges cannot come inside the area's edges (no gap, nothing
+    /// dragged out of sight); where it fits it is centered (so zooming back to the original size
+    /// puts it back where it was).
     fn settle(&mut self) {
         let (w, h) = self.display();
         let settle_axis = |offset: f64, size: f64, stage: f64| {
@@ -196,9 +196,11 @@ impl Zoom {
             && y + h * self.scale <= self.stage.1 + SLACK
     }
 
+    /// Drag: the image follows, but stays in view (see [`settle`](Self::settle)).
     pub fn set_offset(&mut self, offset: (f64, f64)) {
         self.fit = false;
         self.offset = offset;
+        self.settle();
     }
 
     fn center(&mut self) {
@@ -339,9 +341,51 @@ mod tests {
         // Zoomed in but still smaller than the window
         small.zoom_in();
         assert!(small.fully_visible());
-        // Moved partly out of the window
+        // An image that fits cannot be dragged partly out of the window
         small.set_offset((-50.0, 0.0));
-        assert!(!small.fully_visible());
+        assert!(small.fully_visible());
+    }
+
+    #[test]
+    fn a_larger_image_cannot_be_dragged_out_of_view() {
+        // 1200x900 at its original size in a 1000x800 view
+        let mut z = zoom((1200.0, 900.0), (1000.0, 800.0));
+        z.actual_size();
+        for (drag, expected) in [
+            // Down and right as far as possible: the top-left corner stops at the view's
+            ((500.0, 500.0), (0.0, 0.0)),
+            // Up and left: the bottom-right corner stops at the view's (800 - 900 = -100)
+            ((-500.0, -500.0), (-200.0, -100.0)),
+            // Within the range: follows the drag
+            ((-50.0, -30.0), (-50.0, -30.0)),
+        ] {
+            z.set_offset(drag);
+            assert_eq!(z.offset(), expected);
+        }
+        // Zooming in or out keeps it in view as well
+        z.set_offset((0.0, 0.0));
+        for notches in [1.0, 3.0, -1.0, -2.0] {
+            z.wheel(notches);
+            let (w, h) = (1200.0 * z.scale, 900.0 * z.scale);
+            let (x, y) = z.offset();
+            for (at, size, stage) in [(x, w, 1000.0), (y, h, 800.0)] {
+                if size > stage {
+                    assert!(at <= 1e-9 && at + size >= stage - 1e-9);
+                } else {
+                    assert!((at - (stage - size) / 2.0).abs() < 1e-9);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn resizing_keeps_a_zoomed_image_in_view() {
+        let mut z = zoom((1200.0, 900.0), (1000.0, 800.0));
+        z.actual_size();
+        // Showing the bottom edge, then the window grows taller than the image
+        z.set_offset((0.0, -100.0));
+        z.set_stage((1000.0, 1000.0));
+        assert_eq!(z.offset().1, 50.0);
     }
 
     #[test]
