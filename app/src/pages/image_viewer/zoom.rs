@@ -1,4 +1,4 @@
-//! Image zoom, pan and rotation. The wheel zooms around the mouse position, and in "fit window"
+//! Image zoom, pan and rotation. The wheel zooms around the center of the view, and in "fit window"
 //! mode it re-fits as the window size changes.
 
 pub const MIN_SCALE: f64 = 0.1;
@@ -161,10 +161,11 @@ impl Zoom {
         self.zoom_at(ZOOM_OUT, self.stage_center());
     }
 
-    /// Wheel: `notches` positive means scroll up (zoom in).
-    pub fn wheel(&mut self, notches: f64, at: (f64, f64)) {
+    /// Wheel: `notches` positive means scroll up (zoom in). Zooms around the center of the display
+    /// area, like the zoom buttons, so the image grows and shrinks in place wherever the mouse is.
+    pub fn wheel(&mut self, notches: f64) {
         if notches != 0.0 {
-            self.zoom_at(ZOOM_IN.powf(notches), at);
+            self.zoom_at(ZOOM_IN.powf(notches), self.stage_center());
         }
     }
 
@@ -347,11 +348,11 @@ mod tests {
     fn zooming_back_out_after_dragging_returns_to_the_original_place() {
         let mut z = zoom((2000.0, 1000.0), (1000.0, 800.0));
         let fitted = z.offset();
-        z.wheel(3.0, (200.0, 300.0));
+        z.wheel(3.0);
         z.set_offset((z.offset().0 - 400.0, z.offset().1 + 120.0));
-        // Zoom out around another point until back to (or below) the fitted size
+        // Zoom out until back to (or below) the fitted size
         for _ in 0..6 {
-            z.wheel(-1.0, (900.0, 100.0));
+            z.wheel(-1.0);
             assert!(z.offset().0 <= 0.0 || z.fully_visible());
         }
         z.apply_fit();
@@ -378,11 +379,27 @@ mod tests {
     }
 
     #[test]
+    fn wheel_keeps_a_centered_image_centered() {
+        let mut z = zoom((2000.0, 1000.0), (1000.0, 800.0));
+        let image_center = |z: &Zoom| {
+            (
+                z.offset().0 + 2000.0 * z.scale / 2.0,
+                z.offset().1 + 1000.0 * z.scale / 2.0,
+            )
+        };
+        for notches in [1.0, 2.0, -1.0, -3.0] {
+            z.wheel(notches);
+            let (x, y) = image_center(&z);
+            assert!((x - 500.0).abs() < 1e-9 && (y - 400.0).abs() < 1e-9);
+        }
+    }
+
+    #[test]
     fn wheel_zooms_by_notches() {
         let mut z = zoom((100.0, 100.0), (1000.0, 800.0));
-        z.wheel(2.0, (500.0, 400.0));
+        z.wheel(2.0);
         assert!((z.scale - 1.44).abs() < 1e-9);
-        z.wheel(0.0, (0.0, 0.0));
+        z.wheel(0.0);
         assert!((z.scale - 1.44).abs() < 1e-9);
     }
 }

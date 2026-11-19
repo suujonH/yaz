@@ -549,8 +549,7 @@ fn ViewerBody() -> Element {
                             WheelDelta::Lines(v) => v.y,
                             WheelDelta::Pages(v) => v.y * 10.0,
                         };
-                        let at = e.element_coordinates();
-                        zoom.write().wheel(-notches, (at.x, at.y));
+                        zoom.write().wheel(-notches);
                         show_tip();
                     },
                     onmousedown: move |e| {
