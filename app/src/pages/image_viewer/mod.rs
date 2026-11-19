@@ -343,32 +343,53 @@ fn ViewerBody() -> Element {
         }
     });
 
-    // Size of the display area: measured on mount and again after the window size changes
+    // Size of the display area: measured on mount and again after the window size changes. While
+    // the window is being resized the measurement keeps being restarted, so the size is also worked
+    // out at once from the new window size minus what the title bar and toolbar took at the last
+    // measurement: the image follows the resize instead of waiting for it to pause.
+    let mut chrome = use_signal(|| None::<(f64, f64)>);
     use_wry_event_handler({
         let window = window.clone();
         move |event, _| {
             if let Event::WindowEvent {
-                event: WindowEvent::Resized(_),
+                event: WindowEvent::Resized(size),
                 window_id,
                 ..
             } = event
                 && *window_id == window.id()
             {
+                if let Some((w, h)) = *chrome.peek() {
+                    let inner: LogicalSize<f64> = size.to_logical(window.scale_factor());
+                    let stage = (inner.width - w, inner.height - h);
+                    if stage.0 > 0.0 && stage.1 > 0.0 {
+                        zoom.write().set_stage(stage);
+                    }
+                }
                 resized += 1;
             }
         }
     });
-    use_resource(move || async move {
-        let _ = resized();
-        tokio::time::sleep(MEASURE_DELAY).await;
-        let element = stage.peek().clone();
-        if let Some(element) = element
-            && let Ok(rect) = element.get_client_rect().await
-        {
-            zoom.write().set_stage((rect.size.width, rect.size.height));
-            if *show_after_measure.peek() {
-                show_after_measure.set(false);
-                ready_to_show.set(true);
+    use_resource({
+        let window = window.clone();
+        move || {
+            let window = window.clone();
+            async move {
+                let _ = resized();
+                tokio::time::sleep(MEASURE_DELAY).await;
+                let element = stage.peek().clone();
+                if let Some(element) = element
+                    && let Ok(rect) = element.get_client_rect().await
+                {
+                    let measured = (rect.size.width, rect.size.height);
+                    let inner: LogicalSize<f64> =
+                        window.inner_size().to_logical(window.scale_factor());
+                    chrome.set(Some((inner.width - measured.0, inner.height - measured.1)));
+                    zoom.write().set_stage(measured);
+                    if *show_after_measure.peek() {
+                        show_after_measure.set(false);
+                        ready_to_show.set(true);
+                    }
+                }
             }
         }
     });
