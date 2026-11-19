@@ -9,6 +9,14 @@
 .viewer-surface { position: absolute; inset: 0; overflow: hidden; }
 .viewer-image { position: absolute; left: 0; top: 0; max-width: none; transform-origin: 0 0; pointer-events: none; user-select: none; }
 .viewer-image.animating { transition: transform 0.25s ease-out; }
+/* Recognized text over the image: transparent, selectable; same size and transform as the image */
+.viewer-text-layer { position: absolute; left: 0; top: 0; transform-origin: 0 0; pointer-events: none; line-height: 0; }
+.viewer-text-layer.animating { transition: transform 0.25s ease-out; }
+.viewer-word {
+  position: absolute; white-space: pre; transform-origin: 0 0; color: transparent; font-family: sans-serif;
+  pointer-events: auto; cursor: text; user-select: text; -webkit-user-select: text;
+}
+.viewer-word::selection { background: rgba(0, 120, 215, 0.4); color: transparent; }
 .viewer-status { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; animation: viewer-status-in 0s linear 0.3s backwards; }
 @keyframes viewer-status-in { from { visibility: hidden; } }
 .viewer-nav { position: absolute; top: 50%; margin-top: -18px; border-radius: 50%; background: rgba(0, 0, 0, 0.4); }

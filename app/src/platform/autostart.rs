@@ -16,6 +16,8 @@ pub enum PlatformError {
     ExePath(#[from] std::io::Error),
     #[error("系统无法打开（错误码 {0}）")]
     Open(isize),
+    #[error("文字识别失败：{0}")]
+    Ocr(String),
 }
 
 /// Run at startup: the current user's startup entry (registry Run key). State is whatever the

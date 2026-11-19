@@ -1,6 +1,7 @@
 //! Image viewer window: zoom (wheel, buttons, fit), pan, rotate, album switching, save as, copy,
-//! open externally, forward, fullscreen.
+//! open externally, forward, fullscreen; the text on the image can be selected (system OCR).
 
+mod text_layer;
 mod zoom;
 
 use crate::platform::{self, ClipboardImage};
@@ -8,8 +9,8 @@ use crate::shell::{WindowShell, url_for, use_window_args};
 use crate::state::use_app_state;
 use crate::ui::*;
 use crate::widgets::*;
-use dioxus::desktop::tao::event::{Event, WindowEvent};
 use dioxus::desktop::tao::dpi::PhysicalPosition;
+use dioxus::desktop::tao::event::{Event, WindowEvent};
 use dioxus::desktop::{LogicalSize, use_window, use_wry_event_handler};
 use dioxus::html::geometry::WheelDelta;
 use dioxus::html::input_data::MouseButton;
@@ -19,6 +20,7 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
+use text_layer::{SELECTION_JS, TextLayer, plain_text};
 use zoom::Zoom;
 use zulip_core::html::{IMAGE_EXTENSIONS, normalize_upload_path, upload_link_of};
 use zulip_session::{Session, SessionError};
@@ -44,7 +46,10 @@ const MAX_SCREEN_SHARE: f64 = 0.9;
 /// work area. Larger images get the largest window allowed and are fitted into it.
 fn window_size_for(natural: (f64, f64), chrome: (f64, f64), work: (f64, f64)) -> (f64, f64) {
     let side = |image: f64, chrome: f64, work: f64, min: f64| {
-        (image + chrome).min(work * MAX_SCREEN_SHARE).max(min).round()
+        (image + chrome)
+            .min(work * MAX_SCREEN_SHARE)
+            .max(min)
+            .round()
     };
     (
         side(natural.0, chrome.0, work.0, MIN_SIZE.0),
@@ -250,6 +255,30 @@ fn ViewerBody() -> Element {
             zoom.write().set_image(image.size);
         }
     });
+    // Text on the image, recognized in the background once it loads (None: not yet, no OCR
+    // language, or it failed)
+    let recognized = use_resource(move || async move {
+        let path = loaded.read().clone().flatten()?.path;
+        match tokio::task::spawn_blocking(move || platform::recognize_text(&path)).await {
+            Ok(Ok(lines)) => lines.filter(|l| !l.is_empty()).map(Rc::new),
+            Ok(Err(error)) => {
+                log::warn!("识别图片文字失败：{error}");
+                None
+            }
+            Err(error) => {
+                log::warn!("识别图片文字失败：{error}");
+                None
+            }
+        }
+    });
+    // Text selected in the text layer
+    let mut selected_text = use_signal(String::new);
+    use_future(move || async move {
+        let mut eval = document::eval(SELECTION_JS);
+        while let Ok(text) = eval.recv::<String>().await {
+            selected_text.set(text);
+        }
+    });
 
     // Once the first image is laid out, size the window to show it at its original size (within
     // the screen) and center it; the fit mode then re-fits on the resize
@@ -274,7 +303,10 @@ fn ViewerBody() -> Element {
             let inner: LogicalSize<f64> = window.inner_size().to_logical(scale);
             let stage = current.stage();
             let chrome = (inner.width - stage.0, inner.height - stage.1);
-            let work = (f64::from(area.width) / scale, f64::from(area.height) / scale);
+            let work = (
+                f64::from(area.width) / scale,
+                f64::from(area.height) / scale,
+            );
             let size = window_size_for(image.size, chrome, work);
             if (size.0 - inner.width).abs() < 1.0 && (size.1 - inner.height).abs() < 1.0 {
                 return;
@@ -389,13 +421,29 @@ fn ViewerBody() -> Element {
                         return Vec::new();
                     }
                     // The viewer's menus have no icons
-                    vec![
+                    let selection = selected_text.peek().clone();
+                    let all = recognized
+                        .peek()
+                        .clone()
+                        .flatten()
+                        .map(|lines| plain_text(&lines))
+                        .filter(|text| !text.is_empty());
+                    let mut entries = Vec::new();
+                    if !selection.is_empty() {
+                        entries.push(MenuEntry::item("复制文字", move || overlays.copy_text(&selection)).plain());
+                        entries.push(MenuEntry::Separator);
+                    } else if let Some(all) = all {
+                        entries.push(MenuEntry::item("复制图中文字", move || overlays.copy_text(&all)).plain());
+                        entries.push(MenuEntry::Separator);
+                    }
+                    entries.extend([
                         MenuEntry::item("使用系统图片查看器打开", move || open_external.call(())).plain(),
                         MenuEntry::Separator,
                         MenuEntry::item("复制", move || copy.call(())).plain(),
                         MenuEntry::item("转发", move || forward.call(())).plain(),
                         MenuEntry::item("另存为", move || save_as.call(())).plain(),
-                    ]
+                    ]);
+                    entries
                 },
                 div {
                     class: "viewer-surface",
@@ -446,6 +494,9 @@ fn ViewerBody() -> Element {
                             src: "{image.src}",
                             draggable: "false",
                             style: "{zoom.read().style()}",
+                        }
+                        if let Some(lines) = recognized.read().clone().flatten() {
+                            TextLayer { lines, style: zoom.read().style(), animating: animating() > 0 }
                         }
                     }
                 }
@@ -597,10 +648,19 @@ mod tests {
         let chrome = (0.0, 90.0);
         let work = (1920.0, 1040.0);
         // Fits: original size plus title bar and toolbar
-        assert_eq!(window_size_for((1200.0, 700.0), chrome, work), (1200.0, 790.0));
+        assert_eq!(
+            window_size_for((1200.0, 700.0), chrome, work),
+            (1200.0, 790.0)
+        );
         // Too large: 90% of the work area
-        assert_eq!(window_size_for((1653.0, 2000.0), chrome, work), (1653.0, 936.0));
-        assert_eq!(window_size_for((4000.0, 3000.0), chrome, work), (1728.0, 936.0));
+        assert_eq!(
+            window_size_for((1653.0, 2000.0), chrome, work),
+            (1653.0, 936.0)
+        );
+        assert_eq!(
+            window_size_for((4000.0, 3000.0), chrome, work),
+            (1728.0, 936.0)
+        );
         // Small images do not shrink the window below its minimum size
         assert_eq!(window_size_for((100.0, 80.0), chrome, work), MIN_SIZE);
     }

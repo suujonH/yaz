@@ -1,10 +1,11 @@
 //! Platform integration: tray, taskbar flashing, run at startup, clipboard, file picker, idle time,
-//! edge-hide, notification sound.
+//! edge-hide, notification sound, text recognition.
 
 mod autostart;
 mod clipboard;
 mod dialogs;
 mod edge_hide;
+mod ocr;
 mod system;
 mod tray;
 mod tray_avatar;
@@ -19,6 +20,9 @@ pub use clipboard::{
 };
 pub use dialogs::{FileFilter, IMAGE_FILTER, pick_file, pick_files, pick_folder, save_file};
 pub use edge_hide::{is_hidden_at_edge, use_edge_hide, work_area, work_area_at};
+#[cfg(test)]
+pub use ocr::OcrWord;
+pub use ocr::{OcrLine, recognize_text};
 pub use system::{
     app_is_foreground, flash_taskbar, idle_time, is_foreground, open_path, play_notification_sound,
     system_prefers_dark,
