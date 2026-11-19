@@ -126,6 +126,27 @@ impl Zoom {
             center.0 - (center.0 - self.offset.0) * ratio,
             center.1 - (center.1 - self.offset.1) * ratio,
         );
+        if ratio < 1.0 {
+            self.settle();
+        }
+    }
+
+    /// After zooming out, the image does not stay where it was dragged: on each axis where it
+    /// now fits it is centered again (so zooming back to the original size puts it back where it
+    /// was), and where it is still larger than the window no gap is left at the edge.
+    fn settle(&mut self) {
+        let (w, h) = self.display();
+        let settle_axis = |offset: f64, size: f64, stage: f64| {
+            if size <= stage {
+                (stage - size) / 2.0
+            } else {
+                offset.clamp(stage - size, 0.0)
+            }
+        };
+        self.offset = (
+            settle_axis(self.offset.0, w * self.scale, self.stage.0),
+            settle_axis(self.offset.1, h * self.scale, self.stage.1),
+        );
     }
 
     fn stage_center(&self) -> (f64, f64) {
@@ -320,6 +341,40 @@ mod tests {
         // Moved partly out of the window
         small.set_offset((-50.0, 0.0));
         assert!(!small.fully_visible());
+    }
+
+    #[test]
+    fn zooming_back_out_after_dragging_returns_to_the_original_place() {
+        let mut z = zoom((2000.0, 1000.0), (1000.0, 800.0));
+        let fitted = z.offset();
+        z.wheel(3.0, (200.0, 300.0));
+        z.set_offset((z.offset().0 - 400.0, z.offset().1 + 120.0));
+        // Zoom out around another point until back to (or below) the fitted size
+        for _ in 0..6 {
+            z.wheel(-1.0, (900.0, 100.0));
+            assert!(z.offset().0 <= 0.0 || z.fully_visible());
+        }
+        z.apply_fit();
+        assert_eq!(z.offset(), fitted);
+        // Without re-fitting: the same size as fitted puts it in the same place
+        let mut z = zoom((2000.0, 1000.0), (1000.0, 800.0));
+        z.zoom_in();
+        z.set_offset((z.offset().0 + 300.0, z.offset().1 - 200.0));
+        z.zoom_at(1.0 / 1.2, (100.0, 700.0));
+        assert!((z.scale - 0.5).abs() < 1e-9);
+        assert!((z.offset().0 - fitted.0).abs() < 1e-9);
+        assert!((z.offset().1 - fitted.1).abs() < 1e-9);
+    }
+
+    #[test]
+    fn zooming_out_leaves_no_gap_while_still_larger() {
+        let mut z = zoom((2000.0, 1000.0), (1000.0, 800.0));
+        z.actual_size();
+        // Dragged to show the right edge
+        z.set_offset((-1000.0, -100.0));
+        z.zoom_at(0.8, (0.0, 400.0));
+        // 1600 wide: the right edge stays at the window's right edge
+        assert!((z.offset().0 - (1000.0 - 1600.0)).abs() < 1e-9);
     }
 
     #[test]
