@@ -15,8 +15,8 @@ pub const ICON_RESOURCE_ID: u16 = 1;
 
 pub use autostart::{LaunchAtStartup, PlatformError};
 pub use clipboard::{
-    ClipboardImage, copied_markdown, copy_image, copy_text, paste_image, paste_text,
-    remember_markdown,
+    ClipboardImage, copied_image, copied_markdown, copy_image, copy_text, paste_image, paste_text,
+    remember_image, remember_markdown,
 };
 pub use dialogs::{FileFilter, IMAGE_FILTER, pick_file, pick_files, pick_folder, save_file};
 pub use edge_hide::{is_hidden_at_edge, use_edge_hide, work_area, work_area_at};

@@ -952,43 +952,6 @@ impl EditorCore {
         true
     }
 
-    /// Replace the placeholder with the upload result. Does nothing if the user already deleted the
-    /// placeholder.
-    pub fn replace_placeholder(&mut self, placeholder: &str, replacement: &str) {
-        let Some(start) = self.text.find(placeholder) else {
-            return;
-        };
-        // When deleting the placeholder, also delete the spaces added at insertion
-        let spaced = format!("{placeholder} ");
-        let placeholder = if replacement.is_empty() && self.text[start..].starts_with(&spaced) {
-            spaced.as_str()
-        } else {
-            placeholder
-        };
-        let shift = |at: usize| {
-            if at <= start {
-                at
-            } else if at >= start + placeholder.len() {
-                at + replacement.len() - placeholder.len()
-            } else {
-                start + replacement.len()
-            }
-        };
-        let sel = self.sel;
-        let edit = MarkdownEdit::new(start, placeholder.len(), replacement.to_owned(), 0, 0);
-        self.remember();
-        self.text = edit.apply(&self.text);
-        self.changed();
-        self.sel = match sel.cell {
-            Some(_) => sel,
-            None => Sel {
-                start: shift(sel.start),
-                end: shift(sel.end),
-                cell: None,
-            },
-        };
-    }
-
     /// Delete a span of the document (a blank line next to a table).
     pub fn delete_range(&mut self, start: usize, end: usize) {
         if start < end && end <= self.text.len() {
@@ -1537,24 +1500,6 @@ pub fn strip_stale_uploads(text: &str) -> String {
     }
     out.push_str(rest);
     out
-}
-
-/// Upload placeholder (same as the web app); files with the same name get a number so it stays
-/// unique.
-pub fn upload_placeholder(name: &str, exists: impl Fn(&str) -> bool) -> String {
-    let clean: String = name.chars().filter(|c| !matches!(c, '[' | ']')).collect();
-    let make = |n: &str| format!("[Uploading {n}…]()");
-    let mut placeholder = make(&clean);
-    let (stem, ext) = clean
-        .rfind('.')
-        .filter(|&i| i > 0)
-        .map_or((clean.as_str(), ""), |i| clean.split_at(i));
-    let mut k = 2;
-    while exists(&placeholder) {
-        placeholder = make(&format!("{stem} ({k}){ext}"));
-        k += 1;
-    }
-    placeholder
 }
 
 /// Poll message: the question on one line, each non-empty option on one line. A line break would be
@@ -2129,16 +2074,6 @@ ab
     }
 
     #[test]
-    fn placeholder_replacement_shifts_selection() {
-        let mut c = core("[Uploading a.png…]() 后");
-        let len = c.text().len();
-        c.sel = Sel::caret(len);
-        c.replace_placeholder("[Uploading a.png…]()", "[a](u)");
-        assert_eq!(c.text(), "[a](u) 后");
-        assert_eq!(c.sel, Sel::caret("[a](u) 后".len()));
-    }
-
-    #[test]
     fn smart_insert_adds_spaces() {
         let mut c = core("你好");
         c.insert_smart("@**甲|1**");
@@ -2156,19 +2091,6 @@ ab
     fn stale_uploads_are_removed() {
         assert_eq!(strip_stale_uploads("a[Uploading x.png…]() b"), "ab");
         assert_eq!(strip_stale_uploads("[Uploading x"), "[Uploading x");
-    }
-
-    #[test]
-    fn placeholders_stay_unique() {
-        let existing = "[Uploading a.png…]()";
-        assert_eq!(
-            upload_placeholder("a.png", |p| p == existing),
-            "[Uploading a (2).png…]()"
-        );
-        assert_eq!(
-            upload_placeholder("[b].png", |_| false),
-            "[Uploading b.png…]()"
-        );
     }
 
     #[test]

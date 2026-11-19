@@ -298,19 +298,23 @@ async fn copy_message(chat: Chat, message: Arc<ChatMessage>) {
     copy_with_markdown(chat, &text, &markdown);
 }
 
-async fn image_file(chat: Chat, msg: i64, index: usize) -> Option<std::path::PathBuf> {
+/// The image's original address and its downloaded file.
+async fn image_file(chat: Chat, msg: i64, index: usize) -> Option<(String, std::path::PathBuf)> {
     let message = chat.message(msg)?;
     let image = extract_inline_images(&message.content_html)
         .into_iter()
         .nth(index)?;
-    chat.overlays
-        .attempt("下载图片失败", chat.session().image_file(&image.original()))
-        .await
+    let url = image.original();
+    let path = chat
+        .overlays
+        .attempt("下载图片失败", chat.session().image_file(&url))
+        .await?;
+    Some((url, path))
 }
 
 fn copy_image(chat: Chat, msg: i64, index: usize) {
     chat.spawn(async move {
-        let Some(path) = image_file(chat, msg, index).await else {
+        let Some((url, path)) = image_file(chat, msg, index).await else {
             return;
         };
         let decoded = image::open(&path).map(|img| {
@@ -323,7 +327,10 @@ fn copy_image(chat: Chat, msg: i64, index: usize) {
         });
         match decoded {
             Ok(image) => match platform::copy_image(&image) {
-                Ok(()) => chat.overlays.toast("已复制"),
+                Ok(()) => {
+                    platform::remember_image(chat.session().account_id(), &url);
+                    chat.overlays.toast("已复制");
+                }
                 Err(error) => chat.overlays.report_error("复制失败", error),
             },
             Err(error) => chat.overlays.report_error("复制失败", error),
@@ -333,7 +340,7 @@ fn copy_image(chat: Chat, msg: i64, index: usize) {
 
 fn save_image(chat: Chat, msg: i64, index: usize) {
     chat.spawn(async move {
-        let Some(path) = image_file(chat, msg, index).await else {
+        let Some((_, path)) = image_file(chat, msg, index).await else {
             return;
         };
         let name = path.file_name().map_or_else(
@@ -350,7 +357,7 @@ fn save_image(chat: Chat, msg: i64, index: usize) {
 
 fn image_folder(chat: Chat, msg: i64, index: usize) {
     chat.spawn(async move {
-        if let Some(path) = image_file(chat, msg, index).await
+        if let Some((_, path)) = image_file(chat, msg, index).await
             && let Some(parent) = path.parent()
         {
             chat.overlays.open_file(parent);

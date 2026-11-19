@@ -9,7 +9,7 @@ use super::core::{EditorCore, strip_stale_uploads};
 use super::dialogs;
 use super::language::LangSearch;
 use super::render::Lookup;
-use super::upload::{PastedFile, UploadRow, screenshot_name, write_paste_file};
+use super::upload::{PastedFile, UploadRow, resolve_pending, screenshot_name, write_paste_file};
 use crate::pages::chat::quote_preview_html;
 use crate::services::{plugins, services, write_account_setting};
 use crate::ui::{Overlays, PopoverHandle, TextPrompt};
@@ -28,7 +28,7 @@ use zulip_core::ConversationKey;
 use zulip_core::html::to_preview;
 use zulip_core::markdown::format::{self, FormatKind};
 use zulip_core::markdown::table::TableAlign;
-use zulip_core::markdown::{SpanKind, quote};
+use zulip_core::markdown::{SpanKind, is_pending_upload, quote};
 use zulip_core::text::time::datetime_label;
 use zulip_session::{ConnectionState, DeleteTarget, Session};
 use zulip_store::AccountSettings;
@@ -383,10 +383,14 @@ impl Ctl {
 
     /// Paste from the context menu: check for an image first, then text.
     pub fn paste_from_clipboard(self) {
+        if let Some(markdown) = crate::platform::copied_image(self.account()) {
+            self.edit(|c| c.insert_attachment(&markdown));
+            return;
+        }
         if let Some(png) = crate::platform::paste_image().and_then(|image| image.to_png()) {
             let name = screenshot_name();
             match write_paste_file(&name, &png) {
-                Ok(path) => self.upload(path, name),
+                Ok(path) => self.attach_pasted(path, name),
                 Err(error) => self.overlays.report_error("粘贴失败", error),
             }
             return;
@@ -423,6 +427,17 @@ impl Ctl {
             .collect();
         drop(core);
         for url in urls {
+            // An attachment not uploaded yet: shown from its local file
+            if is_pending_upload(&url) {
+                if let Some(local) = resolve_pending(&url)
+                    .filter(|path| path.is_file())
+                    .and_then(|path| crate::shell::url_for(&path))
+                {
+                    self.core.write_unchecked().lookup.images.insert(url, local);
+                    self.push(false, false, false);
+                }
+                continue;
+            }
             self.fetching.write_unchecked().insert(url.clone());
             let session = self.session();
             self.spawn(async move {
@@ -561,8 +576,14 @@ impl Ctl {
         self.spawn(async move {
             let session = self.session();
             let key = self.key();
-            let filtered = plugins().filter_outgoing(&session, &key, &text).await;
+            // Attachments are uploaded now; on failure or cancel the text stays in the editor
+            let Some(uploaded) = self.upload_pending(text.clone()).await else {
+                sending.set(false);
+                return;
+            };
+            let filtered = plugins().filter_outgoing(&session, &key, &uploaded).await;
             sending.set(false);
+            let snapshot = text;
             let text = match filtered {
                 Ok(text) => text,
                 Err(rejected) => {
@@ -570,8 +591,16 @@ impl Ctl {
                     return;
                 }
             };
-            self.when_idle(|ctl| {
-                ctl.core.write_unchecked().reset(String::new());
+            self.when_idle(move |ctl| {
+                // Text typed after the message while its attachments were uploading is kept
+                let rest = {
+                    let core = ctl.core.peek();
+                    core.text()
+                        .strip_prefix(snapshot.as_str())
+                        .map(|rest| rest.trim_start().to_owned())
+                        .unwrap_or_default()
+                };
+                ctl.core.write_unchecked().reset(rest);
                 ctl.push(true, true, false);
                 ctl.update_view();
                 *ctl.draft_gen.write_unchecked() += 1;
@@ -660,6 +689,10 @@ impl Ctl {
         sending.set(true);
         self.spawn(async move {
             let session = self.session();
+            let Some(text) = self.upload_pending(text).await else {
+                sending.set(false);
+                return;
+            };
             let saved = self
                 .overlays
                 .attempt("编辑失败", session.edit_message(state.id, &text))

@@ -145,8 +145,9 @@
 .zh { color: var(--text-secondary); }
 .ze { font-family: "Segoe UI Emoji", var(--font); }
 .zemoji { width: 20px; height: 20px; vertical-align: -4px; }
-.zthumb { display: inline-block; width: 80px; height: 80px; margin: 2px; border-radius: var(--radius-sm); object-fit: cover; vertical-align: bottom; }
-.zthumb-empty { background: var(--fill); }
+/* The whole image at its own proportions, scaled down to fit the box */
+.zthumb { display: inline-block; max-width: min(240px, 100%); max-height: 120px; margin: 2px; border-radius: var(--radius-sm); vertical-align: bottom; }
+.zthumb-empty { width: 80px; height: 80px; background: var(--fill); }
 .zfile-chip {
   display: inline-flex; align-items: center; gap: 6px; height: 26px; max-width: 220px; margin: 2px; padding: 0 8px; border-radius: var(--radius);
   background: var(--fill); font-size: var(--fs-small); vertical-align: bottom;

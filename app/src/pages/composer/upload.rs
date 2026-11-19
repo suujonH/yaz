@@ -1,59 +1,96 @@
-//! Composer uploads: pasted files saved to disk, placeholder, progress, cancel, and replaced with a
-//! link on completion.
+//! Composer attachments: pasted, dropped or chosen files are kept on this computer and put in the
+//! text as a pending link (`[name](yaz-upload:…)`, shown like an uploaded file). They are uploaded
+//! only when the message is sent, and the pending addresses are then replaced with the uploaded
+//! ones. An image copied from a message is pasted as the link of the file already uploaded.
 
 use super::control::Ctl;
-use super::core::upload_placeholder;
 use crate::services::services;
 use crate::widgets::UploadProgress;
 use chrono::Local;
 use dioxus::prelude::*;
+use percent_encoding::{AsciiSet, NON_ALPHANUMERIC, percent_decode_str, utf8_percent_encode};
 use std::io::Write as _;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
-use zulip_core::markdown::link_markdown;
+use zulip_core::markdown::{PENDING_UPLOAD_SCHEME, link_markdown};
 
-/// A file being uploaded.
+/// Characters kept as they are in the file name of a pending address.
+const NAME_SET: &AsciiSet = &NON_ALPHANUMERIC.remove(b'.').remove(b'-').remove(b'_');
+
+/// A file being uploaded (while sending).
 #[derive(Clone)]
 pub struct UploadRow {
     pub id: u64,
     pub name: String,
     pub progress: f64,
-    placeholder: String,
     abort: tokio::task::AbortHandle,
 }
 
-pub(super) struct PastedFile {
-    path: PathBuf,
-    name: String,
-    file: std::fs::File,
+/// A file being pasted: saved chunk by chunk, or an image copied from a message whose link is used
+/// (its chunks are ignored).
+pub(super) enum PastedFile {
+    Saving {
+        path: PathBuf,
+        name: String,
+        file: std::fs::File,
+    },
+    Reused(String),
+}
+
+impl PastedFile {
+    fn create(name: &str) -> std::io::Result<Self> {
+        let name = if name.is_empty() {
+            screenshot_name()
+        } else {
+            name.to_owned()
+        };
+        let path = unique_paste_path(&name)?;
+        let file = std::fs::File::create(&path)?;
+        Ok(Self::Saving { path, name, file })
+    }
 }
 
 impl Ctl {
     pub(super) fn pasted_chunk(self, id: u64, name: &str, hex: &str, last: bool) {
-        let result = (|| -> std::io::Result<()> {
-            let mut pasting = self.pasting.write_unchecked();
-            if let std::collections::hash_map::Entry::Vacant(entry) = pasting.entry(id) {
-                let name = if name.is_empty() {
-                    screenshot_name()
-                } else {
-                    name.to_owned()
-                };
-                let path = unique_paste_path(&name)?;
-                let file = std::fs::File::create(&path)?;
-                entry.insert(PastedFile { path, name, file });
+        if !self.pasting.peek().contains_key(&id) {
+            // An image copied from a message of this account: use its link, nothing is uploaded
+            let entry = match crate::platform::copied_image(self.account()) {
+                Some(markdown) => Ok(PastedFile::Reused(markdown)),
+                None => PastedFile::create(name),
+            };
+            match entry {
+                Ok(entry) => {
+                    self.pasting.write_unchecked().insert(id, entry);
+                }
+                Err(error) => {
+                    self.overlays.report_error("粘贴失败", error);
+                    return;
+                }
             }
-            if let Some(entry) = pasting.get_mut(&id) {
-                entry.file.write_all(&decode_hex(hex)?)?;
+        }
+        let written = match self.pasting.write_unchecked().get_mut(&id) {
+            Some(PastedFile::Saving { file, .. }) => {
+                decode_hex(hex).and_then(|bytes| file.write_all(&bytes))
             }
-            Ok(())
-        })();
-        if let Err(error) = result {
+            _ => Ok(()),
+        };
+        if let Err(error) = written {
             self.pasting.write_unchecked().remove(&id);
             self.overlays.report_error("粘贴失败", error);
             return;
         }
-        if last && let Some(entry) = self.pasting.write_unchecked().remove(&id) {
-            self.upload(entry.path, entry.name);
+        if !last {
+            return;
+        }
+        match self.pasting.write_unchecked().remove(&id) {
+            Some(PastedFile::Reused(markdown)) => {
+                self.when_idle(move |ctl| ctl.edit(|c| c.insert_attachment(&markdown)));
+            }
+            Some(PastedFile::Saving { path, name, file }) => {
+                drop(file);
+                self.attach_pasted(path, name);
+            }
+            None => {}
         }
     }
 
@@ -62,97 +99,59 @@ impl Ctl {
             .report_error("上传失败", self.session().upload_too_large());
     }
 
-    /// Upload a file: put a placeholder at the cursor, and replace it with a link on completion.
-    /// Not connected (pasted, dropped or chosen files alike): nothing is inserted, only a hint.
-    pub fn upload(self, path: PathBuf, name: String) {
-        if !*self.connected.peek() {
-            self.overlays.toast("未连接服务器，无法上传");
-            return;
-        }
-        let session = self.session();
-        let total = match std::fs::metadata(&path) {
-            Ok(meta) => meta.len(),
-            Err(error) => {
-                self.overlays.report_error("上传失败", error);
-                return;
-            }
+    /// Whether the file can be uploaded (exists, within the server's size limit); shows why not.
+    fn size_ok(self, path: &Path) -> bool {
+        let error = match std::fs::metadata(path) {
+            Ok(meta) => match self.session().check_upload_size(meta.len()) {
+                Ok(()) => return true,
+                Err(error) => error.to_string(),
+            },
+            Err(error) => error.to_string(),
         };
-        if let Err(error) = session.check_upload_size(total) {
-            self.overlays.report_error("上传失败", error);
-            return;
-        }
-        let placeholder = {
-            let core = self.core.peek();
-            upload_placeholder(&name, |p| core.text().contains(p))
-        };
-        let inserted = placeholder.clone();
-        self.when_idle(move |ctl| ctl.edit(|c| c.insert_attachment(&inserted)));
+        self.overlays.report_error("添加附件失败", error);
+        false
+    }
 
-        let progress = UploadProgress::default();
-        let on_sent = progress.callback();
-        let local = path.clone();
-        let task = {
-            let session = session.clone();
-            tokio::spawn(async move { session.upload_file(&local, on_sent).await })
+    /// Put a file that is already in the paste folder into the text as a pending link.
+    pub(super) fn attach_pasted(self, path: PathBuf, name: String) {
+        if !self.size_ok(&path) {
+            return;
+        }
+        let Some(address) = pending_address(&path) else {
+            return;
         };
-        let id = *self.next_upload.peek();
-        *self.next_upload.write_unchecked() = id + 1;
-        let mut uploads = self.uploads;
-        uploads.write().push(UploadRow {
-            id,
-            name: name.clone(),
-            progress: 0.0,
-            placeholder: placeholder.clone(),
-            abort: task.abort_handle(),
-        });
-        self.update_view();
+        if zulip_core::html::is_image_path(&name)
+            && let Some(local) = crate::shell::url_for(&path)
+        {
+            self.core
+                .write_unchecked()
+                .lookup
+                .images
+                .insert(address.clone(), local);
+        }
+        let markdown = link_markdown(&name, &address);
+        self.when_idle(move |ctl| ctl.edit(|c| c.insert_attachment(&markdown)));
+    }
+
+    /// Files that were dragged and dropped or chosen: copied into the paste folder (so the draft
+    /// still has them if the original moves), then attached.
+    pub fn upload_path(self, path: PathBuf) {
+        let name = path
+            .file_name()
+            .map_or_else(String::new, |n| n.to_string_lossy().into_owned());
+        if !self.size_ok(&path) {
+            return;
+        }
         self.spawn(async move {
-            let result = progress
-                .track(total, task, |done| {
-                    if let Some(row) = uploads.write().iter_mut().find(|r| r.id == id) {
-                        row.progress = done;
-                    }
-                })
-                .await;
-            uploads.write().retain(|r| r.id != id);
-            match result {
-                Ok(Ok(uploaded)) => {
-                    let label = uploaded.filename.clone().unwrap_or(name);
-                    let link = link_markdown(&label, &uploaded.url);
-                    self.when_idle(move |ctl| {
-                        if let Some(local) = crate::shell::url_for(&path) {
-                            let core = &mut *ctl.core.write_unchecked();
-                            core.lookup.images.insert(uploaded.url.clone(), local);
-                        }
-                        ctl.replace_async(&placeholder, &link);
-                    });
-                }
-                Ok(Err(error)) => {
-                    self.overlays.report_error("上传失败", error);
-                    self.when_idle(move |ctl| ctl.replace_async(&placeholder, ""));
-                }
-                // On cancel the placeholder has already been removed
-                Err(_) => {}
+            let copied = match unique_paste_path(&name) {
+                Ok(target) => tokio::fs::copy(&path, &target).await.map(|_| target),
+                Err(error) => Err(error),
+            };
+            match copied {
+                Ok(target) => self.attach_pasted(target, name),
+                Err(error) => self.overlays.report_error("添加附件失败", error),
             }
         });
-    }
-
-    pub(super) fn replace_async(self, placeholder: &str, replacement: &str) {
-        self.core
-            .write_unchecked()
-            .replace_placeholder(placeholder, replacement);
-        self.push(true, false, false);
-        self.after_change(true);
-    }
-
-    pub fn cancel_upload(self, id: u64) {
-        let mut uploads = self.uploads;
-        let row = uploads.peek().iter().find(|r| r.id == id).cloned();
-        if let Some(row) = row {
-            row.abort.abort();
-            uploads.write().retain(|r| r.id != id);
-            self.when_idle(move |ctl| ctl.replace_async(&row.placeholder, ""));
-        }
     }
 
     /// Upload after choosing a file.
@@ -171,12 +170,76 @@ impl Ctl {
         });
     }
 
-    /// Files that were dragged and dropped or chosen.
-    pub fn upload_path(self, path: PathBuf) {
-        let name = path
-            .file_name()
-            .map_or_else(String::new, |n| n.to_string_lossy().into_owned());
-        self.upload(path, name);
+    /// Upload the pending attachments in `text` and return it with their uploaded addresses.
+    /// `None` when an upload failed (the error is shown) or was cancelled.
+    pub(super) async fn upload_pending(self, mut text: String) -> Option<String> {
+        let addresses = pending_addresses(&text);
+        if addresses.is_empty() {
+            return Some(text);
+        }
+        if !*self.connected.peek() {
+            self.overlays.toast("未连接服务器，无法上传");
+            return None;
+        }
+        let session = self.session();
+        for address in addresses {
+            let Some(path) = resolve_pending(&address).filter(|p| p.is_file()) else {
+                self.overlays.toast("附件已不存在，请重新添加");
+                return None;
+            };
+            let name = path
+                .file_name()
+                .map_or_else(String::new, |n| n.to_string_lossy().into_owned());
+            let total = std::fs::metadata(&path).map_or(0, |m| m.len());
+            let progress = UploadProgress::default();
+            let on_sent = progress.callback();
+            let task = {
+                let (session, path) = (session.clone(), path.clone());
+                tokio::spawn(async move { session.upload_file(&path, on_sent).await })
+            };
+            let id = *self.next_upload.peek();
+            *self.next_upload.write_unchecked() = id + 1;
+            let mut uploads = self.uploads;
+            uploads.write().push(UploadRow {
+                id,
+                name,
+                progress: 0.0,
+                abort: task.abort_handle(),
+            });
+            let result = progress
+                .track(total, task, |done| {
+                    if let Some(row) = uploads.write().iter_mut().find(|r| r.id == id) {
+                        row.progress = done;
+                    }
+                })
+                .await;
+            uploads.write().retain(|r| r.id != id);
+            match result {
+                Ok(Ok(uploaded)) => {
+                    if let Some(local) = crate::shell::url_for(&path) {
+                        let core = &mut *self.core.write_unchecked();
+                        core.lookup.images.insert(uploaded.url.clone(), local);
+                    }
+                    text = text.replace(&address, &uploaded.url);
+                }
+                Ok(Err(error)) => {
+                    self.overlays.report_error("上传失败", error);
+                    return None;
+                }
+                // Cancelled
+                Err(_) => return None,
+            }
+        }
+        Some(text)
+    }
+
+    pub fn cancel_upload(self, id: u64) {
+        let mut uploads = self.uploads;
+        let row = uploads.peek().iter().find(|r| r.id == id).cloned();
+        if let Some(row) = row {
+            row.abort.abort();
+            uploads.write().retain(|r| r.id != id);
+        }
     }
 }
 
@@ -184,9 +247,13 @@ pub(super) fn screenshot_name() -> String {
     format!("截图{}.png", Local::now().format("%Y%m%d%H%M%S"))
 }
 
+fn paste_root() -> PathBuf {
+    services().paths.cache_dir().join("paste")
+}
+
 fn unique_paste_path(name: &str) -> std::io::Result<PathBuf> {
     static NEXT: AtomicU64 = AtomicU64::new(0);
-    let dir = services().paths.cache_dir().join("paste").join(format!(
+    let dir = paste_root().join(format!(
         "{}-{}",
         Local::now().timestamp_millis(),
         NEXT.fetch_add(1, Ordering::Relaxed)
@@ -203,6 +270,53 @@ pub(super) fn write_paste_file(name: &str, bytes: &[u8]) -> std::io::Result<Path
     let path = unique_paste_path(name)?;
     std::fs::write(&path, bytes)?;
     Ok(path)
+}
+
+/// `yaz-upload:<folder>/<encoded name>` of a file in the paste folder.
+fn pending_address(path: &Path) -> Option<String> {
+    let name = path.file_name()?.to_str()?;
+    let dir = path.parent()?.file_name()?.to_str()?;
+    Some(pending_address_of(dir, name))
+}
+
+fn pending_address_of(dir: &str, name: &str) -> String {
+    format!(
+        "{PENDING_UPLOAD_SCHEME}{dir}/{}",
+        utf8_percent_encode(name, NAME_SET)
+    )
+}
+
+/// Where a pending address points in the paste folder; `None` for a malformed address (the
+/// folder must be one made by [`unique_paste_path`] and the name a single segment).
+pub(super) fn resolve_pending(address: &str) -> Option<PathBuf> {
+    let (dir, name) = split_pending(address)?;
+    Some(paste_root().join(dir).join(name))
+}
+
+fn split_pending(address: &str) -> Option<(String, String)> {
+    let rest = address.strip_prefix(PENDING_UPLOAD_SCHEME)?;
+    let (dir, encoded) = rest.split_once('/')?;
+    let valid_dir = !dir.is_empty() && dir.bytes().all(|b| b.is_ascii_digit() || b == b'-');
+    let name = percent_decode_str(encoded).decode_utf8().ok()?.into_owned();
+    let single = Path::new(&name)
+        .file_name()
+        .is_some_and(|n| n == name.as_str());
+    (valid_dir && single).then(|| (dir.to_owned(), name))
+}
+
+/// Distinct pending addresses in the text, in order.
+fn pending_addresses(text: &str) -> Vec<String> {
+    let mut found: Vec<String> = Vec::new();
+    for (at, _) in text.match_indices(PENDING_UPLOAD_SCHEME) {
+        let end = text[at..]
+            .find([')', '>', ' ', '\t', '\n'])
+            .map_or(text.len(), |e| at + e);
+        let address = &text[at..end];
+        if !found.iter().any(|a| a == address) {
+            found.push(address.to_owned());
+        }
+    }
+    found
 }
 
 fn decode_hex(text: &str) -> std::io::Result<Vec<u8>> {
@@ -230,5 +344,38 @@ mod tests {
             .file_name()
             .unwrap();
         assert_eq!(name, "evil.png");
+    }
+
+    #[test]
+    fn pending_addresses_round_trip() {
+        let address = pending_address_of("1700000000000-3", "截图 (1).png");
+        assert!(!address.contains([' ', '(', ')']));
+        assert_eq!(
+            split_pending(&address),
+            Some(("1700000000000-3".into(), "截图 (1).png".into()))
+        );
+    }
+
+    #[test]
+    fn malformed_pending_addresses_are_rejected() {
+        for address in [
+            "yaz-upload:../x/a.png",
+            "yaz-upload:1-0/..%5C..%5Ca.png",
+            "yaz-upload:1-0/a%2Fb.png",
+            "yaz-upload:1-0",
+            "yaz-upload:/a.png",
+        ] {
+            assert_eq!(split_pending(address), None, "{address}");
+        }
+    }
+
+    #[test]
+    fn finds_each_pending_address_once() {
+        let text = "a [x.png](yaz-upload:1-0/x.png) b [x.png](yaz-upload:1-0/x.png)\n\
+                    [y.zip](<yaz-upload:2-0/y.zip>)";
+        assert_eq!(
+            pending_addresses(text),
+            ["yaz-upload:1-0/x.png", "yaz-upload:2-0/y.zip"]
+        );
     }
 }

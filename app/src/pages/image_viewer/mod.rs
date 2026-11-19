@@ -171,7 +171,9 @@ fn forward_markdown(url: &str) -> String {
     }
 }
 
-async fn copy_image(overlays: Overlays, path: PathBuf) {
+/// `source`: the account and the image's address, so that pasting it into that account's composer
+/// reuses the uploaded file.
+async fn copy_image(overlays: Overlays, path: PathBuf, source: Option<(i64, String)>) {
     let decoded = tokio::task::spawn_blocking(move || {
         image::open(&path).map(|img| {
             let rgba = img.to_rgba8();
@@ -185,7 +187,12 @@ async fn copy_image(overlays: Overlays, path: PathBuf) {
     .await;
     match decoded {
         Ok(Ok(image)) => match platform::copy_image(&image) {
-            Ok(()) => overlays.toast("已复制"),
+            Ok(()) => {
+                if let Some((account, url)) = source {
+                    platform::remember_image(account, &url);
+                }
+                overlays.toast("已复制");
+            }
             Err(error) => overlays.report_error("复制失败", error),
         },
         Ok(Err(error)) => overlays.report_error("复制失败", error),
@@ -377,7 +384,12 @@ fn ViewerBody() -> Element {
     });
     let copy = use_callback(move |()| {
         if let Some(image) = loaded.peek().clone().flatten() {
-            spawn(copy_image(overlays, image.path));
+            let source = state
+                .session
+                .peek()
+                .as_ref()
+                .map(|session| (session.account_id(), image.url.clone()));
+            spawn(copy_image(overlays, image.path, source));
         }
     });
     let forward = use_callback(move |()| {

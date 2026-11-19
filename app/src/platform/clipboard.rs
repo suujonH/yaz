@@ -26,6 +26,37 @@ pub fn copied_markdown(text: &str) -> Option<String> {
     (*copied == normalize_newlines(text)).then(|| markdown.clone())
 }
 
+/// The last image copied from a message: (clipboard sequence number right after the copy, account,
+/// Markdown link of the uploaded file). Pasting it into the same account reuses the link instead
+/// of uploading the image again.
+static LAST_IMAGE: Mutex<Option<(u32, i64, String)>> = Mutex::new(None);
+
+fn clipboard_sequence() -> u32 {
+    // SAFETY: no arguments; it only reads a counter the system keeps.
+    unsafe { windows::Win32::System::DataExchange::GetClipboardSequenceNumber() }
+}
+
+/// Records that the image now on the clipboard is the file uploaded at `url` (an upload path of
+/// `account`'s server). Other addresses (external images) are not remembered.
+pub fn remember_image(account: i64, url: &str) {
+    let Some(path) = zulip_core::html::normalize_upload_path(url) else {
+        return;
+    };
+    let name = zulip_core::html::upload_link_of(&path, None).file_name;
+    let markdown = zulip_core::markdown::link_markdown(&name, &path);
+    if let Ok(mut last) = LAST_IMAGE.lock() {
+        *last = Some((clipboard_sequence(), account, markdown));
+    }
+}
+
+/// The Markdown link of the clipboard image when it is still the one copied from a message of
+/// `account` (nothing has been copied since).
+pub fn copied_image(account: i64) -> Option<String> {
+    let last = LAST_IMAGE.lock().ok()?;
+    let (sequence, copied_account, markdown) = last.as_ref()?;
+    (*sequence == clipboard_sequence() && *copied_account == account).then(|| markdown.clone())
+}
+
 /// An image on the clipboard (RGBA).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ClipboardImage {

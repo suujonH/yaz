@@ -26,6 +26,14 @@ const MASKED: &str = "\u{2}";
 const WILDCARDS: [&str; 5] = ["all", "everyone", "channel", "stream", "topic"];
 
 /// A link `[file name](address)` pointing to `url`. The server has no backslash escapes, so square brackets in the file name are removed, otherwise unpaired ones would break the link.
+/// Address prefix of an attachment that is only on this computer: the composer uploads it when the
+/// message is sent and replaces the address with the uploaded one. It is never sent to the server.
+pub const PENDING_UPLOAD_SCHEME: &str = "yaz-upload:";
+
+pub fn is_pending_upload(address: &str) -> bool {
+    address.starts_with(PENDING_UPLOAD_SCHEME)
+}
+
 pub fn link_markdown(name: &str, url: &str) -> String {
     let clean: String = name.chars().filter(|c| !matches!(c, '[' | ']')).collect();
     format!("[{clean}]({url})")
@@ -753,7 +761,9 @@ fn scan_links(p: &mut InlineParser<'_>) {
             let label = &masked[i + 1..close];
             let is_image = i > 0 && masked.as_bytes()[i - 1] == b'!';
             let start = if is_image { i - 1 } else { i };
-            let upload = html::normalize_upload_path(address);
+            // A pending upload is shown like the uploaded file it will become
+            let upload = html::normalize_upload_path(address)
+                .or_else(|| is_pending_upload(address).then(|| address.to_owned()));
             let blank_label = is_blank(label);
             let placeholder = label
                 .strip_prefix("Uploading ")
@@ -1058,6 +1068,19 @@ mod tests {
             assert_eq!(span.data.as_deref(), Some(address));
             assert_eq!(content(text, &span), label);
         }
+    }
+
+    #[test]
+    fn pending_uploads_look_like_uploads() {
+        let image = single("[截图.png](yaz-upload:1-0/%E6%88%AA%E5%9B%BE.png)");
+        assert_eq!(image.kind, SpanKind::UploadImage);
+        assert_eq!(
+            image.data.as_deref(),
+            Some("yaz-upload:1-0/%E6%88%AA%E5%9B%BE.png")
+        );
+        let file = single("[a.zip](yaz-upload:1-0/a.zip)");
+        assert_eq!(file.kind, SpanKind::UploadFile);
+        assert_eq!(single("[](yaz-upload:1-0/a.zip)").kind, SpanKind::Link);
     }
 
     #[test]
