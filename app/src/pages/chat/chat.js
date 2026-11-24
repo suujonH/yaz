@@ -119,6 +119,8 @@
     const a = t.closest("a[href]");
     if (a) {
       consume();
+      // Text selected by dragging across the link: keep the selection, do not open it
+      if (!document.getSelection().isCollapsed) return;
       send({ t: "link", msg: msgOf(t), href: a.getAttribute("href") });
       return;
     }
@@ -331,6 +333,50 @@
     if (t.closest(".selectable, input, textarea, [contenteditable=true]")) return;
     const sel = document.getSelection();
     if (sel && !sel.isCollapsed) sel.removeAllRanges();
+    if (bubble && !multi && e.detail === 1 && !t.closest(BUBBLE_CONTROLS)) startBubbleSelection(e, bubble);
+  };
+
+  // Pressing on the bubble's own background (padding, gaps between blocks) and dragging selects the
+  // text like pressing on the text itself: the selection starts at the text position nearest to the
+  // press and follows the pointer until the button is released.
+  const BUBBLE_CONTROLS = "button, a, input, textarea, .img-preview, .reaction-chip, .table-more, .file-card, .spoiler-head, .quote-jump, .msg-versions";
+  const textBoxes = (bubble) => [...bubble.querySelectorAll(".selectable")].filter((el) => el.getClientRects().length);
+  // Distance from a point to a box (0 inside it)
+  const distance = (rect, x, y) => Math.hypot(Math.max(rect.left - x, 0, x - rect.right), Math.max(rect.top - y, 0, y - rect.bottom));
+  // The caret position in `box` nearest to (x, y): the point is moved just inside the box first
+  const caretIn = (box, x, y) => {
+    const rect = box.getBoundingClientRect();
+    const cx = Math.min(Math.max(x, rect.left + 1), rect.right - 1);
+    const cy = Math.min(Math.max(y, rect.top + 1), rect.bottom - 1);
+    const range = document.caretRangeFromPoint(cx, cy);
+    return range && box.contains(range.startContainer) ? range : null;
+  };
+  const startBubbleSelection = (e, bubble) => {
+    const boxes = textBoxes(bubble);
+    if (!boxes.length) return;
+    const box = boxes.reduce((best, el) =>
+      distance(el.getBoundingClientRect(), e.clientX, e.clientY) < distance(best.getBoundingClientRect(), e.clientX, e.clientY) ? el : best);
+    const start = caretIn(box, e.clientX, e.clientY);
+    if (!start) return;
+    // Without this the browser would try (and fail) to start its own selection on the background
+    e.preventDefault();
+    const sel = document.getSelection();
+    sel.collapse(start.startContainer, start.startOffset);
+    const onMove = (m) => {
+      if (!(m.buttons & 1)) return onUp();
+      // Over text (this message or another): follow the pointer; elsewhere: the nearest position
+      // in the text box the press started from
+      const hit = document.caretRangeFromPoint(m.clientX, m.clientY);
+      const over = hit && hit.startContainer.parentElement && hit.startContainer.parentElement.closest(".chat-list .selectable");
+      const to = over ? hit : caretIn(box, m.clientX, m.clientY);
+      if (to) sel.extend(to.startContainer, to.startOffset);
+    };
+    const onUp = () => {
+      document.removeEventListener("mousemove", onMove, true);
+      document.removeEventListener("mouseup", onUp, true);
+    };
+    document.addEventListener("mousemove", onMove, true);
+    document.addEventListener("mouseup", onUp, true);
   };
 
   // Left/right arrows switch the edit history of the picked bubble (the buttons under it)

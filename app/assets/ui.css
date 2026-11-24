@@ -6,6 +6,8 @@ html, body, #main { height: 100%; margin: 0; overflow: hidden; }
 body { background: transparent; cursor: default; user-select: none; -webkit-user-select: none; }
 input, textarea, button, select { font: inherit; color: inherit; }
 img { -webkit-user-drag: none; }
+/* Press and drag on a link selects its text like ordinary text, instead of dragging the link */
+a { -webkit-user-drag: none; }
 a { color: var(--brand); }
 
 .app-root {
