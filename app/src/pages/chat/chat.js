@@ -175,6 +175,13 @@
     const table = host.querySelector(":scope > .table-scroll > table");
     const first = table && table.rows[0];
     if (!first || [...table.rows].some((r) => [...r.cells].some((c) => c.colSpan > 1))) return;
+    // Measuring lays the table out unwrapped for a moment, which can make the message list much
+    // shorter: the browser then clamps its scroll position and it would stay there (the list
+    // jumps). Put back the scroll positions of the containers around it afterwards.
+    const scrolled = [];
+    for (let el = host.parentElement; el; el = el.parentElement) {
+      if (el.scrollTop > 0) scrolled.push([el, el.scrollTop]);
+    }
     table.querySelector(":scope > colgroup")?.remove();
     table.classList.remove("fitted");
     table.style.width = "";
@@ -198,6 +205,9 @@
     table.prepend(group);
     table.style.width = `${widths.reduce((a, b) => a + b, 0)}px`;
     table.classList.add("fitted");
+    for (const [el, top] of scrolled) {
+      if (el.scrollTop !== top) el.scrollTop = top;
+    }
   };
   // Recompute when the width of a quote in a message row or the composer changes (window size,
   // sidebar); height-only changes are ignored
