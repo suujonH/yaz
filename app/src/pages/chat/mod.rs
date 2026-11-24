@@ -624,12 +624,22 @@ pub fn ChatWindow() -> Element {
     crate::widgets::use_close_shortcut(move || window.close());
     let args = use_window_args::<ChatArgs>();
     let ChatArgs { key, focus } = args();
-    let offline = crate::pages::main_window::use_offline_status();
-    let class: &'static str = if offline().is_some() { "offline" } else { "" };
     rsx! {
         WindowShell {
-            class,
-            ChatPane { key: "{key}", conversation: key.clone(), focus }
+            ChatWindowBody { key: "{key}", conversation: key.clone(), focus }
+        }
+    }
+}
+
+/// The offline status comes from the window's `AppState`, which only exists inside
+/// [`WindowShell`]: computed here, and set on a wrapper that takes no part in the layout.
+#[component]
+fn ChatWindowBody(conversation: ConversationKey, focus: Option<FocusRequest>) -> Element {
+    let offline = crate::pages::main_window::use_offline_status();
+    let class = if offline().is_some() { "offline" } else { "" };
+    rsx! {
+        div { class, style: "display: contents",
+            ChatPane { key: "{conversation}", conversation: conversation.clone(), focus }
         }
     }
 }
