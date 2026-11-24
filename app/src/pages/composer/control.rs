@@ -395,9 +395,14 @@ impl Ctl {
         }
         let copied = crate::platform::copied_markdown(&text);
         let selected = self.core.peek().selected_text();
+        // Selected text becomes a link to a pasted address, except inside a link (e.g. its address
+        // selected: the pasted address replaces it) or inline code
+        let wrap = !selected.is_empty()
+            && !selected.contains('\n')
+            && !self.core.peek().selection_in_link();
         self.edit(|core| match copied {
             Some(markdown) => core.insert_block(&markdown),
-            None if is_url(&text) && !selected.is_empty() && !selected.contains('\n') => {
+            None if is_url(&text) && wrap => {
                 core.insert(&format!("[{selected}]({text})"));
             }
             None => core.insert_block(&text),

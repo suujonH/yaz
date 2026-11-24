@@ -150,6 +150,25 @@ impl EditorCore {
         }
     }
 
+    /// Whether the selection touches a link, a bare address or inline code (pasting an address
+    /// over it replaces the text instead of making a new link around it).
+    pub fn selection_in_link(&self) -> bool {
+        use markdown::SpanKind;
+        let text = self.active_text();
+        let model = self.active_model(&text);
+        model.spans.iter().any(|s| {
+            matches!(
+                s.kind,
+                SpanKind::Link
+                    | SpanKind::Url
+                    | SpanKind::Code
+                    | SpanKind::UploadFile
+                    | SpanKind::UploadImage
+            ) && s.start < self.sel.end
+                && self.sel.start < s.end
+        })
+    }
+
     pub fn selected_text(&self) -> String {
         let text = self.active_text();
         text.get(self.sel.start..self.sel.end)
