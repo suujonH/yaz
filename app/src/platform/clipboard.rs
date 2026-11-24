@@ -80,6 +80,12 @@ pub fn copy_text(text: &str) -> Result<(), arboard::Error> {
     Clipboard::new()?.set_text(text)
 }
 
+/// Text plus a rich-text (HTML) form: programs that take formatting paste the HTML, the others
+/// the text.
+pub fn copy_rich(text: &str, html: &str) -> Result<(), arboard::Error> {
+    Clipboard::new()?.set_html(html, Some(text))
+}
+
 pub fn paste_text() -> Option<String> {
     Clipboard::new().ok()?.get_text().ok()
 }

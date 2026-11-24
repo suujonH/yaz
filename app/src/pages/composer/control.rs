@@ -355,16 +355,22 @@ impl Ctl {
         !self.core.peek().sel.is_collapsed()
     }
 
+    /// Plain-text programs get the Markdown as typed (`[123](url)`), programs that take formatting
+    /// get its rich-text form (a clickable "123"). Source mode copies only the selected text.
     pub fn copy(self) {
+        let realm = self.session().realm_url().to_owned();
         let core = self.core.peek();
         let markdown = core.selected_text();
         if markdown.is_empty() {
             return;
         }
-        let plain = core.plain_text(&markdown);
+        let html = (!core.source).then(|| core.rich_html(&markdown, &realm));
         drop(core);
-        crate::platform::remember_markdown(&plain, &markdown);
-        self.overlays.copy_text(&plain);
+        crate::platform::remember_markdown(&markdown, &markdown);
+        match html {
+            Some(html) => self.overlays.copy_rich(&markdown, &html),
+            None => self.overlays.copy_text(&markdown),
+        }
     }
 
     pub fn cut(self) {

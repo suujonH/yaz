@@ -313,6 +313,14 @@ impl Overlays {
             Err(error) => self.report_error("复制失败", error),
         }
     }
+
+    /// Copy text together with its rich-text (HTML) form.
+    pub fn copy_rich(self, text: &str, html: &str) {
+        match platform::copy_rich(text, html) {
+            Ok(()) => self.toast("已复制"),
+            Err(error) => self.report_error("复制失败", error),
+        }
+    }
 }
 
 /// Buttons at the bottom of a dialog: OK on the left, Cancel on the right.

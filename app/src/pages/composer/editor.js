@@ -996,6 +996,10 @@
             e.preventDefault();
           } else if (start && rel > 0) {
             stop({ t: "cmd", cmd: "unprefix" });
+          } else if (rel === 0 && prev && prev.matches(".zl")) {
+            // Joining two lines is done by the model: the browser's own join can drop the hidden
+            // markers at the end of the line above (the "](url)" of a link)
+            stop({ t: "cmd", cmd: "merge-up" });
           }
           break;
         case "Delete":
@@ -1003,6 +1007,9 @@
             if (next.classList.contains("zq")) return stop({ t: "act", act: "delete", q: +next.dataset.q });
             if (lineLen === 0) return stop({ t: "cmd", cmd: "merge-down" });
             e.preventDefault();
+          } else if (end && next && next.matches(".zl")) {
+            // Same as Backspace above: the hidden markers at the start of the next line stay
+            stop({ t: "cmd", cmd: "merge-down" });
           }
           break;
         case "Home":

@@ -1344,15 +1344,23 @@ impl EditorCore {
         }
     }
 
-    /// Displayed text (for copying to other programs); in source mode what is displayed is the
-    /// source.
-    pub fn plain_text(&self, markdown: &str) -> String {
-        if self.source {
-            return markdown.to_owned();
-        }
-        markdown::to_plain_text(markdown, &self.lookup, &|name| {
-            self.lookup.emoji.get(name).and_then(|e| e.text.clone())
-        })
+    /// Rich-text form of `markdown` for the clipboard (see [`markdown::to_html`]); paths on the
+    /// server (`/user_uploads/…`, `/#narrow/…`) are made absolute with `realm`, any other address
+    /// is kept as typed.
+    pub fn rich_html(&self, markdown: &str, realm: &str) -> String {
+        let href = |address: &str| {
+            if address.starts_with('/') && !address.starts_with("//") {
+                format!("{}{address}", realm.trim_end_matches('/'))
+            } else {
+                address.to_owned()
+            }
+        };
+        markdown::to_html(
+            markdown,
+            &self.lookup,
+            &|name| self.lookup.emoji.get(name).and_then(|e| e.text.clone()),
+            &href,
+        )
     }
 
     /// UTF-16 offsets of the selection (for JS).

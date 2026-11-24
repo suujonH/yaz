@@ -12,7 +12,7 @@ pub mod table_wrap;
 
 mod text_forms;
 
-pub use text_forms::{to_plain_text, to_preview};
+pub use text_forms::{to_html, to_plain_text, to_preview};
 
 use crate::html;
 use crate::text::{mention, time};
