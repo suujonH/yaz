@@ -460,12 +460,18 @@ mod tests {
                 "看 https://a.com/?x=1&y=2",
                 r#"看 <a href="https://a.com/?x=1&amp;y=2">https://a.com/?x=1&amp;y=2</a>"#,
             ),
-            ("[](https://b.com)", r#"<a href="https://b.com">https://b.com</a>"#),
+            (
+                "[](https://b.com)",
+                r#"<a href="https://b.com">https://b.com</a>"#,
+            ),
             (
                 "[报告.pdf](/user_uploads/1/ab/r.pdf)",
                 r#"<a href="https://z.test/user_uploads/1/ab/r.pdf">报告.pdf</a>"#,
             ),
-            ("**粗** *斜* ~~删~~ `a<b`", "<b>粗</b> <i>斜</i> <s>删</s> <code>a&lt;b</code>"),
+            (
+                "**粗** *斜* ~~删~~ `a<b`",
+                "<b>粗</b> <i>斜</i> <s>删</s> <code>a&lt;b</code>",
+            ),
             ("一\n二\n\n三", "一<br>二<br><br>三"),
             ("- 一\n1. 二", "• 一<br>1. 二"),
             ("> 引用", "&gt; 引用"),
