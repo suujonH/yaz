@@ -241,7 +241,10 @@ impl PluginHost {
         let name = self
             .plugin(&field.resource_plugin)
             .map_or_else(|| field.resource_plugin.clone(), |p| p.name());
-        format!("没有可选项：请先开启插件“{name}”并在其中添加")
+        match self.plugin(&field.resource_plugin) {
+            Some(p) if p.is_builtin() => format!("没有可选项：请先在“设置 > {name}”中添加"),
+            _ => format!("没有可选项：请先开启插件“{name}”并在其中添加"),
+        }
     }
 
     /// Forwards the request to the plugin that publishes the resource and waits for the reply
@@ -261,15 +264,18 @@ impl PluginHost {
         if !self.resources.contains(target) {
             return Err(abi::ERR_NOT_FOUND);
         }
-        let (id, reply) = self.resources.begin_request(&target.plugin_id);
         let payload = json!({
             "type": target.kind,
             "resource": target.resource_id,
             "item": target.item,
             "request": request,
             "from": consumer.id(),
-        })
-        .to_string();
+        });
+        if let Some(reply) = provider.builtin_resource_request(&payload) {
+            return Ok(reply);
+        }
+        let (id, reply) = self.resources.begin_request(&target.plugin_id);
+        let payload = payload.to_string();
         self.post(&provider, move |p| p.call_resource_request(id, &payload));
         let result = reply
             .recv_timeout(REQUEST_TIMEOUT)

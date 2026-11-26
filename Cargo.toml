@@ -20,6 +20,8 @@ zulip-session = { path = "crates/zulip-session" }
 zulip-update = { path = "crates/zulip-update" }
 zulip-plugin-host = { path = "crates/zulip-plugin-host" }
 zulip-plugin-sdk = { path = "crates/zulip-plugin-sdk" }
+zulip-models = { path = "crates/zulip-models" }
+zulip-builtins = { path = "crates/zulip-builtins" }
 test-server = { path = "crates/test-server" }
 
 anyhow = "1"

@@ -3,9 +3,9 @@
   "name": "模型中心",
   "version": "1.0.0",
   "author": "YaZ",
-  "description": "集中管理 AI 模型：按接口类型（对话、判断、向量、图片、重排序、语音）添加 provider 与模型后，依赖模型中心的插件（翻译、回复助手等）直接选择使用，不用重复填写 EndPoint 和 API Key（其他插件看不到 API Key）",
+  "description": "集中管理 AI 模型：按接口类型（对话、判断、向量、图片、重排序、语音）添加 provider 与模型后，翻译和依赖模型中心的插件（回复助手等）直接选择使用，不用重复填写 EndPoint 和 API Key（其他插件看不到 API Key）",
   "api_version": 1,
-  "library": "plugin_model_center.dll",
+  "library": "builtin",
   "permissions": ["network"],
   "settings": [
     { "key": "providers", "label": "Provider", "type": "list", "fields": [

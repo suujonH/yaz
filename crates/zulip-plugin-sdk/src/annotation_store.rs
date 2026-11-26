@@ -25,14 +25,19 @@ impl AnnotationStore {
     pub fn open(file_name: &str, table: &'static str, extra_schema: &str) -> Option<Self> {
         let dir = data_dir().ok()?;
         let path = Path::new(&dir).join(file_name);
-        let opened = Connection::open(path).and_then(|c| Self::create(c, table, extra_schema));
-        match opened {
+        match Self::open_at(&path, table, extra_schema) {
             Ok(store) => Some(store),
             Err(error) => {
                 log(LOG_WARNING, &format!("打开数据库失败：{error}"));
                 None
             }
         }
+    }
+
+    /// Opens (or creates) the database at `path`, like [`open`](Self::open), for callers that are
+    /// not DLL plugins (the program's built-in plugins).
+    pub fn open_at(path: &Path, table: &'static str, extra_schema: &str) -> rusqlite::Result<Self> {
+        Self::create(Connection::open(path)?, table, extra_schema)
     }
 
     /// In-memory database (for tests).

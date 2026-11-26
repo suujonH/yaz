@@ -126,3 +126,7 @@
 .settings-copy:hover { color: var(--brand); }
 .me-head-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .me-head-text > div { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Built-in features (model center, translation): the plugin settings form on a card */
+.settings-builtin-description { margin: 0 4px 4px; }
+.settings-builtin-form { padding: 12px; }
+.settings-builtin-form > .settings-field:last-child { margin-bottom: 0; }

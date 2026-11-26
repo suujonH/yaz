@@ -284,6 +284,8 @@ pub(crate) fn effective(
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ShortcutRow {
     pub key: String,
+    /// The plugin the menu item belongs to.
+    pub plugin_id: String,
     /// "Plugin name <middle dot> menu item".
     pub title: String,
     /// A mouse gesture (message menu); otherwise a keyboard shortcut (plugin menu).
@@ -332,6 +334,7 @@ impl PluginHost {
                     .into_iter()
                     .map(|m| ShortcutRow {
                         key: key_of(&id, m.id, is_mouse),
+                        plugin_id: id.clone(),
                         title: format!("{name} · {}", m.name),
                         is_mouse,
                         gesture: effective(&bindings, &id, m, is_mouse),

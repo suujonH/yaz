@@ -8,12 +8,12 @@ use std::time::Duration;
 
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
+use serde_json::{Map, Value, json};
 use ureq::Agent;
 use ureq::http::Request;
 use ureq::tls::{RootCerts, TlsConfig};
 use zulip_plugin_sdk::model_center::{DECISION, EMBEDDING, IMAGE, RERANK, SPEECH, TRANSCRIPTION};
-use zulip_plugin_sdk::serde_json::{Map, Value, json};
-use zulip_plugin_sdk::{serde_json, str_of};
+use zulip_plugin_sdk::str_of;
 
 use crate::provider::{
     CHAT_API, CLAUDE, DECISIONS, EMBEDDINGS, GEMINI, IMAGES, Provider, RERANK_API, RESPONSES,
@@ -24,7 +24,7 @@ use crate::provider::{
 // timeout.
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(100);
 const MAX_RESPONSE: u64 = 256 * 1024 * 1024;
-const BOUNDARY: &str = "----zulip-plugin-model-center";
+const BOUNDARY: &str = "----yaz-model-center";
 
 /// Why the request failed; `status` is the HTTP status code returned by the server (`None` when no
 /// reply was received).

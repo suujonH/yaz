@@ -176,7 +176,10 @@ fn PluginCard(plugin: PluginRef, rev: u64) -> Element {
 /// Mouse gesture recording box: click or double-click while holding modifier keys; Backspace /
 /// Delete clears.
 #[component]
-fn MouseRecorder(#[props(into)] label: String, onchange: EventHandler<String>) -> Element {
+pub(super) fn MouseRecorder(
+    #[props(into)] label: String,
+    onchange: EventHandler<String>,
+) -> Element {
     let mut pending = use_signal(|| None::<Task>);
     let mut last = use_signal(|| None::<(MouseButton, Instant)>);
     rsx! {
@@ -229,7 +232,7 @@ fn MouseRecorder(#[props(into)] label: String, onchange: EventHandler<String>) -
 
 /// A new gesture / shortcut was recorded. Gestures already used by the host and shortcuts without
 /// Ctrl / Alt cannot be bound.
-fn record(overlays: Overlays, row: &ShortcutRow, gesture: &str) {
+pub(super) fn record(overlays: Overlays, row: &ShortcutRow, gesture: &str) {
     let gesture = if gesture.is_empty() {
         Some(String::new())
     } else if row.is_mouse {
@@ -251,8 +254,22 @@ fn record(overlays: Overlays, row: &ShortcutRow, gesture: &str) {
 fn Shortcuts(rev: u64) -> Element {
     let _ = rev;
     let overlays = use_overlays();
-    let messages = plugins().message_shortcuts();
-    let keys = plugins().key_shortcuts();
+    // Built-in features show their quick actions on their own pages
+    let not_builtin = |row: &ShortcutRow| {
+        plugins()
+            .plugin(&row.plugin_id)
+            .is_none_or(|p| !p.is_builtin())
+    };
+    let messages: Vec<_> = plugins()
+        .message_shortcuts()
+        .into_iter()
+        .filter(not_builtin)
+        .collect();
+    let keys: Vec<_> = plugins()
+        .key_shortcuts()
+        .into_iter()
+        .filter(not_builtin)
+        .collect();
     rsx! {
         if !messages.is_empty() {
             Group { title: "消息快捷操作",
@@ -296,7 +313,11 @@ pub fn Plugins() -> Element {
         }
     });
     let version = rev();
-    let list = plugins().plugins();
+    let list: Vec<_> = plugins()
+        .plugins()
+        .into_iter()
+        .filter(|p| !p.is_builtin())
+        .collect();
     let dir = plugins().plugins_dir().to_path_buf();
     rsx! {
         SettingsPage {

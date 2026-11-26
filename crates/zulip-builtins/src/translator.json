@@ -3,9 +3,9 @@
   "name": "翻译",
   "version": "1.0.0",
   "author": "YaZ",
-  "description": "在消息右键菜单中点击“翻译”，用模型中心中的 AI 模型把消息翻译为指定语言，气泡中临时显示译文，可随时切回原文",
+  "description": "在消息右键菜单中点击“翻译”，用“设置 > 模型中心”中的 AI 模型把消息翻译为指定语言，气泡中临时显示译文，可随时切回原文",
   "api_version": 1,
-  "library": "plugin_translator.dll",
+  "library": "builtin",
   "permissions": [
     "read_message",
     "annotate_message",

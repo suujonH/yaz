@@ -1,5 +1,6 @@
-//! Loads the built-in plugin DLLs for real: translation and the reply assistant access the local
-//! model API through the model hub (resource requests).
+//! The built-in model center and translation in a real plugin host, together with the reply
+//! assistant DLL: translation and the reply assistant access the local model API through the model
+//! center (resource requests).
 
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
@@ -12,6 +13,7 @@ use serde_json::{Map, Value, json};
 use tempfile::TempDir;
 use test_server::{ME_EMAIL, ME_ID, TestServer, XIAOYU};
 use tokio::runtime::Handle;
+use zulip_builtins::{model_center, translator};
 use zulip_plugin_host::{
     NativePlugin, PanelFieldValue, PanelRequest, PluginEvent, PluginHost, PluginHostConfig,
     PluginTarget, ResourceSelection, parse_fields,
@@ -19,8 +21,8 @@ use zulip_plugin_host::{
 use zulip_session::{Hub, PasswordLogin, Session};
 use zulip_store::{AppPaths, Db};
 
-const MODEL_CENTER: &str = "com.yaz.model-center";
-const TRANSLATOR: &str = "com.yaz.translator";
+const MODEL_CENTER: &str = model_center::ID;
+const TRANSLATOR: &str = translator::ID;
 const REPLY_ASSISTANT: &str = "com.yaz.reply-assistant";
 
 fn workspace_root() -> PathBuf {
@@ -34,15 +36,7 @@ fn built_dir() -> &'static PathBuf {
         let target = Path::new(env!("CARGO_TARGET_TMPDIR")).join("plugin-build");
         let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".to_owned());
         let status = Command::new(cargo)
-            .args([
-                "build",
-                "-p",
-                "plugin-model-center",
-                "-p",
-                "plugin-translator",
-                "-p",
-                "plugin-reply-assistant",
-            ])
+            .args(["build", "-p", "plugin-reply-assistant"])
             .current_dir(workspace_root())
             .env("CARGO_TARGET_DIR", &target)
             .status()
@@ -140,9 +134,11 @@ impl Fixture {
         // The DLL is never unloaded, so directories that cannot be deleted stay under target.
         let dir = tempfile::tempdir_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
         let plugins_dir = dir.path().join("plugins");
-        for folder in ["model-center", "translator", "reply-assistant"] {
-            install(&plugins_dir, folder);
-        }
+        install(&plugins_dir, "reply-assistant");
+        // A copy of a plugin that is now built in (from an older version) is ignored
+        let stale = plugins_dir.join(TRANSLATOR);
+        std::fs::create_dir_all(&stale).unwrap();
+        std::fs::write(stale.join("plugin.json"), translator::MANIFEST).unwrap();
         let paths = AppPaths::new(dir.path().join("data"));
         std::fs::create_dir_all(paths.root()).unwrap();
         let db = Db::open(&paths.database()).unwrap();
@@ -153,6 +149,7 @@ impl Fixture {
             runtime: Handle::current(),
             dialog_timeout: zulip_plugin_host::DIALOG_TIMEOUT,
         });
+        zulip_builtins::register(&host);
         let hub = Hub::new(db, paths, None);
         host.attach(&hub);
         host.load_all().await.unwrap();
@@ -161,6 +158,13 @@ impl Fixture {
             host,
             hub,
         }
+    }
+
+    // Built in: enabled and loaded without confirmation.
+    fn builtin(&self, id: &str) -> Arc<NativePlugin> {
+        let plugin = self.host.plugin(id).unwrap();
+        assert!(plugin.is_builtin() && plugin.is_enabled() && plugin.is_loaded());
+        plugin
     }
 
     async fn enable(&self, id: &str) -> Arc<NativePlugin> {
@@ -191,9 +195,9 @@ impl Fixture {
         self.host.save_settings(plugin, &settings).unwrap();
     }
 
-    // Enable the model hub and add the chat and judge providers.
+    // Add the chat and decision providers to the model center.
     async fn model_center(&self, url: &str) -> Arc<NativePlugin> {
-        let center = self.enable(MODEL_CENTER).await;
+        let center = self.builtin(MODEL_CENTER);
         self.configure(
             &center,
             &[(
@@ -241,8 +245,11 @@ async fn model_center_publishes_only_providers_with_models() {
             .iter()
             .any(|l| l.text.contains("已提供 1 个 provider 的 model"))
     );
+    // Only one plugin per id: the stale plugin directory was ignored
+    let ids: Vec<String> = fixture.host.plugins().iter().map(|p| p.id()).collect();
+    assert_eq!(ids.iter().filter(|id| *id == TRANSLATOR).count(), 1);
     let selection = ResourceSelection::from_json(&chat_selection()).unwrap();
-    let translator = fixture.host.plugin(TRANSLATOR).unwrap();
+    let translator = fixture.builtin(TRANSLATOR);
     let field = translator
         .manifest()
         .unwrap()
@@ -265,7 +272,7 @@ async fn translator_replaces_bubble_through_model_center() {
     let server = TestServer::start(0).await.unwrap();
     let fixture = Fixture::new().await;
     fixture.model_center(&url).await;
-    let translator = fixture.enable(TRANSLATOR).await;
+    let translator = fixture.builtin(TRANSLATOR);
     let session = fixture.login(&server).await;
     let host = &fixture.host;
     let account = session.account_id();

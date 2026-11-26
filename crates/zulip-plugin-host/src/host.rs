@@ -21,11 +21,12 @@ use zulip_session::{HookEvent, HookFuture, Hub, OutgoingKind, Session, SessionHo
 use zulip_store::{AppPaths, Db, PluginRecord, PluginRepo, SettingRepo};
 
 use crate::annotation::AnnotationStore;
+use crate::builtin::BuiltinPlugin;
 use crate::chain::{ChainState, Prefiltered};
 use crate::event::PluginEvent;
 use crate::fingerprint;
 use crate::host_api::HOST_CATEGORY;
-use crate::manifest::{ComposerIcon, PluginManifest, event_permission, event_title};
+use crate::manifest::{ComposerIcon, ManifestError, PluginManifest, event_permission, event_title};
 use crate::marshal::{MessageSnapshot, conversation_json};
 use crate::panel::{
     DialogResult, DialogSpec, PanelError, PanelRequest, PluginTarget, PluginTargetKind,
@@ -353,13 +354,42 @@ impl PluginHost {
         })
     }
 
-    /// Scans the plugin directory and loads plugins that are enabled and whose files match what the
-    /// user confirmed; new plugins are disabled by default. Returns after all plugins are loaded.
-    /// Can only be called once.
+    /// Adds a built-in plugin (see [`crate::builtin`]); `manifest` is its plugin.json. Call before
+    /// [`load_all`](Self::load_all), dependencies first; a plugin directory with the same id is
+    /// then ignored.
+    pub fn add_builtin(
+        &self,
+        manifest: &str,
+        builtin: Arc<dyn BuiltinPlugin>,
+    ) -> Result<(), ManifestError> {
+        let mut warnings = Vec::new();
+        // There is no plugin directory: the id stands in for its name
+        let id = serde_json::from_str::<Value>(manifest)
+            .ok()
+            .and_then(|v| v["id"].as_str().map(str::to_owned))
+            .unwrap_or_default();
+        let manifest =
+            PluginManifest::parse(manifest, &id, HOST_API_VERSION, &mut |w| warnings.push(w))?;
+        let (values, _) = settings::load(&SettingRepo::app(&self.db), &manifest);
+        let plugin = NativePlugin::new_builtin(manifest, builtin, self.log_changes.clone());
+        plugin.set_settings_json(Value::Object(values).to_string());
+        for warning in warnings {
+            plugin.add_log(abi::LOG_WARNING, HOST_CATEGORY, &warning);
+        }
+        self.plugins.write().push(Arc::new(plugin));
+        Ok(())
+    }
+
+    /// Loads the built-in plugins, then scans the plugin directory and loads plugins that are
+    /// enabled and whose files match what the user confirmed; new plugins are disabled by default.
+    /// Returns after all plugins are loaded. Can only be called once.
     pub async fn load_all(&self) -> Result<(), PluginError> {
         let Some(host) = self.weak.upgrade() else {
             return Ok(());
         };
+        for plugin in self.plugins().into_iter().filter(|p| p.is_builtin()) {
+            self.load(&plugin).await;
+        }
         let Ok(entries) = std::fs::read_dir(&self.plugins_dir) else {
             return Ok(());
         };
@@ -389,6 +419,11 @@ impl PluginHost {
                 }
             };
             if let Some(manifest) = plugin.manifest() {
+                // A plugin that is now part of the program (e.g. left over from an older version)
+                if self.plugin(&manifest.id).is_some_and(|p| p.is_builtin()) {
+                    log::info!("忽略插件 {}：已内置于程序", manifest.id);
+                    continue;
+                }
                 let (values, undecryptable) = settings::load(&settings_repo, manifest);
                 plugin.set_settings_json(Value::Object(values).to_string());
                 for key in undecryptable {

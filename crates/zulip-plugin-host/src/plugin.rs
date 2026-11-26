@@ -9,6 +9,7 @@ use std::sync::{Arc, OnceLock, Weak};
 use chrono::{DateTime, Local};
 use libloading::Library;
 use parking_lot::Mutex;
+use serde_json::Value;
 use tokio::sync::broadcast;
 use zulip_plugin_sdk::abi::{
     self, AccountFn, HostApi, IdJsonFn, InitFn, JsonFn, MenuFn, MessageFn, MessageMenuFn,
@@ -16,6 +17,7 @@ use zulip_plugin_sdk::abi::{
 };
 use zulip_session::OutgoingKind;
 
+use crate::builtin::{BuiltinContext, BuiltinPlugin};
 use crate::host::{ContextMenuKind, PluginHost};
 use crate::host_api;
 use crate::manifest::{
@@ -89,7 +91,7 @@ impl LogEntry {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub(crate) struct Exports {
     on_enable: Option<VoidFn>,
     on_disable: Option<VoidFn>,
@@ -170,7 +172,13 @@ pub struct NativePlugin {
     logs: Mutex<VecDeque<LogEntry>>,
     // Notification of log changes; the content is the plugin id.
     log_changes: broadcast::Sender<String>,
+    // A built-in plugin: called directly instead of through exported functions.
+    builtin: Option<Arc<dyn BuiltinPlugin>>,
+    builtin_ctx: OnceLock<BuiltinContext>,
 }
+
+/// Fingerprint of built-in plugins: they are part of the program and need no confirmation.
+const BUILTIN_FINGERPRINT: &str = "builtin";
 
 impl std::fmt::Debug for NativePlugin {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -204,7 +212,46 @@ impl NativePlugin {
             settings_json: Mutex::new("{}".to_owned()),
             logs: Mutex::new(VecDeque::new()),
             log_changes,
+            builtin: None,
+            builtin_ctx: OnceLock::new(),
         }
+    }
+
+    /// A built-in plugin: always enabled and confirmed.
+    pub(crate) fn new_builtin(
+        manifest: PluginManifest,
+        builtin: Arc<dyn BuiltinPlugin>,
+        log_changes: broadcast::Sender<String>,
+    ) -> Self {
+        let fingerprint = Some(BUILTIN_FINGERPRINT.to_owned());
+        let mut plugin = Self::new(
+            PathBuf::new(),
+            Some(manifest),
+            None,
+            fingerprint.clone(),
+            fingerprint,
+            log_changes,
+        );
+        plugin.builtin = Some(builtin);
+        plugin.set_enabled(true);
+        plugin
+    }
+
+    /// Part of the program (see [`crate::builtin`]): not shown in the plugin list.
+    pub fn is_builtin(&self) -> bool {
+        self.builtin.is_some()
+    }
+
+    // The built-in plugin and its context, once loaded.
+    fn builtin(&self) -> Option<(&dyn BuiltinPlugin, &BuiltinContext)> {
+        Some((self.builtin.as_deref()?, self.builtin_ctx.get()?))
+    }
+
+    /// The call `has` checks can be made: a live DLL plugin that exports it, or a live built-in
+    /// plugin (which implements every callback; what it offers is limited by its manifest).
+    fn supports(&self, has: impl Fn(&Exports) -> bool) -> bool {
+        self.live()
+            .is_some_and(|e| has(e) || self.builtin.is_some())
     }
 
     pub fn directory(&self) -> &Path {
@@ -348,8 +395,8 @@ impl NativePlugin {
     /// Menu items shown in the message context menu.
     pub fn active_message_menus(&self) -> &[PluginMenu] {
         match (&self.manifest, self.live()) {
-            (Some(m), Some(exports))
-                if exports.on_message_menu.is_some()
+            (Some(m), Some(_))
+                if self.supports(|e| e.on_message_menu.is_some())
                     && self.has_permission(permission::READ_MESSAGE) =>
             {
                 &m.message_menus
@@ -361,17 +408,17 @@ impl NativePlugin {
     /// Groups shown in the user profile card / topic profile panel.
     pub fn active_panels(&self) -> &[PluginPanel] {
         match (&self.manifest, self.live()) {
-            (Some(m), Some(exports)) if exports.on_panel.is_some() => &m.panels,
+            (Some(m), Some(_)) if self.supports(|e| e.on_panel.is_some()) => &m.panels,
             _ => &[],
         }
     }
 
     /// Menu items shown in the context menu.
     pub fn active_context_menus(&self, kind: ContextMenuKind) -> &[PluginMenu] {
-        let (Some(m), Some(exports)) = (&self.manifest, self.live()) else {
+        let (Some(m), Some(_)) = (&self.manifest, self.live()) else {
             return &[];
         };
-        if exports.on_context_menu.is_none() {
+        if !self.supports(|e| e.on_context_menu.is_some()) {
             return &[];
         }
         let (menus, needed) = match kind {
@@ -390,8 +437,8 @@ impl NativePlugin {
     /// read_message).
     pub fn active_composer_buttons(&self) -> &[PluginComposerButton] {
         match (&self.manifest, self.live()) {
-            (Some(m), Some(exports))
-                if exports.on_composer_button.is_some()
+            (Some(m), Some(_))
+                if self.supports(|e| e.on_composer_button.is_some())
                     && self.has_permission(permission::READ_MESSAGE) =>
             {
                 &m.composer_buttons
@@ -402,16 +449,16 @@ impl NativePlugin {
 
     /// Usable by buttons in the settings.
     pub fn can_use_settings_buttons(&self) -> bool {
-        self.live().is_some_and(|e| e.on_settings_button.is_some())
+        self.supports(|e| e.on_settings_button.is_some())
     }
 
     pub(crate) fn handles_messages_shown(&self) -> bool {
-        self.live().is_some_and(|e| e.on_messages_shown.is_some())
+        self.supports(|e| e.on_messages_shown.is_some())
             && self.has_permission(permission::READ_MESSAGE)
     }
 
     pub(crate) fn can_provide_resources(&self) -> bool {
-        self.live().is_some_and(|e| e.on_resource_request.is_some())
+        self.supports(|e| e.on_resource_request.is_some())
     }
 
     /// Receives the event: available, the function is exported, the event is declared and the
@@ -505,6 +552,16 @@ impl NativePlugin {
         if self.is_loaded() || !self.is_approved() {
             return;
         }
+        if let Some(builtin) = self.builtin.clone() {
+            let ctx = BuiltinContext {
+                plugin: Arc::downgrade(self),
+                host,
+            };
+            let _ = self.builtin_ctx.set(ctx.clone());
+            let _ = self.exports.set(Exports::default());
+            builtin.init(&ctx);
+            return;
+        }
         match self.try_load(manifest, host) {
             Ok(exports) => {
                 let _ = self.exports.set(exports);
@@ -579,7 +636,9 @@ impl NativePlugin {
     }
 
     pub(crate) fn call_settings_changed(&self) {
-        if let Some(f) = self.exports().and_then(|e| e.on_settings_changed) {
+        if let Some((builtin, ctx)) = self.builtin() {
+            builtin.on_settings_changed(ctx);
+        } else if let Some(f) = self.exports().and_then(|e| e.on_settings_changed) {
             // SAFETY: ABI contract.
             unsafe { f() };
         }
@@ -593,7 +652,9 @@ impl NativePlugin {
     }
 
     pub(crate) fn call_message_menu(&self, menu_id: i32, message: &MessageSnapshot) {
-        if let Some(f) = self.exports().and_then(|e| e.on_message_menu) {
+        if let Some((builtin, ctx)) = self.builtin() {
+            builtin.on_message_menu(ctx, menu_id, &message.builtin());
+        } else if let Some(f) = self.exports().and_then(|e| e.on_message_menu) {
             let mut scope = Scope::default();
             let raw = message.to_raw(&mut scope);
             // SAFETY: the pointers in raw are valid while the scope is alive.
@@ -656,11 +717,31 @@ impl NativePlugin {
     }
 
     pub(crate) fn call_messages_shown(&self, json: &str) {
+        if let Some((builtin, ctx)) = self.builtin() {
+            let value: Value = serde_json::from_str(json).unwrap_or_default();
+            let ids: Vec<i64> = value["messages"]
+                .as_array()
+                .map(|a| a.iter().filter_map(Value::as_i64).collect())
+                .unwrap_or_default();
+            builtin.on_messages_shown(ctx, value["account"].as_i64().unwrap_or(0), &ids);
+            return;
+        }
         Self::call_json(self.exports().and_then(|e| e.on_messages_shown), json);
     }
 
     pub(crate) fn call_settings_button(&self, json: &str) {
+        if let Some((builtin, ctx)) = self.builtin() {
+            builtin.on_settings_button(ctx, &serde_json::from_str(json).unwrap_or_default());
+            return;
+        }
         Self::call_json(self.exports().and_then(|e| e.on_settings_button), json);
+    }
+
+    /// A built-in provider answers a resource request directly, on the caller's thread; `None` for
+    /// DLL plugins (they reply through `reply_resource`).
+    pub(crate) fn builtin_resource_request(&self, request: &Value) -> Option<String> {
+        let (builtin, ctx) = self.builtin()?;
+        Some(builtin.on_resource_request(ctx, request).to_string())
     }
 
     pub(crate) fn call_panel(&self, json: &str) {

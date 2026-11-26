@@ -1,0 +1,23 @@
+[package]
+name = "zulip-builtins"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+zulip-models.workspace = true
+zulip-plugin-host.workspace = true
+zulip-plugin-sdk = { workspace = true, features = ["annotation-store"] }
+log.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+test-server.workspace = true
+tempfile.workspace = true
+tokio.workspace = true
+zulip-core.workspace = true
+zulip-session.workspace = true
+zulip-store.workspace = true

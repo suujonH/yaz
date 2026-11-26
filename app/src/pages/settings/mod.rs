@@ -17,6 +17,7 @@ mod files;
 mod general;
 mod levels;
 mod me;
+mod model_center;
 mod organization;
 mod palette;
 mod plugin_form;
@@ -27,6 +28,7 @@ mod push;
 mod resources;
 mod section_nav;
 mod server;
+mod translation;
 
 use crate::shell::{WindowShell, use_window_args};
 use crate::state::{AppCommand, use_app_command};
@@ -51,6 +53,10 @@ pub enum Page {
     /// Palette.
     Palette,
     Accounts,
+    /// Model center (built in).
+    ModelCenter,
+    /// Translation (built in).
+    Translation,
     Plugins,
     /// Developer mode (debug builds only).
     #[cfg(debug_assertions)]
@@ -248,6 +254,8 @@ const PAGES: &[(Page, &str)] = &[
     (Page::Files, "数据目录"),
     (Page::Palette, "超级调色盘"),
     (Page::Accounts, "Zulip 账号"),
+    (Page::ModelCenter, "模型中心"),
+    (Page::Translation, "翻译"),
     (Page::Plugins, "插件"),
     #[cfg(debug_assertions)]
     (Page::Developer, "开发者模式"),
@@ -326,6 +334,8 @@ fn SettingsRoot() -> Element {
                     Page::Files => rsx! { Scrolled { files::Files {} } },
                     Page::Palette => rsx! { Scrolled { palette::Palette {} } },
                     Page::Accounts => rsx! { accounts::AccountsPanel { place } },
+                    Page::ModelCenter => rsx! { Scrolled { model_center::ModelCenter {} } },
+                    Page::Translation => rsx! { Scrolled { translation::Translation {} } },
                     Page::Plugins => rsx! { Scrolled { plugins::Plugins {} } },
                     #[cfg(debug_assertions)]
                     Page::Developer => rsx! { Scrolled { developer::Developer {} } },

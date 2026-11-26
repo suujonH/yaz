@@ -30,6 +30,7 @@ windows = { workspace = true, features = ["Foundation", "Globalization", "Graphi
 zulip-api.workspace = true
 zulip-core.workspace = true
 zulip-plugin-host.workspace = true
+zulip-builtins.workspace = true
 zulip-session.workspace = true
 zulip-store.workspace = true
 zulip-update.workspace = true

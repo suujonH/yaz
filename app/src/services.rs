@@ -71,6 +71,8 @@ pub fn plugins() -> &'static Arc<PluginHost> {
             runtime: tokio::runtime::Handle::current(),
             dialog_timeout: DIALOG_TIMEOUT,
         });
+        // Model center and translation are part of the program
+        zulip_builtins::register(&host);
         host.attach(&services.hub);
         host
     })

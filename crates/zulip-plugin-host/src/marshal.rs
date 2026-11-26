@@ -202,6 +202,15 @@ pub(crate) struct MessageSnapshot {
 }
 
 impl MessageSnapshot {
+    /// What a built-in plugin receives.
+    pub(crate) fn builtin(&self) -> crate::builtin::BuiltinMessage {
+        crate::builtin::BuiltinMessage {
+            id: self.id,
+            account_id: self.account_id,
+            text: self.text.clone(),
+        }
+    }
+
     /// `None`: the message does not belong to a channel topic or a direct message.
     pub fn new(message: &ChatMessage, session: &Session, historical: bool) -> Option<Self> {
         let mut flags = 0;

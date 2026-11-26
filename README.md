@@ -4,7 +4,8 @@ YaZ（Yet another Zulip）是一个即时通讯风格的 [Zulip](https://zulip.c
 
 - 界面以会话列表为中心：Zulip 的话题（Topic）显示为“群”，频道（Channel）显示为“群分组”。
 - 会话置顶、免打扰、好友分组、备注、下载记录等保存在本地 SQLite。
-- 支持原生 DLL 插件（`sdk/zulip_plugin.h`），内置模型中心、翻译、回复助手三个插件。
+- 内置模型中心（集中管理 AI 模型的 provider 与 API Key）和消息翻译，在设置中各有页面。
+- 支持原生 DLL 插件（`sdk/zulip_plugin.h`），随程序附带回复助手插件；插件可以通过模型中心使用 AI 模型。
 
 ## 许可证
 
@@ -33,7 +34,7 @@ cargo test --workspace
 cargo run -p test-server -- 9991
 ```
 
-编译内置插件（release）并复制到程序的 `plugins` 目录。`plugins/echo` 是示例，不随程序发布：
+编译随程序附带的插件（release）并复制到程序的 `plugins` 目录。`plugins/echo` 是示例，不随程序发布：
 
 ```powershell
 ./tools/build-plugins.ps1 -OutDir target/debug/plugins
@@ -41,7 +42,7 @@ cargo run -p test-server -- 9991
 
 ## 发布
 
-- 推送到 `main` 或提交 PR 时，CI（`.github/workflows/ci.yml`）在 Windows 上运行格式检查、Clippy 和测试；推送到 `main` 时还上传构建产物 `YaZ-win-x64`（`yaz.exe`、`yaz-updater.exe`、内置插件）。
+- 推送到 `main` 或提交 PR 时，CI（`.github/workflows/ci.yml`）在 Windows 上运行格式检查、Clippy 和测试；推送到 `main` 时还上传构建产物 `YaZ-win-x64`（`yaz.exe`、`yaz-updater.exe`、附带的插件）。
 - 推送 `v*` 形式的 tag（例如 `v0.2.0`，必须是语义版本）后，`.github/workflows/release.yml` 把工作区版本改成 tag 的版本，运行测试，用 `tools/pack-release.ps1` 打包，创建 Release，附带 `YaZ-v<版本>-win-x64.zip` 和自动更新清单 `YaZ-update.json`。tag 含 `-` 的是预发布版，不会推送给已安装的程序。
 - 手动运行 release 工作流只生成构建产物，不创建 Release。
 
@@ -74,12 +75,14 @@ cargo run -p test-server -- 9991
 | `crates/zulip-api/` | Zulip REST API 客户端 |
 | `crates/zulip-store/` | 本地存储：SQLite 数据库、设置、数据目录、日志、API key 加密 |
 | `crates/zulip-session/` | 账号会话：事件队列、状态、操作 |
-| `crates/zulip-plugin-host/` | 插件宿主：加载 DLL、权限、事件分发、函数表 |
+| `crates/zulip-plugin-host/` | 插件宿主：加载 DLL、权限、事件分发、函数表，以及内置功能（built-in plugin）的接口 |
+| `crates/zulip-builtins/` | 内置功能：模型中心、翻译 |
+| `crates/zulip-models/` | 模型中心的 AI 接口客户端（Chat Completions、Responses、Claude、Gemini 等） |
 | `crates/zulip-plugin-sdk/` | 用 Rust 写插件的 SDK（ABI 定义和封装） |
 | `crates/zulip-update/` | 自动更新的核心逻辑（版本比较、校验、替换与回滚） |
 | `crates/yaz-updater/` | 独立更新器（bin `yaz-updater`） |
 | `crates/test-server/` | 开发用的假 Zulip 服务器 |
-| `plugins/` | 内置插件 `model-center`、`translator`、`reply-assistant`，示例 `echo` |
+| `plugins/` | 随程序附带的插件 `reply-assistant`，示例 `echo` |
 | `sdk/` | 插件 C 头文件 `zulip_plugin.h`，C 示例 `examples/echo.c` |
 | `tools/` | `build-plugins.ps1` 编译插件、`pack-release.ps1` 打包发布、`check-release-no-devmode.ps1` 确认 Release 不含开发者模式、`gen_icons.ps1` 生成 `app/src/ui/icon_data.rs`、`seed-zulip.ps1` 向测试用 Zulip 服务器写种子数据 |
 

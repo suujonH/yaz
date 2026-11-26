@@ -143,6 +143,7 @@ mod tests {
     fn only_bound_rows_are_gestures() {
         let row = |gesture: &str| ShortcutRow {
             key: String::new(),
+            plugin_id: String::new(),
             title: String::new(),
             is_mouse: false,
             gesture: gesture.to_owned(),

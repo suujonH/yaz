@@ -3916,26 +3916,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "plugin-model-center"
-version = "0.0.10"
-dependencies = [
- "base64 0.22.1",
- "ureq",
- "zulip-plugin-sdk",
-]
-
-[[package]]
 name = "plugin-reply-assistant"
 version = "0.0.10"
 dependencies = [
  "rusqlite",
- "zulip-plugin-sdk",
-]
-
-[[package]]
-name = "plugin-translator"
-version = "0.0.10"
-dependencies = [
  "zulip-plugin-sdk",
 ]
 
@@ -6861,6 +6845,7 @@ dependencies = [
  "windows",
  "winresource",
  "zulip-api",
+ "zulip-builtins",
  "zulip-core",
  "zulip-plugin-host",
  "zulip-session",
@@ -7110,6 +7095,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "zulip-builtins"
+version = "0.0.10"
+dependencies = [
+ "log",
+ "serde_json",
+ "tempfile",
+ "test-server",
+ "tokio",
+ "zulip-core",
+ "zulip-models",
+ "zulip-plugin-host",
+ "zulip-plugin-sdk",
+ "zulip-session",
+ "zulip-store",
+]
+
+[[package]]
 name = "zulip-core"
 version = "0.0.10"
 dependencies = [
@@ -7122,6 +7124,17 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.21",
+]
+
+[[package]]
+name = "zulip-models"
+version = "0.0.10"
+dependencies = [
+ "base64 0.22.1",
+ "log",
+ "serde_json",
+ "ureq",
+ "zulip-plugin-sdk",
 ]
 
 [[package]]

@@ -1,12 +1,11 @@
 //! One provider: a row of the providers setting (name, type, endpoint, api_key, models, headers,
 //! body).
 
-use zulip_plugin_sdk::abi::LOG_WARNING;
+use serde_json::{Map, Value};
 use zulip_plugin_sdk::model_center::{
     CHAT, DECISION, EMBEDDING, IMAGE, RERANK, SPEECH, TRANSCRIPTION,
 };
-use zulip_plugin_sdk::serde_json::{Map, Value};
-use zulip_plugin_sdk::{log, serde_json, str_of};
+use zulip_plugin_sdk::str_of;
 
 pub const CHAT_API: &str = "chat";
 pub const RESPONSES: &str = "responses";
@@ -96,10 +95,7 @@ impl Provider {
             match parsed.as_ref().ok().and_then(Value::as_object) {
                 Some(object) => Some(object.clone()),
                 None => {
-                    log(
-                        LOG_WARNING,
-                        &format!("{name} 的额外 Body 无效，已忽略：不是 JSON 对象"),
-                    );
+                    log::warn!("{name} 的额外 Body 无效，已忽略：不是 JSON 对象");
                     None
                 }
             }
@@ -219,7 +215,7 @@ fn escape(text: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use zulip_plugin_sdk::serde_json::json;
+    use serde_json::json;
 
     use super::*;
 

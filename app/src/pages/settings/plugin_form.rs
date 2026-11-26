@@ -901,6 +901,75 @@ fn PluginSettingsDialog(plugin: PluginRef, answer: Answer<bool>) -> Element {
     }
 }
 
+/// Settings page of a built-in plugin (model center, translation): the same form as a plugin's
+/// settings dialog, shown in the page and saved through the unsaved-changes bar. `extra` is shown
+/// below the form.
+#[component]
+pub fn BuiltinSettings(
+    id: &'static str,
+    #[props(into)] title: String,
+    extra: Option<Element>,
+) -> Element {
+    match plugins().plugin(id).filter(|p| p.is_builtin()) {
+        Some(plugin) => rsx! {
+            BuiltinForm { plugin: PluginRef(plugin), title, extra }
+        },
+        None => rsx! {
+            super::field::SettingsPage { title,
+                SettingCard { SettingRow { label: "此功能未能载入" } }
+            }
+        },
+    }
+}
+
+#[component]
+fn BuiltinForm(plugin: PluginRef, title: String, extra: Option<Element>) -> Element {
+    let overlays = use_overlays();
+    let (initial, first_row) = use_hook(|| {
+        let mut next_row = 0;
+        (initial_values(&plugin.0, &mut next_row), next_row)
+    });
+    let saved = use_signal(|| initial.clone());
+    let values = use_signal(|| initial.clone());
+    let next_row = use_signal(|| first_row);
+    use_context_provider(|| Form {
+        plugin: plugin.0.clone(),
+        values,
+        results: Signal::new(HashMap::new()),
+        candidates: Signal::new(HashMap::new()),
+        items: Signal::new(HashMap::new()),
+        next_row,
+    });
+    let dirty = *values.read() != *saved.read();
+    super::use_dirty(dirty);
+    let (save_plugin, revert_plugin) = (plugin.0.clone(), plugin.0.clone());
+    rsx! {
+        super::field::SettingsPage { title,
+            if let Some(description) = plugin.0.manifest().map(|m| m.description.clone()).filter(|d| !d.is_empty()) {
+                div { class: "text-sub settings-builtin-description", "{description}" }
+            }
+            div { class: "card settings-builtin-form",
+                FormBody { plugin: plugin.clone() }
+            }
+            {extra}
+        }
+        UnsavedBar {
+            visible: dirty,
+            on_save: move |_| {
+                let map = values.peek().as_object().cloned().unwrap_or_default();
+                match plugins().save_settings(&save_plugin, &map) {
+                    Ok(()) => {
+                        reload_form(&save_plugin, saved, values, next_row);
+                        overlays.toast("已保存");
+                    }
+                    Err(error) => overlays.report_error("保存失败", error),
+                }
+            },
+            on_revert: move |_| reload_form(&revert_plugin, saved, values, next_row),
+        }
+    }
+}
+
 /// Opens the plugin settings; returns true after saving.
 pub async fn open_plugin_settings(overlays: Overlays, plugin: Arc<NativePlugin>) -> bool {
     overlays

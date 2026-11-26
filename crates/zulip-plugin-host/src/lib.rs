@@ -2,6 +2,7 @@
 //! [`PluginHost`] and [`PluginEvent`]. The plugins' C ABI is in `sdk/zulip_plugin.h`.
 
 pub mod annotation;
+pub mod builtin;
 mod chain;
 pub mod event;
 pub mod fingerprint;
@@ -21,6 +22,7 @@ pub mod settings;
 pub mod shortcuts;
 mod thread;
 
+pub use builtin::{BuiltinContext, BuiltinMessage, BuiltinPlugin};
 pub use event::PluginEvent;
 pub use host::{
     ActionOutcome, ActionView, AnnotationCard, AnnotationTool, ApprovalInfo, CHAIN_TIMEOUT,

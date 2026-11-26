@@ -1,6 +1,6 @@
-//! Client for the model center. Other plugins declare [`PLUGIN_ID`] in the dependencies of
-//! plugin.json and write the setting item as `{"type": "resource", "plugin": PLUGIN_ID, "resource":
-//! "model"}`; the value is the selected provider and model. Requests are handed to the model center
+//! Client for the model center (built into the program). Plugins declare [`PLUGIN_ID`] in the
+//! dependencies of plugin.json and write the setting item as `{"type": "resource", "plugin":
+//! PLUGIN_ID, "resource": "model"}`; the value is the selected provider and model. Requests are handed to the model center
 //! via the host (the caller never sees the API key). All calls are made on a worker thread and
 //! block until a reply or timeout.
 
@@ -64,9 +64,7 @@ pub fn decide(selection: &Value, state: &Value, questions: &Value) -> Result<Val
 // An error in the reply also counts as a failure.
 fn request(selection: &Value, request: &Value) -> Result<Value, String> {
     let reply = request_resource(selection, request).map_err(|error| match error.0 {
-        abi::ERR_NOT_FOUND => {
-            "选择的模型不可用：请检查模型中心是否开启、模型是否仍在其中".to_owned()
-        }
+        abi::ERR_NOT_FOUND => "选择的模型不可用：请检查模型是否仍在“设置 > 模型中心”中".to_owned(),
         abi::ERR_NETWORK => "等待模型中心回复超时".to_owned(),
         abi::ERR_PERMISSION => format!("plugin.json 的 dependencies 未声明 {PLUGIN_ID}"),
         code => format!("请求失败（{code}）"),

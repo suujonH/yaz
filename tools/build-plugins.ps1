@@ -3,8 +3,9 @@
     Build the built-in plugins (release) and copy them to the program's plugins directory.
 
 .DESCRIPTION
-    plugins/model-center, translator and reply-assistant. Each plugin goes to <OutDir>\<id from plugin.json>\,
-    containing only plugin.json and the DLL. plugins/echo is a sample and is not shipped with the program.
+    plugins/reply-assistant. Each plugin goes to <OutDir>\<id from plugin.json>\, containing only plugin.json
+    and the DLL. plugins/echo is a sample and is not shipped with the program. The model center and translation
+    are built into the program (crates/zulip-builtins).
 
 .EXAMPLE
     ./tools/build-plugins.ps1 -OutDir publish/YaZ/plugins
@@ -17,7 +18,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
-$plugins = @('model-center', 'translator', 'reply-assistant')
+$plugins = @('reply-assistant')
 
 Push-Location $root
 try {
