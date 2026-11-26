@@ -367,7 +367,14 @@ fn ViewerBody() -> Element {
             } = event
                 && *window_id == window.id()
             {
-                if let Some((w, h)) = *chrome.peek() {
+                // Fullscreen (from the button or left with Esc): the title bar and toolbar hide or
+                // come back, so wait for the measurement instead of subtracting what they took
+                let full = window.fullscreen().is_some();
+                if full != *fullscreen.peek() {
+                    fullscreen.set(full);
+                    zoom.write().set_fill(full);
+                    chrome.set(None);
+                } else if let Some((w, h)) = *chrome.peek() {
                     let inner: LogicalSize<f64> = size.to_logical(window.scale_factor());
                     let stage = (inner.width - w, inner.height - h);
                     if stage.0 > 0.0 && stage.1 > 0.0 {
@@ -497,15 +504,24 @@ fn ViewerBody() -> Element {
     });
     let toggle_fullscreen = {
         let window = window.clone();
-        move |_| {
-            let next = !fullscreen();
+        move || {
+            let next = !*fullscreen.peek();
             window.set_fullscreen(next);
-            fullscreen.set(next);
+            if next != *fullscreen.peek() {
+                fullscreen.set(next);
+                zoom.write().set_fill(next);
+                chrome.set(None);
+                resized += 1;
+            }
         }
     };
+    let toggle_fullscreen = use_callback({
+        let mut toggle = toggle_fullscreen;
+        move |()| toggle()
+    });
 
     rsx! {
-        div { class: "viewer",
+        div { class: if fullscreen() { "viewer fullscreen" } else { "viewer" },
             ContextMenuArea {
                 class: "viewer-stage",
                 items: move |()| {
@@ -526,6 +542,10 @@ fn ViewerBody() -> Element {
                         entries.push(MenuEntry::Separator);
                     } else if let Some(all) = all {
                         entries.push(MenuEntry::item("复制图中文字", move || overlays.copy_text(&all)).plain());
+                        entries.push(MenuEntry::Separator);
+                    }
+                    if *fullscreen.peek() {
+                        entries.push(MenuEntry::item("退出全屏", move || toggle_fullscreen.call(())).plain());
                         entries.push(MenuEntry::Separator);
                     }
                     entries.extend([
@@ -621,6 +641,17 @@ fn ViewerBody() -> Element {
                 if tip_visible() {
                     div { class: "viewer-tip", "{percent}%" }
                 }
+                if fullscreen() {
+                    Tooltip { text: "退出全屏（Esc）",
+                        IconButton {
+                            icon: IconName::Close,
+                            size: 36.0,
+                            icon_size: 18.0,
+                            class: "viewer-exit-fullscreen",
+                            onclick: move |_| toggle_fullscreen.call(()),
+                        }
+                    }
+                }
             }
             div { class: "viewer-toolbar",
                 Tooltip { text: "缩小",
@@ -687,7 +718,7 @@ fn ViewerBody() -> Element {
                     IconButton { icon: IconName::OpenExternal, disabled: !ready, onclick: move |_| open_external.call(()) }
                 }
                 Tooltip { text: if fullscreen() { "退出全屏" } else { "全屏" },
-                    IconButton { icon: IconName::Fullscreen, onclick: toggle_fullscreen }
+                    IconButton { icon: IconName::Fullscreen, onclick: move |_| toggle_fullscreen.call(()) }
                 }
                 if count > 1 {
                     span { class: "viewer-count text-sub", "{index() + 1} / {count}" }

@@ -6,6 +6,10 @@ pub const MAX_SCALE: f64 = 10.0;
 /// Each zoom in or out changes the current ratio by 20%.
 const ZOOM_IN: f64 = 1.2;
 const ZOOM_OUT: f64 = 0.8;
+/// Fullscreen: an image whose shape is within this ratio of the screen's fills it edge to edge.
+const NEAR_SHAPE: f64 = 1.15;
+/// Fullscreen: any other image keeps this share of the screen along the side it is limited by.
+const FILL_SHARE: f64 = 0.94;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Zoom {
@@ -19,6 +23,8 @@ pub struct Zoom {
     /// Position of the rotated image's top-left corner in the display area.
     offset: (f64, f64),
     fit: bool,
+    /// Fullscreen: fitting also enlarges small images to fill the screen.
+    fill: bool,
 }
 
 impl Default for Zoom {
@@ -30,6 +36,7 @@ impl Default for Zoom {
             scale: 1.0,
             offset: (0.0, 0.0),
             fit: true,
+            fill: false,
         }
     }
 }
@@ -83,14 +90,31 @@ impl Zoom {
         }
     }
 
+    /// Fullscreen on or off: fitting fills the screen (see [`apply_fit`](Self::apply_fit)), and
+    /// the image is fitted again.
+    pub fn set_fill(&mut self, fill: bool) {
+        self.fill = fill;
+        self.apply_fit();
+    }
+
     /// Fit window: show completely and centered, small images keep their original size.
+    /// Fullscreen: as large as the screen allows; an image close to the screen's shape fills it
+    /// edge to edge, any other keeps some room along the side it is limited by.
     pub fn apply_fit(&mut self) {
         self.fit = true;
         let (w, h) = self.display();
         if w <= 0.0 || h <= 0.0 || self.stage.0 <= 0.0 || self.stage.1 <= 0.0 {
             return;
         }
-        self.scale = (self.stage.0 / w).min(self.stage.1 / h).min(1.0);
+        let (across, down) = (self.stage.0 / w, self.stage.1 / h);
+        let limit = across.min(down);
+        self.scale = if !self.fill {
+            limit.min(1.0)
+        } else if across.max(down) / limit <= NEAR_SHAPE {
+            limit
+        } else {
+            limit * FILL_SHARE
+        };
         self.center();
     }
 
@@ -253,6 +277,24 @@ mod tests {
         let small = zoom((100.0, 100.0), (1000.0, 800.0));
         assert!((small.scale - 1.0).abs() < 1e-9);
         assert_eq!(small.offset(), (450.0, 350.0));
+    }
+
+    #[test]
+    fn fullscreen_fills_the_screen() {
+        let screen = (1920.0, 1080.0);
+        // Close to the screen's shape: edge to edge, small images enlarged too
+        let mut z = zoom((1280.0, 800.0), screen);
+        z.set_fill(true);
+        assert!((z.scale - 1.35).abs() < 1e-9);
+        assert_eq!(z.offset(), (96.0, 0.0));
+        // A tall image keeps some room above and below
+        let mut z = zoom((1000.0, 2000.0), screen);
+        z.set_fill(true);
+        assert!((z.scale - 0.54 * FILL_SHARE).abs() < 1e-9);
+        assert!(z.offset().1 > 0.0);
+        // Leaving fullscreen fits as before
+        z.set_fill(false);
+        assert!((z.scale - 0.54).abs() < 1e-9);
     }
 
     #[test]

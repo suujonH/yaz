@@ -28,7 +28,7 @@ document.addEventListener("keydown", (e) => {
 await new Promise(() => {});
 "#;
 
-/// Esc closes the window; `on_arrow` receives the left/right arrow keys (not forwarded when focus
+/// Esc closes the window (a fullscreen one leaves fullscreen first);`on_arrow` receives the left/right arrow keys (not forwarded when focus
 /// is in the composer).
 pub fn use_window_keys(on_arrow: impl FnMut(ArrowKey) + 'static) {
     let window = use_window();
@@ -39,6 +39,8 @@ pub fn use_window_keys(on_arrow: impl FnMut(ArrowKey) + 'static) {
             let mut eval = document::eval(KEYS_JS);
             while let Ok(key) = eval.recv::<String>().await {
                 match key.as_str() {
+                    // A fullscreen window leaves fullscreen first
+                    "Escape" if window.fullscreen().is_some() => window.set_fullscreen(false),
                     "Escape" => window.close(),
                     "ArrowLeft" => on_arrow.call(ArrowKey::Left),
                     "ArrowRight" => on_arrow.call(ArrowKey::Right),

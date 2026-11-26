@@ -31,3 +31,8 @@
 .viewer-scale { width: 48px; text-align: center; }
 .viewer-separator { width: 1px; height: 20px; margin: 0 8px; background: var(--divider); }
 .viewer-count { margin-left: 12px; }
+/* Fullscreen: only the image, no title bar, resize edges or toolbar */
+.window:has(.viewer.fullscreen) > .caption-bar,
+.window:has(.viewer.fullscreen) > .resize-edge,
+.viewer.fullscreen .viewer-toolbar { display: none; }
+.viewer-exit-fullscreen { position: absolute; top: 12px; right: 12px; border-radius: 50%; background: rgba(0, 0, 0, 0.4); }
